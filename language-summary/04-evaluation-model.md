@@ -409,6 +409,128 @@ addOne: { _< + 1 } // Stored function
 : add-one 1 + ;
 ```
 
+## Operator Syntax, Parsing, and Semantics
+
+This section synthesizes how operators are defined syntactically, parsed by the compiler, and their execution semantics.
+
+### Operator Syntax: Definition Rules
+
+An operator in Left-Right is **always a Map** with specific structural characteristics that distinguish it from ordinary data maps:
+
+```
+[left-right]
+// Operator syntax patterns
+{ _<, expression }         // Left-hungry unary operator
+{ expression, _> }          // Right-hungry unary operator  
+{ _<, expression, _> }       // Binary operator (both arguments)
+{ expression }                // Map that IS an operator (single element, no : key)
+{ step1: {...}, result: step1.transform }  // Multi-step operator definition
+```
+
+**Operator Definition Criteria:**
+1. **Map structure** — All operators are Maps at their core
+2. **Directional placeholder** — Must contain `_<` and/or `_>` to be diatic
+3. **Expression body** — Last or only element must be an expression (not a `:`-keyed assignment)
+4. **No `:` in final element** — If the last element has no `:` key, the entire Map is an operator
+
+```
+[left-right]
+// This is a map (NOT an operator) — final element has : key
+{ a: 1, b: 2, result: a + b }
+
+// This IS an operator — final element is expression (no : key)
+{ a: 1, b: 2, a + b }  // When applied, a+b evaluates with context
+```
+
+### Operator Parsing: How the Compiler Recognizes Operators
+
+The Left-Right parser identifies operators through **structural analysis** of Maps:
+
+**Parsing Algorithm:**
+1. **Read as Map** — Initially parse any `{ ... }` as a Map
+2. **Check final element** — Does the last element have a `:` key separator?
+   - **YES** → This is a data Map (stores values)
+   - **NO** → This is an operator (defines behavior)
+3. **Detect directional placeholders** — Scan for `_<` and `_>` in the Map:
+   - **Found `_<`** → Left-hungry operator (curries left argument)
+   - **Found `_>`** → Right-hungry operator (curries right argument)
+   - **Both found** → Binary operator (requires both sides)
+4. **Build operator signature** — Determine arity and argument binding from placeholders
+
+```
+[left-right]
+// Parse: Map → Check final element → No : → Contains _< → Left-hungry operator
+double: { _<, value * 2 }
+// Parsed as: Unary operator expecting left argument
+
+// Parse: Map → Check final element → No : → Contains _> → Right-hungry operator  
+halve: { _>, value / 2 }
+// Parsed as: Unary operator expecting right argument
+
+// Parse: Map → Check final element → No : → Contains _< and _> → Binary operator
+add: { _<, left + right, _> }
+// Parsed as: Binary operator expecting left and right arguments
+```
+
+### Operator Semantics: Type-Dependent Execution
+
+Once parsed and applied, operators execute with **type-dependent semantics**:
+
+**Semantics Rules:**
+1. **Identity elements disappear** — `0` for addition, `` (empty) for concatenation, `[]` (empty list) wraps
+2. **Type coercion** — Operands coerce to compatible types based on operator rules
+3. **Dynamic dispatch** — Same operator symbol uses different implementations per type combination
+4. **Truthy/falsy logic** — No Boolean type; all values evaluate as truthy or falsy contextually
+
+```
+[left-right]
+// + operator semantics table (full hierarchy in 13-operator-overloading-hierarchy.md)
+Text + Text    → Concatenation (`Hello ` + ` World` → `Hello World`)
+Number + Number → Addition (`3 + 4` → `7`)
+List + List    → Concatenation (`[1,2] + [3,4]` → `[1,2,3,4]`)
+
+// Identity behavior
+1 + undefined → 1          // undefined disappears (0 identity for +)
+`text` + `` → `text`         // empty text disappears (identity for concatenation)
+undefined + [] → []            // undefined disappears, list wraps
+```
+
+**Operator Application Sequence:**
+```
+1. **Parse operator definition** (structural analysis of Map)
+2. **Bind directional arguments** (apply left-hungry to left value, right-hungry to right)
+3. **Type-identify operands** (runtime type check)
+4. **Select semantic implementation** (dispatch to appropriate behavior)
+5. **Execute** (compute result)
+6. **Return** (result feeds into next LTR operation)
+```
+
+### Common Parsing Patterns
+
+**Whitespace Insensitivity:**
+```
+[left-right]
+// All equivalent — whitespace around operators is optional
+value operator value
+value operator value
+value operator    value
+```
+
+**Implicit vs Explicit Currying:**
+```
+[left-right]
+// Implicit: binary form expects both sides
+{ _<, left + right, _> }
+
+// Explicit: can call with single side for partial application
+increment: { _<, + 1 }
+5 increment  // Applies left=5, right=1 bound
+
+// Right-hungry partial application
+decrement: { _>, - 1 }
+decrement 10  // Applies left=undefined, right=10
+```
+
 ## Design Principles Summary
 
 1. **Deterministic LTR Evaluation** — Same order, same result, always

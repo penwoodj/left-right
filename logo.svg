@@ -1,27 +1,50 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100" width="400" height="100">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 120" width="420" height="120">
   <defs>
-    <linearGradient id="flowGradient" x1="0%" y1="50%" x2="100%" y2="50%">
-      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#8B5CF6;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#EC4899;stop-opacity:1" />
+    <!-- Left gradient: opens to left input -->
+    <linearGradient id="leftGradient" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" style="stop-color:#2563EB;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#06B6D4;stop-opacity:1" />
     </linearGradient>
+    
+    <!-- Right gradient: from right input to close -->
+    <linearGradient id="rightGradient" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" style="stop-color:#0891B2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF6B6B;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Subtle glow -->
     <filter id="glow" x="-10%" y="-10%" width="120%" height="120%">
       <feGaussianBlur stdDeviation="1.5" result="blur" />
       <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
   </defs>
-
-  <!-- Subtle flow lines -->
-  <g opacity="0.12">
-    <line x1="20" y1="25" x2="100" y2="25" stroke="#3B82F6" stroke-width="1" />
-    <line x1="300" y1="75" x2="380" y2="75" stroke="#EC4899" stroke-width="1" />
+  
+  <!-- Subtle background flow lines -->
+  <g opacity="0.1">
+    <line x1="30" y1="30" x2="130" y2="30" stroke="#2563EB" stroke-width="1" />
+    <line x1="290" y1="90" x2="390" y2="90" stroke="#FF6B6B" stroke-width="1" />
   </g>
-
-  <!-- Main logo text: {_<_>} -->
-  <text x="200" y="72" text-anchor="middle" font-family="'Courier New', 'Fira Code', 'JetBrains Mono', monospace" font-size="64" font-style="italic" font-weight="bold" fill="url(#flowGradient)" filter="url(#glow)">
-    {_&lt;_&gt;}
+  
+  <!-- Logo text: {_<_>} with gradient transitions -->
+  <!-- Each element has its own gradient that merges visually -->
+  <text x="210" y="82" text-anchor="middle" font-family="'JetBrains Mono', 'Fira Code', 'Source Code Pro', monospace" font-size="72" font-style="italic" font-weight="600" letter-spacing="0">
+    
+    <!-- { - left bracket, left gradient -->
+    <tspan fill="url(#leftGradient)" filter="url(#glow)">{</tspan>
+    
+    <!-- _< - left input operator, left gradient -->
+    <tspan fill="url(#leftGradient)" dx="2">_</tspan>
+    <tspan fill="url(#leftGradient)" dx="3">&lt;</tspan>
+    
+    <!-- _> - right input operator, right gradient (distinct color) -->
+    <tspan fill="url(#rightGradient)" dx="3">_</tspan>
+    <tspan fill="url(#rightGradient)">&gt;</tspan>
+    
+    <!-- } - right bracket, right gradient (merges from right) -->
+    <tspan fill="url(#rightGradient)" dx="2">}</tspan>
+    
   </text>
-
+  
   <!-- Subtle underline -->
-  <line x1="120" y1="84" x2="280" y2="84" stroke="url(#flowGradient)" stroke-width="1.5" stroke-linecap="round" opacity="0.5" />
+  <line x1="125" y1="95" x2="295" y2="95" stroke="url(#rightGradient)" stroke-width="1.5" stroke-linecap="round" opacity="0.4" />
 </svg>
