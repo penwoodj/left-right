@@ -1,0 +1,24 @@
+{
+  "total_tasks": 210,
+  "by_domain": {
+    "Other": 132,
+    "File I/O": 6,
+    "Games": 11,
+    "Classic CS problems": 2,
+    "Date and time": 5,
+    "Data Structures": 21,
+    "Graphics": 7,
+    "Text Processing": 11,
+    "Arithmetic": 11,
+    "Encryption": 2,
+    "System": 1,
+    "Concurrency": 1
+  },
+  "task_list_sample": [
+    "Common Lisp",
+    "Common Lisp compared to other languages",
+    "Lisp",
+    "ANSI",
+    "open source"
+  ]
+}

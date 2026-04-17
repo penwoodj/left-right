@@ -1,0 +1,25 @@
+{
+  "total_tasks": 202,
+  "by_domain": {
+    "Other": 142,
+    "Games": 7,
+    "Data Structures": 16,
+    "Text Processing": 8,
+    "Arithmetic": 11,
+    "Classic CS problems": 1,
+    "Graphics": 2,
+    "Encryption": 1,
+    "File I/O": 8,
+    "System": 2,
+    "Concurrency": 1,
+    "Date and time": 1,
+    "Database": 2
+  },
+  "task_list_sample": [
+    "Elixir",
+    "100 doors",
+    "100 prisoners",
+    "2048",
+    "24 game"
+  ]
+}

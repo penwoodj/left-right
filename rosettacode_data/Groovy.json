@@ -1,0 +1,24 @@
+{
+  "total_tasks": 212,
+  "by_domain": {
+    "Other": 148,
+    "GUI": 1,
+    "Games": 5,
+    "Date and time": 5,
+    "Text Processing": 11,
+    "Data Structures": 14,
+    "Arithmetic": 12,
+    "Encryption": 3,
+    "Classic CS problems": 1,
+    "File I/O": 8,
+    "System": 3,
+    "Concurrency": 1
+  },
+  "task_list_sample": [
+    "Groovy",
+    "Groovy compared to other languages",
+    "object-oriented",
+    "Java",
+    "Python"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "total_tasks": 207,
+  "by_domain": {
+    "Other": 138,
+    "Games": 11,
+    "File I/O": 4,
+    "Classic CS problems": 3,
+    "Date and time": 4,
+    "Data Structures": 17,
+    "Graphics": 8,
+    "Text Processing": 5,
+    "Database": 1,
+    "Arithmetic": 12,
+    "Encryption": 2,
+    "System": 1,
+    "Concurrency": 1
+  },
+  "task_list_sample": [
+    "Scala",
+    "Scala compared to other languages",
+    "Functional",
+    "JVM",
+    "bytecode"
+  ]
+}

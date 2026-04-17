@@ -1,0 +1,23 @@
+{
+  "total_tasks": 209,
+  "by_domain": {
+    "Other": 148,
+    "System": 2,
+    "Games": 8,
+    "Classic CS problems": 4,
+    "Date and time": 3,
+    "Encryption": 5,
+    "Graphics": 4,
+    "Text Processing": 7,
+    "Data Structures": 17,
+    "Arithmetic": 9,
+    "File I/O": 2
+  },
+  "task_list_sample": [
+    "JavaScript",
+    "JavaScript compared to other languages",
+    "ECMAScript standard",
+    "Java",
+    "Self"
+  ]
+}

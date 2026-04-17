@@ -1,0 +1,25 @@
+{
+  "total_tasks": 206,
+  "by_domain": {
+    "Other": 141,
+    "Games": 6,
+    "Text Processing": 10,
+    "Data Structures": 19,
+    "Arithmetic": 13,
+    "Date and time": 2,
+    "Classic CS problems": 1,
+    "Graphics": 3,
+    "Encryption": 1,
+    "File I/O": 5,
+    "System": 2,
+    "Concurrency": 1,
+    "Database": 2
+  },
+  "task_list_sample": [
+    "Scheme",
+    "Scheme compared to other languages",
+    "Lisp",
+    "functional programming",
+    "IEEE"
+  ]
+}

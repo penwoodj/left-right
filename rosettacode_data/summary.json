@@ -1,0 +1,22 @@
+{
+  "total_languages": 26,
+  "languages_with_tasks": 25,
+  "total_tasks_across_all_languages": 4851,
+  "top_domains": {
+    "Other": 3322,
+    "Games": 171,
+    "Graphics": 179,
+    "Classic CS problems": 70,
+    "File I/O": 89,
+    "Date and time": 92,
+    "Encryption": 69,
+    "Data Structures": 379,
+    "Text Processing": 180,
+    "Database": 16,
+    "Arithmetic": 234,
+    "System": 31,
+    "Concurrency": 14,
+    "Math": 4,
+    "GUI": 1
+  }
+}

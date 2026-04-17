@@ -1,0 +1,24 @@
+{
+  "total_tasks": 207,
+  "by_domain": {
+    "Other": 135,
+    "Games": 4,
+    "Data Structures": 23,
+    "Graphics": 6,
+    "Arithmetic": 13,
+    "Date and time": 4,
+    "Classic CS problems": 1,
+    "Encryption": 1,
+    "File I/O": 6,
+    "System": 3,
+    "Concurrency": 1,
+    "Text Processing": 10
+  },
+  "task_list_sample": [
+    "Clojure",
+    "Clojure compared to other languages",
+    "Java Virtual Machine",
+    "bytecode",
+    "Java"
+  ]
+}

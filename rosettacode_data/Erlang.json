@@ -1,0 +1,25 @@
+{
+  "total_tasks": 206,
+  "by_domain": {
+    "Other": 136,
+    "System": 6,
+    "Games": 2,
+    "File I/O": 8,
+    "Data Structures": 21,
+    "Database": 1,
+    "Arithmetic": 9,
+    "Date and time": 5,
+    "Classic CS problems": 2,
+    "Text Processing": 10,
+    "Graphics": 4,
+    "Encryption": 1,
+    "Concurrency": 1
+  },
+  "task_list_sample": [
+    "Erlang",
+    "Erlang compared to other languages",
+    "operating system",
+    "processes",
+    "memory management"
+  ]
+}

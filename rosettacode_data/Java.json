@@ -1,0 +1,24 @@
+{
+  "total_tasks": 218,
+  "by_domain": {
+    "Other": 155,
+    "System": 1,
+    "Games": 8,
+    "Classic CS problems": 4,
+    "File I/O": 1,
+    "Date and time": 4,
+    "Encryption": 4,
+    "Data Structures": 13,
+    "Graphics": 10,
+    "Text Processing": 7,
+    "Database": 1,
+    "Arithmetic": 10
+  },
+  "task_list_sample": [
+    "Java",
+    "Java compared to other languages",
+    "Sun Microsystems",
+    "compiled",
+    "bytecode"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "total_tasks": 203,
+  "by_domain": {
+    "Other": 145,
+    "Games": 3,
+    "Classic CS problems": 3,
+    "Date and time": 7,
+    "Data Structures": 17,
+    "Text Processing": 10,
+    "Arithmetic": 11,
+    "Encryption": 2,
+    "File I/O": 1,
+    "System": 2,
+    "Concurrency": 1,
+    "Graphics": 1
+  },
+  "task_list_sample": [
+    "Swift",
+    "Swift compared to other languages",
+    "100 doors",
+    "100 prisoners",
+    "24 game"
+  ]
+}

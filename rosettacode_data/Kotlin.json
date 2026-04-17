@@ -1,0 +1,25 @@
+{
+  "total_tasks": 203,
+  "by_domain": {
+    "Other": 134,
+    "Games": 8,
+    "Classic CS problems": 4,
+    "File I/O": 4,
+    "Date and time": 5,
+    "Data Structures": 17,
+    "Graphics": 11,
+    "Text Processing": 4,
+    "Database": 1,
+    "Arithmetic": 9,
+    "Encryption": 4,
+    "System": 1,
+    "Concurrency": 1
+  },
+  "task_list_sample": [
+    "Kotlin",
+    "Java Virtual Machine",
+    "100 doors",
+    "100 prisoners",
+    "10001th prime"
+  ]
+}

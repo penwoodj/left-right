@@ -1,0 +1,21 @@
+{
+  "total_tasks": 67,
+  "by_domain": {
+    "Other": 54,
+    "Arithmetic": 2,
+    "Data Structures": 4,
+    "Encryption": 2,
+    "Math": 1,
+    "File I/O": 1,
+    "Date and time": 1,
+    "Classic CS problems": 1,
+    "Text Processing": 1
+  },
+  "task_list_sample": [
+    "TypeScript",
+    "TypeScript compared to other languages",
+    "JavaScript",
+    "object-oriented programming language",
+    "Delphi"
+  ]
+}

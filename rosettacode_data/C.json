@@ -1,0 +1,23 @@
+{
+  "total_tasks": 217,
+  "by_domain": {
+    "Other": 155,
+    "Games": 9,
+    "Classic CS problems": 3,
+    "File I/O": 4,
+    "Graphics": 12,
+    "Text Processing": 5,
+    "Data Structures": 12,
+    "Database": 1,
+    "Arithmetic": 9,
+    "Date and time": 4,
+    "Encryption": 3
+  },
+  "task_list_sample": [
+    "C compared to other languages",
+    "procedural",
+    "imperative",
+    "Bell Telephone Laboratories",
+    "UNIX"
+  ]
+}

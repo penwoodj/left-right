@@ -1,0 +1,25 @@
+{
+  "total_tasks": 203,
+  "by_domain": {
+    "Other": 150,
+    "Data Structures": 15,
+    "Games": 3,
+    "Date and time": 1,
+    "Arithmetic": 5,
+    "Classic CS problems": 7,
+    "Graphics": 1,
+    "Encryption": 1,
+    "File I/O": 3,
+    "System": 3,
+    "Concurrency": 1,
+    "Text Processing": 10,
+    "Math": 3
+  },
+  "task_list_sample": [
+    "CoffeeScript",
+    "associative array",
+    "100 doors",
+    "24 game",
+    "24 game/Solve"
+  ]
+}

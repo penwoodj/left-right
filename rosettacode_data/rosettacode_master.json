@@ -1,0 +1,737 @@
+{
+  "metadata": {
+    "source": "Rosetta Code",
+    "target_languages": 26,
+    "extracted_at": "2026-04-15 21:53:00"
+  },
+  "categories": {
+    "Arithmetic": {
+      "url": "https://rosettacode.org/wiki/Category:Arithmetic",
+      "task_count": 2,
+      "tasks_sample": [
+        "Arithmetic/Integer",
+        "Arithmetic/Rational",
+        "Averages/Arithmetic mean",
+        "Ethiopian multiplication",
+        "Exponentiation operator",
+        "Factorial",
+        "Factors of a Mersenne number",
+        "Fibonacci sequence",
+        "Numerical integration",
+        "Numerical integration/Gauss-Legendre Quadrature",
+        "Numerical integration/Romberg integration",
+        "Numerical integration/Tanh-Sinh Quadrature",
+        "Category"
+      ],
+      "domain": "Arithmetic"
+    },
+    "Data Structures": {
+      "url": "https://rosettacode.org/wiki/Category:Data%20Structures",
+      "task_count": 32,
+      "tasks_sample": [
+        "Array",
+        "Array concatenation",
+        "Associative array",
+        "Associative array/Creation",
+        "Associative array/Iteration",
+        "AVL tree",
+        "Collections",
+        "Compound data type",
+        "Create a two-dimensional array at runtime",
+        "Doubly-linked list/Definition",
+        "Doubly-linked list/Element definition",
+        "Doubly-linked list/Element insertion",
+        "Doubly-linked list/Traversal",
+        "Hash from two arrays",
+        "JSON"
+      ],
+      "domain": "Data Structures"
+    },
+    "Classic CS problems": {
+      "url": "https://rosettacode.org/wiki/Category:Classic%20CS%20problems",
+      "task_count": 2,
+      "tasks_sample": [
+        "search for this page title",
+        "Banker&#039;s algorithm",
+        "Dijkstra&#039;s algorithm"
+      ],
+      "domain": "Other"
+    },
+    "Sorting": {
+      "url": "https://rosettacode.org/wiki/Category:Sorting",
+      "task_count": 47,
+      "tasks_sample": [
+        "sorting",
+        "Averages/Median",
+        "Common sorted list",
+        "Compare sorting algorithms&#039; performance",
+        "Decorate-sort-undecorate idiom",
+        "External sort",
+        "JortSort",
+        "Natural sorting",
+        "Optional parameters",
+        "Order by pair comparisons",
+        "Order disjoint list items",
+        "Quickselect algorithm",
+        "Ranking methods",
+        "Remove duplicate elements",
+        "Sort a list of object identifiers"
+      ],
+      "domain": "Classic CS problems"
+    },
+    "Encryption": {
+      "url": "https://rosettacode.org/wiki/Category:Encryption",
+      "task_count": 14,
+      "tasks_sample": [
+        "ADFGVX cipher",
+        "Bacon cipher",
+        "Bifid cipher",
+        "Caesar cipher",
+        "Main step of GOST 28147-89",
+        "One-time pad",
+        "Playfair cipher",
+        "Rot-13",
+        "RSA code",
+        "Straddling checkerboard",
+        "Substitution cipher",
+        "The ISAAC cipher",
+        "Vigenère cipher",
+        "Vigenère cipher/Cryptanalysis",
+        "Categories"
+      ],
+      "domain": "Encryption"
+    }
+  },
+  "languages": {
+    "Python": {
+      "total_tasks": 205,
+      "by_domain": {
+        "Other": 140,
+        "Games": 8,
+        "Graphics": 13,
+        "Classic CS problems": 4,
+        "File I/O": 1,
+        "Date and time": 4,
+        "Encryption": 4,
+        "Data Structures": 13,
+        "Text Processing": 7,
+        "Database": 1,
+        "Arithmetic": 10
+      },
+      "task_list_sample": [
+        "Python",
+        "Python compared to other languages",
+        "bytecode",
+        "Tasks_not_implemented_in_Python",
+        "100 doors"
+      ]
+    },
+    "JavaScript": {
+      "total_tasks": 209,
+      "by_domain": {
+        "Other": 148,
+        "System": 2,
+        "Games": 8,
+        "Classic CS problems": 4,
+        "Date and time": 3,
+        "Encryption": 5,
+        "Graphics": 4,
+        "Text Processing": 7,
+        "Data Structures": 17,
+        "Arithmetic": 9,
+        "File I/O": 2
+      },
+      "task_list_sample": [
+        "JavaScript",
+        "JavaScript compared to other languages",
+        "ECMAScript standard",
+        "Java",
+        "Self"
+      ]
+    },
+    "ALGOL": {
+      "total_tasks": 9,
+      "by_domain": {
+        "Other": 9
+      },
+      "task_list_sample": [
+        "ALGOL",
+        "ALGOL 60",
+        "ALGOL 68",
+        "ALGOL-M",
+        "ALGOL W"
+      ]
+    },
+    "Ruby": {
+      "total_tasks": 212,
+      "by_domain": {
+        "Other": 142,
+        "Games": 7,
+        "File I/O": 4,
+        "Classic CS problems": 3,
+        "Date and time": 5,
+        "Graphics": 12,
+        "Text Processing": 7,
+        "Data Structures": 18,
+        "Arithmetic": 8,
+        "Encryption": 4,
+        "System": 1,
+        "Concurrency": 1
+      },
+      "task_list_sample": [
+        "Ruby",
+        "Ruby compared to other languages",
+        "object-oriented",
+        "Platform",
+        "Perl"
+      ]
+    },
+    "Haskell": {
+      "total_tasks": 210,
+      "by_domain": {
+        "Other": 139,
+        "Games": 8,
+        "Classic CS problems": 4,
+        "File I/O": 4,
+        "Data Structures": 20,
+        "Graphics": 9,
+        "Text Processing": 7,
+        "Arithmetic": 10,
+        "Date and time": 3,
+        "Encryption": 4,
+        "System": 1,
+        "Concurrency": 1
+      },
+      "task_list_sample": [
+        "Haskell",
+        "Haskell compared to other languages",
+        "functional programming",
+        "lazy",
+        "Perl 6"
+      ]
+    },
+    "OCaml": {
+      "total_tasks": 213,
+      "by_domain": {
+        "Other": 137,
+        "Games": 8,
+        "Classic CS problems": 2,
+        "Data Structures": 21,
+        "Text Processing": 10,
+        "Arithmetic": 11,
+        "Date and time": 2,
+        "Graphics": 13,
+        "Encryption": 1,
+        "File I/O": 6,
+        "System": 1,
+        "Concurrency": 1
+      },
+      "task_list_sample": [
+        "OCaml",
+        "OCaml compared to other languages",
+        "Caml",
+        "programming language",
+        "open source"
+      ]
+    },
+    "Clojure": {
+      "total_tasks": 207,
+      "by_domain": {
+        "Other": 135,
+        "Games": 4,
+        "Data Structures": 23,
+        "Graphics": 6,
+        "Arithmetic": 13,
+        "Date and time": 4,
+        "Classic CS problems": 1,
+        "Encryption": 1,
+        "File I/O": 6,
+        "System": 3,
+        "Concurrency": 1,
+        "Text Processing": 10
+      },
+      "task_list_sample": [
+        "Clojure",
+        "Clojure compared to other languages",
+        "Java Virtual Machine",
+        "bytecode",
+        "Java"
+      ]
+    },
+    "CoffeeScript": {
+      "total_tasks": 203,
+      "by_domain": {
+        "Other": 150,
+        "Data Structures": 15,
+        "Games": 3,
+        "Date and time": 1,
+        "Arithmetic": 5,
+        "Classic CS problems": 7,
+        "Graphics": 1,
+        "Encryption": 1,
+        "File I/O": 3,
+        "System": 3,
+        "Concurrency": 1,
+        "Text Processing": 10,
+        "Math": 3
+      },
+      "task_list_sample": [
+        "CoffeeScript",
+        "associative array",
+        "100 doors",
+        "24 game",
+        "24 game/Solve"
+      ]
+    },
+    "Groovy": {
+      "total_tasks": 212,
+      "by_domain": {
+        "Other": 148,
+        "GUI": 1,
+        "Games": 5,
+        "Date and time": 5,
+        "Text Processing": 11,
+        "Data Structures": 14,
+        "Arithmetic": 12,
+        "Encryption": 3,
+        "Classic CS problems": 1,
+        "File I/O": 8,
+        "System": 3,
+        "Concurrency": 1
+      },
+      "task_list_sample": [
+        "Groovy",
+        "Groovy compared to other languages",
+        "object-oriented",
+        "Java",
+        "Python"
+      ]
+    },
+    "Wren": {
+      "total_tasks": 206,
+      "by_domain": {
+        "Other": 139,
+        "Games": 9,
+        "Graphics": 13,
+        "Classic CS problems": 4,
+        "File I/O": 1,
+        "Date and time": 5,
+        "Encryption": 4,
+        "Data Structures": 13,
+        "Text Processing": 7,
+        "Database": 1,
+        "Arithmetic": 10
+      },
+      "task_list_sample": [
+        "Wren",
+        "object-oriented",
+        "programming language",
+        "PureFox",
+        "Tasks not implemented in Wren"
+      ]
+    },
+    "Elixir": {
+      "total_tasks": 202,
+      "by_domain": {
+        "Other": 142,
+        "Games": 7,
+        "Data Structures": 16,
+        "Text Processing": 8,
+        "Arithmetic": 11,
+        "Classic CS problems": 1,
+        "Graphics": 2,
+        "Encryption": 1,
+        "File I/O": 8,
+        "System": 2,
+        "Concurrency": 1,
+        "Date and time": 1,
+        "Database": 2
+      },
+      "task_list_sample": [
+        "Elixir",
+        "100 doors",
+        "100 prisoners",
+        "2048",
+        "24 game"
+      ]
+    },
+    "Rust": {
+      "total_tasks": 203,
+      "by_domain": {
+        "Other": 143,
+        "Games": 9,
+        "Classic CS problems": 3,
+        "File I/O": 4,
+        "Encryption": 5,
+        "Data Structures": 13,
+        "Graphics": 7,
+        "Text Processing": 5,
+        "Database": 1,
+        "Arithmetic": 9,
+        "Date and time": 4
+      },
+      "task_list_sample": [
+        "Rust",
+        "Tasks_not_implemented_in_Rust",
+        "100 doors",
+        "100 prisoners",
+        "10001th prime"
+      ]
+    },
+    "Java": {
+      "total_tasks": 218,
+      "by_domain": {
+        "Other": 155,
+        "System": 1,
+        "Games": 8,
+        "Classic CS problems": 4,
+        "File I/O": 1,
+        "Date and time": 4,
+        "Encryption": 4,
+        "Data Structures": 13,
+        "Graphics": 10,
+        "Text Processing": 7,
+        "Database": 1,
+        "Arithmetic": 10
+      },
+      "task_list_sample": [
+        "Java",
+        "Java compared to other languages",
+        "Sun Microsystems",
+        "compiled",
+        "bytecode"
+      ]
+    },
+    "C": {
+      "total_tasks": 217,
+      "by_domain": {
+        "Other": 155,
+        "Games": 9,
+        "Classic CS problems": 3,
+        "File I/O": 4,
+        "Graphics": 12,
+        "Text Processing": 5,
+        "Data Structures": 12,
+        "Database": 1,
+        "Arithmetic": 9,
+        "Date and time": 4,
+        "Encryption": 3
+      },
+      "task_list_sample": [
+        "C compared to other languages",
+        "procedural",
+        "imperative",
+        "Bell Telephone Laboratories",
+        "UNIX"
+      ]
+    },
+    "C++": {
+      "total_tasks": 210,
+      "by_domain": {
+        "Other": 152,
+        "Graphics": 6,
+        "Games": 8,
+        "Classic CS problems": 3,
+        "Date and time": 4,
+        "Encryption": 5,
+        "Data Structures": 13,
+        "Text Processing": 7,
+        "Database": 1,
+        "Arithmetic": 9,
+        "File I/O": 2
+      },
+      "task_list_sample": [
+        "C++",
+        "C++ compared to other languages",
+        "object-oriented language",
+        "object-oriented programming",
+        "procedural programming"
+      ]
+    },
+    "Go": {
+      "total_tasks": 203,
+      "by_domain": {
+        "Other": 137,
+        "Games": 9,
+        "Classic CS problems": 4,
+        "File I/O": 1,
+        "Date and time": 5,
+        "Encryption": 4,
+        "Data Structures": 13,
+        "Graphics": 12,
+        "Text Processing": 7,
+        "Database": 1,
+        "Arithmetic": 10
+      },
+      "task_list_sample": [
+        "Go compared to other languages",
+        "Tasks not implemented in Go",
+        "100 doors",
+        "100 prisoners",
+        "10001th prime"
+      ]
+    },
+    "Swift": {
+      "total_tasks": 203,
+      "by_domain": {
+        "Other": 145,
+        "Games": 3,
+        "Classic CS problems": 3,
+        "Date and time": 7,
+        "Data Structures": 17,
+        "Text Processing": 10,
+        "Arithmetic": 11,
+        "Encryption": 2,
+        "File I/O": 1,
+        "System": 2,
+        "Concurrency": 1,
+        "Graphics": 1
+      },
+      "task_list_sample": [
+        "Swift",
+        "Swift compared to other languages",
+        "100 doors",
+        "100 prisoners",
+        "24 game"
+      ]
+    },
+    "Kotlin": {
+      "total_tasks": 203,
+      "by_domain": {
+        "Other": 134,
+        "Games": 8,
+        "Classic CS problems": 4,
+        "File I/O": 4,
+        "Date and time": 5,
+        "Data Structures": 17,
+        "Graphics": 11,
+        "Text Processing": 4,
+        "Database": 1,
+        "Arithmetic": 9,
+        "Encryption": 4,
+        "System": 1,
+        "Concurrency": 1
+      },
+      "task_list_sample": [
+        "Kotlin",
+        "Java Virtual Machine",
+        "100 doors",
+        "100 prisoners",
+        "10001th prime"
+      ]
+    },
+    "Scala": {
+      "total_tasks": 207,
+      "by_domain": {
+        "Other": 138,
+        "Games": 11,
+        "File I/O": 4,
+        "Classic CS problems": 3,
+        "Date and time": 4,
+        "Data Structures": 17,
+        "Graphics": 8,
+        "Text Processing": 5,
+        "Database": 1,
+        "Arithmetic": 12,
+        "Encryption": 2,
+        "System": 1,
+        "Concurrency": 1
+      },
+      "task_list_sample": [
+        "Scala",
+        "Scala compared to other languages",
+        "Functional",
+        "JVM",
+        "bytecode"
+      ]
+    },
+    "TypeScript": {
+      "total_tasks": 67,
+      "by_domain": {
+        "Other": 54,
+        "Arithmetic": 2,
+        "Data Structures": 4,
+        "Encryption": 2,
+        "Math": 1,
+        "File I/O": 1,
+        "Date and time": 1,
+        "Classic CS problems": 1,
+        "Text Processing": 1
+      },
+      "task_list_sample": [
+        "TypeScript",
+        "TypeScript compared to other languages",
+        "JavaScript",
+        "object-oriented programming language",
+        "Delphi"
+      ]
+    },
+    "Julia": {
+      "total_tasks": 204,
+      "by_domain": {
+        "Other": 137,
+        "Games": 9,
+        "Graphics": 13,
+        "Classic CS problems": 4,
+        "File I/O": 1,
+        "Date and time": 5,
+        "Encryption": 4,
+        "Data Structures": 13,
+        "Text Processing": 7,
+        "Database": 1,
+        "Arithmetic": 10
+      },
+      "task_list_sample": [
+        "Julia",
+        "MATLAB",
+        "Tasks_not_implemented_in_Julia",
+        "100 doors",
+        "100 prisoners"
+      ]
+    },
+    "Racket": {
+      "total_tasks": 206,
+      "by_domain": {
+        "Other": 134,
+        "Games": 11,
+        "Classic CS problems": 2,
+        "File I/O": 4,
+        "Data Structures": 16,
+        "Graphics": 12,
+        "Text Processing": 7,
+        "Database": 1,
+        "Arithmetic": 11,
+        "Date and time": 4,
+        "Encryption": 2,
+        "System": 1,
+        "Concurrency": 1
+      },
+      "task_list_sample": [
+        "Racket",
+        "RacketCS",
+        "RacketBC",
+        "RacketScript",
+        "Tasks not implemented in Racket"
+      ]
+    },
+    "F#": {
+      "total_tasks": 0,
+      "by_domain": {},
+      "task_list_sample": []
+    },
+    "Scheme": {
+      "total_tasks": 206,
+      "by_domain": {
+        "Other": 141,
+        "Games": 6,
+        "Text Processing": 10,
+        "Data Structures": 19,
+        "Arithmetic": 13,
+        "Date and time": 2,
+        "Classic CS problems": 1,
+        "Graphics": 3,
+        "Encryption": 1,
+        "File I/O": 5,
+        "System": 2,
+        "Concurrency": 1,
+        "Database": 2
+      },
+      "task_list_sample": [
+        "Scheme",
+        "Scheme compared to other languages",
+        "Lisp",
+        "functional programming",
+        "IEEE"
+      ]
+    },
+    "Common Lisp": {
+      "total_tasks": 210,
+      "by_domain": {
+        "Other": 132,
+        "File I/O": 6,
+        "Games": 11,
+        "Classic CS problems": 2,
+        "Date and time": 5,
+        "Data Structures": 21,
+        "Graphics": 7,
+        "Text Processing": 11,
+        "Arithmetic": 11,
+        "Encryption": 2,
+        "System": 1,
+        "Concurrency": 1
+      },
+      "task_list_sample": [
+        "Common Lisp",
+        "Common Lisp compared to other languages",
+        "Lisp",
+        "ANSI",
+        "open source"
+      ]
+    },
+    "Erlang": {
+      "total_tasks": 206,
+      "by_domain": {
+        "Other": 136,
+        "System": 6,
+        "Games": 2,
+        "File I/O": 8,
+        "Data Structures": 21,
+        "Database": 1,
+        "Arithmetic": 9,
+        "Date and time": 5,
+        "Classic CS problems": 2,
+        "Text Processing": 10,
+        "Graphics": 4,
+        "Encryption": 1,
+        "Concurrency": 1
+      },
+      "task_list_sample": [
+        "Erlang",
+        "Erlang compared to other languages",
+        "operating system",
+        "processes",
+        "memory management"
+      ]
+    }
+  },
+  "semantic_domains": [
+    "Arithmetic",
+    "Data Structures",
+    "Classic CS problems",
+    "Text Processing",
+    "Graphics",
+    "Date and time",
+    "Concurrency",
+    "Encryption",
+    "File I/O",
+    "System",
+    "Networking",
+    "Database",
+    "GUI",
+    "Games",
+    "Math"
+  ],
+  "url_patterns": {
+    "category_page": "{base}/wiki/Category:{category}",
+    "language_page": "{base}/wiki/{language}",
+    "task_solutions": "{base}/wiki/{language}/{task}",
+    "examples": [
+      {
+        "description": "Python factorial",
+        "url": "https://rosettacode.org/wiki/Python/Factorial"
+      },
+      {
+        "description": "JavaScript arrays",
+        "url": "https://rosettacode.org/wiki/JavaScript/Array_concatenation"
+      },
+      {
+        "description": "Haskell fibonacci",
+        "url": "https://rosettacode.org/wiki/Haskell/Fibonacci_sequence"
+      },
+      {
+        "description": "ALGOL tasks",
+        "url": "https://rosettacode.org/wiki/ALGOL"
+      }
+    ]
+  }
+}

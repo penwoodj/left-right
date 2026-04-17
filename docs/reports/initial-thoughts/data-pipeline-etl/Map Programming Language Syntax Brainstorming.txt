@@ -1,0 +1,1753 @@
+{
+/** Packages are called files. JSF  Every file is just a object with each key being a named package 
+ * export implicitly only ever 1 thing
+ * You can think of keys as scope dependent variables, and for now object destructuring work with similar syntax to JS.
+ * Keys are evaluated top to bottom, except for function
+ * We basically remove = all together for a more consistent : symbol.
+ * 
+ *  Every file at a top level either return a primitive, array, object or function
+ * 
+ * To execute a function you do 1 >> myFunc or myFunc[1] or [1] _> myFunc
+ * You can also create iffy's using this in function declarations like this with anonymous Functions.
+ * For example, you could do 1 >> [a] => myFunc[a], or [a] => myFunc[a][1], or [1] _> [a] => myFunc[a]
+ * and it would execute the inner function.
+ * 
+ * This means the `main` function of the language would be on a page that runs it main function with example input
+ * 
+ * Due to the language being determatinistic, you can set up a way of running the code using an easy cmd.
+ * You can find out which file/ subsection to run, and with what inputs by having a file in project that shows you the entire tree structure of your code base name wise, and you could run a cmd to generate/update that tree file or update it on a shutter rate/ on the event of a code base change there is a listener on the package manager.
+ * 
+ * This basically mean everything is self documenting, so understanding what a code base is doing would be super easy because you could just log out the entire tree structure, and navigate that tree structure in as many layers of abstraction you care to see, and you can click down the branches to dig into more or back out to less.
+ * 
+ * Maybe don't even mess with function syntax, past adding opporators to help with function composition, and treating currining in the same way
+ * 
+ * Changes in scope are achieved by spreading objects to higher level scopes
+ * Could remove functions just with scope changes?
+ */
+
+
+/**
+ * For now, you can assign only 3 types of things to a key
+ * 1. A primitive value 
+      * Obtained by explicit statement (e.g. string delcaration), operations done on a previously declared key obtained from this file/explicitly obtain from another file, or from the execution of a function
+      * Could be number, string, boolean, undefined
+      * Null and NaN etc are converted to undefined
+      * equality checks are singular for just equality =, and double equals for type and equality ==
+        * Strings
+          * same as JS including `"' and interpolation
+          * needs a substring/includes operator
+          * Need good regex support functions with stringified regex and good test names
+ */
+otherFileDefaultObjectOrArrayOrValue: file['./index'],
+// This is the equivalant of spreading only that one property onto this one object
+{ propInOtherFile }: file['./index'],
+//Spreads all properties into this object
+...file['./index'],
+
+
+
+/** 
+ * 2. JSON / objects and arrays
+      * Explicitly outlined by {} or []  
+      * Accessible through . syntax for keys and indexes
+      * If variables are needed for access json path, you use the get function,
+      * Values of previous keys are accessible from subsequent keys
+      * Arrays and objects guarantee order and equality checks will be dependent on what you want
+        * = will be non-ordered equal [1, 3, 2] = [2, 3, 1] is true and {a:1, b:2, c: 3} = { b:2, a:1, c: 3} is true
+        * == will be ordered equal 
+      * the + operator is concatenation for arrays and objects
+        * [].concat([]) is the same as [] + []
+        * Object.assign({},{}) is the same as {} + {}
+      * ? Objects are just arrays where you can override the index with a label
+        * When there is an item in a list that does not have the label there is a default
+          starting the index with the first unlabeled item in the array
+      * ? Keys in arrays are defaulted to strings, but can be other types maybe
+ */
+anExampleOfJson: {
+  key: { value: 1 },
+  arr: [
+    'value is accessible from .0', 
+    key.value,
+    propInOtherFile
+  ],
+  <variableAsKeyName>: 1 // ignore -> </variableAsKeyName>
+  //also obj<variable> is the same as obj[variable] or get(variable)
+},
+
+
+/**
+ * 3. Functions
+      * Declaration
+        * Params
+          * So parameters are always object/array destructuring
+            * default values and changes in key names work the same as JS  
+          * It can be nested if needed
+          * If there is only a single value it will be a single value array
+      * Execution/Application
+        * Application can be done with putting the array/object immediately to the right of the function name
+          * functionOne['appliedWithThisOneStringAsAnArg']
+          * functionTwo['arg1', 'arg2']
+          * functionThree{ key1: 2, key2: 3 }
+        * Or can be done with an apply operator 
+          * 'appliedWithThisOneStringAsAnArg' >> functionOne
+            * >> takes what is to the left, and adds it to the end of the function argument list in application
+            * >> without a left argument returns a function that takes one argument
+          * 'appliedWithThisOneStringAsAnArg' << functionOne
+            * << takes what is to the left, and adds it to the beginning of the function argument list and attempts to execute the curried function application
+            * << without a left argument returns a function that takes one argument
+          * ['arg1', 'arg2'] _> functionTwo Or { key1: 2, key2: 3 } _> functionThree
+            * _> spreads the array or object to the left into the function application
+            * _> without a left argument returns a function that takes one argument
+        * Every Function is default curried 
+        * If a function is applied with an array or object too small in length, it returns a function that takes the remaining parameters
+        * If a function is applied with an array or object too large in length, any extra keys or length will be discarded and the function will be applied
+      * Composition
+      * Misc
+        *  
+        * 
+ *
+ * Operators
+    * Logical operators contain no bitwise operators and singular, and word operators are fair game
+    * && is the same as & and | is the same as ||
+    * Logical operators, and math operators are evaluated left to right always and only parenthesis or maybe an APL esc order of operations manipulation technique
+    * Left to right order of operations means ternaries can just use & and | as the ternary
+      * The only thing that would require extra effort to maintain memory of is which truthy value do you want to return in various contexts
+      * `true & 'this is a string' | 111` would evaluate to 'this is a string' and `true & 'this is a string' | 111` would result in 111
+      * So everything to the left of the & is a truthy check and everything on the right of an ||
+    * ^ is the equivalant to !!
+  
+ */
+/** List function is a function that does each item in the list top to bottom
+ * with the result from the previous line being accessible through an index symbology like $0, $1 
+ * as variable names sort of like an implicit object function.
+ * 
+ * 
+ */
+
+exampleFile: { ///Users/jonp/code/projects/integrations/servicenow/src/functionalityByEntityType/createSummaryTagsFunctions.js
+  { map, flatMap, flow, get, getOr, compact, __, uniq, size, capitalize, concat, slice }: file('lodash/fp'),
+  //...{ map, flatMap, flow, get, getOr, compact, __, uniq, size, capitalize, concat, slice }: file('lodash/fp'),?
+
+  getTableQueryDataSummaryTags: [{ assetData }] => 
+    ^size[assetData] & [`Assets: ${size[assetData]}`] | [],
+    // ^(assetData >> size) & [`Assets: ${size[assetData]}`] | [],
+    // assetData >> ^size & [`Assets: ${size[assetData]}`] | [],
+  getTotalAssetSummaryTag: [{ knowledgeBaseData }] => 
+    ^size[knowledgeBaseData] & 
+      [`Knowledge Base Documents: ${size[knowledgeBaseData]}`] | 
+      [],
+  
+  SUMMARY_TAG_DEFAULT_PATHS: ['category'],
+
+  // function body objects?
+  // if return is the last key in a function it ignores the rest of the keys and just returns the return key
+  // if return key not in function, it just evaluates as return the same as any other key
+  getTotalKbDocsSummaryTag: [result, entity, Logger] => {
+    getTableQuerySummaryTagPathsType: file['./index'],
+
+    return: result 
+      >> getOr['tableQueryData', []], //result.tableQueryData || []
+      >> flatMap[[tableQueryDataResult] ==> {
+        summaryTagPathsForThisType: getTableQuerySummaryTagPathsType[entity.type], 
+        // Or entity >> get['type'] >> getTableQuerySummaryTagPathsType,
+        // Or entity.type >> getTableQuerySummaryTagPathsType,
+        //How to know if passing a single value,
+        allTableQueryPathValuesForThisResult: SUMMARY_TAG_DEFAULT_PATHS
+          >> concat[summaryTagPathsForThisType]
+          >> map[<< get[tableQueryDataResult] >> capitalize]
+          >> uniq
+          >> slice[0, 5],
+
+        activityTabForThisResult: 
+          !tableQueryDataResult.active &
+            [] |
+          tableQueryDataResult.active == 'true' &
+            'Active' |
+            'Inactive',
+
+        return: allTableQueryPathValuesForThisResult << concat[activityTabForThisResult]
+      }]
+      >> compact
+      >> uniq
+  },
+  exampleFile2: {
+    ...{ map, flow, join, split, trim, compact }: file['lodash/fp'],
+
+    queryAssets: file['../querying/queryAssets'],
+    queryTableData: file['../querying/queryTableData'],
+
+    ...{ getTableQueryDataSummaryTags, getTotalAssetSummaryTag }: file[
+      './createSummaryTagsFunctions'
+    ],
+
+    ...{ assetsDisplayStructure, tableQueryDisplayStructure }: file[
+      '../displayStructures/index'
+    ];
+
+
+    assetsAndIncidentCustomFunctionality: {
+      queryFunction: async [entity, options, requestWithDefaults, Logger] => {
+        ...await queryAssets[entity, options, requestWithDefaults, Logger],
+        ...await queryTableData[entity, options, requestWithDefaults, Logger]
+      },
+      tableQueryQueryString: [{ value }, { incidentQueryFields }] =>
+        ^incidentQueryFields &
+        typeof incidentQueryFields === 'string' & //Or incidentQueryFields >> typeof >> eq['string']
+        incidentQueryFields.length !== 0 & //Or incidentQueryFields >> size >> not[eq[0]]
+        incidentQueryFields 
+          >> split[','] 
+          >> compact 
+          >> map[[field] => `${trim[field]}CONTAINS${value}`]
+          >> join['^NQ'],
+      createSummaryTags: [results, entity, Logger] =>
+        getTableQueryDataSummaryTags[results, entity, Logger]
+        >> concat[getTotalAssetSummaryTag[results, entity, Logger]],
+      tableQuerySummaryTagPaths: ['number'],
+      displayTabNames: { assetData: 'Assets', tableQueryData: 'Incidents' },
+      displayStructure: {
+        assetData: assetsDisplayStructure,
+        tableQueryData: tableQueryDisplayStructure
+      }
+    }
+  },
+  exampleFile3: { ///Users/jonp/code/projects/integrations/servicenow/src/validateOptions.js
+    fp: file['lodash/fp'],
+    reduce: file['lodash/fp/reduce'].convert[{ cap: false }],
+
+    validateOptions: [options, callback] => {
+      stringOptionsErrorMessages: {
+        url: 'You must provide a valid URL from your ServiceNow Account',
+        username: 'You must provide a valid Username from your ServiceNow Account',
+        password: 'You must provide a valid Password from your ServiceNow Account',
+        incidentQueryFields: 'You must provide at least one field to search for Incidents',
+        assetTableFields: 'You must provide at least one field to search for Assets'
+      },
+
+      stringValidationErrors: _validateStringOptions[stringOptionsErrorMessages, options],
+
+      urlValidationErrors: _validateUrlOption[options.url],
+
+      _: callback[
+        null,
+        stringValidationErrors << concat[urlValidationErrors]
+      ]
+    },
+
+    _validateStringOptions: [stringOptionsErrorMessages, options, otherErrors: []] =>
+      reduce[
+        [agg, message, optionName] ==> {
+          isString: typeof options[optionName].value === 'string',  // options >> get[[optionName, 'value']] >> typeOf >> eq['string']
+          isEmptyString: isString & options >> get[[optionName, 'value']] >> isEmpty, 
+
+          return: !isString || isEmptyString
+            & agg << concat[{
+                key: optionName,
+                message
+              }]
+            | agg
+        }, 
+        otherErrors,
+        stringOptionsErrorMessages
+      ],
+
+    _validateUrlOption: [{ value: url }, otherErrors: []] => {
+      endWithError: url >> endsWith['//']
+        & otherErrors >> concat[{
+            key: 'url',
+            message: 'Your Url must not end with a //'
+          }]
+        | otherErrors,
+      
+      ...(endWithError.length & { return: endWithError }),
+
+      ...(url & {
+        try: { _: new URL[url] },
+        //spread the return to a higher level scope?
+        ...(try.error & {
+          return: otherErrors << concat[{
+            key: 'url',
+            message:
+            'What is currently provided is not a valid URL. You must provide a valid ServiceNow Instance URL.'
+          }]
+        }])
+      }),
+
+      return: otherErrors
+    }
+  },
+  example4: { ///Users/jonp/code/projects/integrations/servicenow/src/getLookupResults.js
+    ...{ map, flow, first, split, last }: file('lodash/fp'),
+
+    ...{ splitOutIgnoredIps }: file('./dataTransformations'),
+
+    ...{ queryEntityByType }: file('./functionalityByEntityType/index'),
+
+    createLookupResults: file('./createLookupResults'),
+
+    getLookupResults: async [entities, options, requestWithDefaults, Logger] ==> {
+      entitiesWithCustomTypesSpecified: map[
+        async [{ type, types, ...entity }] => {
+          ...entity,
+          type: type == 'custom' & types >> first >> split['.'] >> last | type
+        },
+        entities
+      ]
+
+      ...{ entitiesPartition, ignoredIpLookupResults }: splitOutIgnoredIps[
+        entitiesWithCustomTypesSpecified
+      ],
+      
+      entitiesResults: await _getEntitiesResults[
+        entitiesPartition,
+        options,
+        requestWithDefaults,
+        Logger
+      ],
+
+      lookupResults: createLookupResults[entitiesResults, options, Logger],
+
+      return: lookupResults << concat[ignoredIpLookupResults]
+    },
+
+    _getEntitiesResults: async [
+      entitiesPartition,
+      options,
+      requestWithDefaults,
+      Logger
+    ] =>
+      Promise.all[
+        map[async [entity] ==> {
+          ...(entity.type === 'string' & !options.shouldSearchString & {
+            return: { entity, results: {} }
+          }),
+
+          result: await queryEntityByType[
+            entity,
+            options,
+            requestWithDefaults,
+            Logger
+          ],
+
+          return: { entity, result }
+        }, entitiesPartition]
+      ];
+  },
+  example5: {///Users/jonp/code/projects/integrations/servicenow/src/createRequestWithDefaults.js
+    fs: file['fs'],
+    { identity, omit }: file['lodash/fp'],
+    request: file['postman-request'],
+
+    config: file['../config/config'],
+    { parseErrorToReadableJSON }: file['./dataTransformations'],
+
+    SUCCESSFUL_ROUNDED_REQUEST_STATUS_CODES: [200],
+
+    _configFieldIsValid: [field] => typeof field == 'string' & field.length > 0, 
+    //_configFieldIsValid: [field] => field >> typeOf >> eq['string] & size[field]
+    
+    createRequestWithDefaults: [Logger] ==> {
+      ...{ request: { ca, cert, key, passphrase, rejectUnauthorized, proxy }}: config,
+
+      defaults: {
+        ...(_configFieldIsValid[ca] && { ca: fs.readFileSync[ca] }),
+        ...(_configFieldIsValid[cert] && { cert: fs.readFileSync[cert] }),
+        ...(_configFieldIsValid[key] && { key: fs.readFileSync[key] }),
+        ...(_configFieldIsValid[passphrase] && { passphrase }),
+        ...(_configFieldIsValid[proxy] && { proxy }),
+        ...(typeof rejectUnauthorized === 'boolean' && { rejectUnauthorized }),
+        json: true
+      },
+
+      requestWithDefaults: [
+        preRequestFunction = async [] => {},
+        postRequestSuccessFunction = async [x] => x,
+        postRequestFailureFunction = async [e] => throw[e]
+      ] => {
+        defaultsRequest: request.defaults[defaults];
+
+        _requestWithDefault: [requestOptions] =>
+          Promise[[resolve, reject] =>
+            defaultsRequest[requestOptions, [err, res, body] => {
+              ...(err & { return reject[err]}),
+              _: resolve[{ ...res, body }]
+            });
+          ]
+
+        return: async [requestOptions] ==> {
+          preRequestFunctionResults: await preRequestFunction[requestOptions],
+          _requestOptions: {
+            ...requestOptions,
+            ...preRequestFunctionResults
+          },
+
+          /** every object with a ? before the { has a try catch, and if there is an error we return the object
+           * with all successful keys, but with an error key detailing the error information
+           * including on which key the error occurred, all subsequent unprocessed keys
+           * stack information, message, description etc
+          */
+          try: ?{
+            result: await _requestWithDefault[_requestOptions],
+            _: checkForStatusError[result, _requestOptions],
+
+            postRequestFunctionResults: await postRequestSuccessFunction[
+              result,
+              _requestOptions
+            ],
+
+            return: postRequestFunctionResults
+          },
+          ...(try.error & {
+            postRequestFunctionResults: await postRequestFailureFunction[
+              try.error,
+              _requestOptions
+            ],
+            return: postRequestFunctionResults
+          }),
+          ...try,
+          // OR
+          ...(?{
+            result: await _requestWithDefault[_requestOptions],
+            _: checkForStatusError[result, _requestOptions],
+
+            postRequestFunctionResults: await postRequestSuccessFunction[
+              result,
+              _requestOptions
+            ],
+
+            return: postRequestFunctionResults
+          }),
+          ...(error & {
+            postRequestFunctionResults: await postRequestFailureFunction[
+              error,
+              _requestOptions
+            ],
+            return: postRequestFunctionResults
+          })
+        }
+      }
+
+      handleAuth: async [{ options, ...requestOptions }] => {
+        ...requestOptions,
+        auth: {
+          username: options.username,
+          password: options.password
+        }
+      },
+
+      checkForStatusError: [{ statusCode, body }, requestOptions] => {
+        _: Logger.trace[{
+          requestOptions: {
+            ...requestOptions,
+            auth: '************',
+            options: '************'
+          },
+          statusCode,
+          body
+        }]
+
+        roundedStatus: Math.round[statusCode / 100] * 100,
+        ...(!SUCCESSFUL_ROUNDED_REQUEST_STATUS_CODES.includes[roundedStatus] & {
+          requestError: {
+            message: 'Request Error',
+            status: statusCode,
+            description: JSON.stringify[body],
+            requestOptions: JSON.stringify[requestOptions],
+          },
+          _: throw[requestError]
+        })
+      },
+
+      requestDefaultsWithInterceptors: requestWithDefaults[
+        handleAuth,
+        identity,
+        [error] => {
+          newError: {
+            ...error,
+            requestOptions: omit[['options', 'auth'], error]
+          }
+          _: Logger.error[{ err: newError }],
+
+          _: throw[newError]
+        }
+      ),
+
+      return: requestDefaultsWithInterceptors
+    };
+  }
+},
+
+/**
+ * Need to find solution to true & false | 'will return this over false due to or' 
+ * to make equivalent to turnery 
+ */
+/**
+ * Syntax highlighting would be scope specific, with uniq shades for each unique variable name within that scope
+ */
+/**
+ * Need to figure out a system for async await/ promises
+ */
+/**
+ * Would be nice to change opporators to accomplish the same thing with less symbols while still maintaining multiline splitting capabilitiesd
+ */
+
+/**
+ * Is function composition and argument manipulation just a complex form of array concatenation
+ */
+
+/** 
+ * add a recursion operator of ^^ that would always references the nearest scope function definition and recurses on that function in a tailcall optimized way
+ * 
+ */
+
+/**
+ * hashmaps/arrays, functions/operations, conditionals/pattern matching etc are are all the same thing
+ * implemented in slightly different ways.
+ * Those slightly different ways are the things that should be demarcated
+ */
+
+/**
+ * Function composition is moving around how things operate to be more readable
+ * Ideally things operate in ways we find familiar and with minimal symbols
+ */
+
+/**
+ * and is the same as multiplication between identity and not so 0 * 1 = 0
+ *    unless everything isn't identity, it returns identity unit
+ * or is the addition of identity with not so 0 + 1 = 1
+ * 
+ * bools false * true = false,  true * true = true; false + true = true, false + false = false
+ * 
+ * arrays [] + [1] = [1], [] + [] = []; or is concat
+ */
+
+/**
+ * Time is implictly implied in lines and running things left to right like relationships are 
+ * encoded in json/ product and sum types
+ * 
+ */
+/**
+ * Abstraction is compression.
+ * abstraction can lose information or "cost" something in lost data.
+ * There are zero cost abstractions and those are the holy grail.
+ * Increasing the total number of abstractions can reduce the cost because each abstraction
+ * contains less information that is being obscured but the utility of the abstractions is lost.
+ * The more abstract the ideas the more useful they are in a sense because you can communicate
+ * the same information with less abstractions, which in a sense is the whole point of abstraction.
+ * Less abstractions that are zero costs tends to be a useful way of rank ordering models of thinking.
+ * A model is a collection of abstractions we find useful in explaining the data.
+ * However, the more abstract you are in the ways you can explain everything it can be in a
+ * sense harder to learn so we scope the types of problems certain abstractions can solve
+ * in order to maintain zero cost with less abstract ideas.
+ * 
+ * You can express any explanation/compression of information with varying number of abstractions.
+ * 
+ * Ways abstractions can vary:
+ * - Loss of information 
+ * - Total number of Abstractions
+ * - Utility of an abstraction in specific concepts defined by ease of explanation and readability
+ * - Scoping an abstraction to a specific context
+ * - Thoroughness of the group of abstraction
+ * - The amount of varying way the same abstractions can explain the same data
+ * 
+ * Each of these varying ways seems to be a sliding scale of pros and cons based on preference
+ * and objective metrics of utility in varying contexts.
+ * 
+ * In human knowledge generally in academia, the fewest number of ideas that explain all 
+ * of the data tend to be the preferred models.
+ * 
+ */
+
+/**
+ * It would be nice to work with a programming language where an introspection app could 
+ * view all layers of abstraction at the same time.
+ * 
+ * It might be possible with this language format to create an output file that is read 
+ * by a voyeger-esc interpreter that allows you to traverse your abstraction hierarchy
+ * easily and graphically in a mind map sort of way that also can be made into
+ * and ide type situation.
+ */
+/**
+ * Would be nice to be able to control conditional function application without parenthesis in 
+ * situations like this: (bodyWillBeJSON ? JSON.parse : identity)(result.body).
+ * APL or Haskel function application might be a good place to get inspiration.
+ */
+
+/**
+>=> fish operator is the infix operator for flatmap
+I could implement an infix operator for all the things and call it PenScript Infix/ prefix operators
+
+Types of Operators and when to use them
+- Prefix
+  * Examples
+    - Not !
+    - Polish Notation + 5 3
+    - Elixir Map Keys  :key value
+    - Outfix Modifiers %{ key: value}
+    - New Line Operator in Python \ 
+- Postfix
+- Infixed
+  * Examples
+    - + - % ^ * && || > < / |> >> <<
+  * Pros
+    - Can indicate sequence from left to right
+  * Cons
+    - Can be read from both directions without execution order rules
+    -
+- Outfixed
+  * Examples
+    - () {} <> [] |asdf| 
+  * Pros
+    - Can demarcate execution order like with ()
+    - Shows that something is a container {} []
+    - They allow for bet multi and single line support
+  * Cons
+    - You can forget to close things
+    - Less Concise: They add 1-2 extra lines per use, and 2 extra characters
+    - 
+
+
+ */
+/** 
+ * Things I'm currently dissatified with:
+ * - Combination of infix operators and functions and symbols doesn't seem to have a clear theme
+ * - Scope manipulation through the spread operator seems clunky
+ * - _: for non assigned code execution seems clunky
+ * - Execution of function using square brackets comunicates the correct thing, but seems confusing
+ * - Keyword keys like return seem off to me
+ * - Using JS default object syntax seems clunky
+ *    * Could use a different Obj syntax like:
+ *        - {:foo "bar" :baz 5} Closure's syntax
+ *        - Purely functional with arrays and syntax highlighting obj[[key1, value1]]
+ *        - Could use Yaml or other similar alternative but equivalent representation
+ */
+/**
+ * Object/ Associative Array Syntax Examples:
+ * - Arturo 
+  #[
+    name: "john"
+    surname: "doe"
+    age: 34
+    preferredFood: ["fruit" "pizza"]
+  ]
+
+  * - Elixir
+  [a: 1, b: 2] keyword list
+  %{2 => :b, :a => 1} Map
+
+  * - Fancy
+  <["a" => 1, "test" => 2.4, 3 => "Hello"]>
+
+  * - Haskel
+  M.fromList
+    [ ("alpha", 1)
+    , ("beta", 2)
+    , ("gamma", 3)
+    , ("delta", 4)
+    , ("epsilon", 5)
+    , ("zeta", 6)
+    ]
+  
+  * - Kotlin
+    {a=97, b=98, c=99}
+  
+  * - Lingo
+    [#foo: 1, #bar: 2, #foobar: 3, "barfoo": 4]
+
+  * - Powershell
+    @{
+      Packers = "Green Bay"
+      Bears   = "Chicago"
+      Lions   = "Detroit"
+    }
+
+  * - Raven
+    { 'a' 1 'b' 2 } as a_hash
+
+  * - Ruby
+    {a:1, test:2.4, World!:"Hello"} #=> {:a=>1, :test=>2.4, :World!=>"Hello"}
+
+  * - Slate
+    {1. 2. 3. 4. 5}
+
+  * - Ursala
+    <'foo': 1,'bar': 2,'baz': 3>
+    <
+    'x'^: <
+        '7'^: <>,
+        '?'^: <'D'^: <>>>,
+    'a'^: <'E'^: <>,'j'^: <>>,
+    'b'^: <'i'^: <>>,
+    'c'^: <>>
+    [
+    4:0: 'foo',
+    4:1: 'bar',
+    4:2: 'baz',
+    4:3: 'volta',
+    4:4: 'pramim']
+  
+  * - YAML
+    objectOrDictionaries:
+      singleLine: { key1: value1, key2: value2 }
+      multiLine: 
+        foo: bar
+        bar: foo
+
+
+  Ideas:
+    - I want alists to use minimal duplication of symbols but still clearly communicate the demarcation between sections
+    - I want to support single-line, multi-line, and to be adatable to whitespace variance
+    - 
+    [ .key 'value' ]
+    [ key. 'value' ]
+
+    Parts of the Notation
+      - Declaration
+        * Outer surrounding symbols {} [] () <>  None 
+        * Single Symbol # @ etc
+        * Combinations like @[] etc
+      - Key Syntax
+        * Demarcation between key and value/ Key Value Separation
+          - Prefix symbols with a space after : . , # 
+          - Postfix Symbols : .
+        * Dynamic Keys
+          - Outer surrounding symbols [] <> ~~ { ~varNameAsKey~ 'value'}
+          - Prefix symbols : . , # [ :varNameAsKey 'value' ]
+          - Postfix Symbols : .
+          - 
+
+ */
+
+/** Function Declaration
+## Lambdas
+- Groovy
+  { f, g -> { x -> f(g(x)) } }
+
+- JS
+  (arg1, arg2) => { func body }
+
+- CoffeeScript
+  (f, g) -> (x) -> f g(x)
+
+- Elixir
+  fn x -> x * x * x end
+
+  
+- Kotlin
+  fun compose(f: (Double) -> Double,  g: (Double) -> Double ): (Double) -> Double  = { f(g(it)) }
+
+- newLisp
+  (define (compose f g) (expand (lambda (x) (f (g x))) 'f 'g))
+  (lambda (f g) (expand (lambda (x) (f (g x))) 'f 'g))
+
+- OCaml
+  # let compose f g = fun x -> f (g x) ;;  (* we could have written "let compose f g x = f (g x)" but we show this for clarity *)
+  val compose : ('a -> 'b) -> ('c -> 'a) -> 'c -> 'b = <fun>
+
+- OI
+  (define (compose f g) (lambda (x) (f (g x))))
+
+- Python
+  lambda x: x * x * x
+
+- R
+  compose <- function(f, g) function(x){f(g(x))}
+
+- REBOL
+  foo: func [x][reform ["foo:" x]]
+
+- Ruby
+  puts funclist.zip(invlist).map {|f, invf| compose[invf, f][0.5]}
+
+- Rust
+  |(f,i)| compose(f,i)(0.5)
+
+- Wren
+  var compose = Fn.new { |f, g| Fn.new { |x| f.call(g.call(x)) } }
+
+
+
+## Multi-line
+- GAP
+  Composition := function(f, g)
+    local h;
+    h := function(x)
+      return f(g(x));
+    end;
+    return h;
+  end;
+
+- Mercury
+main(!IO) :-
+  Forward = [sin,  cos,  (func(X) = ln(X))],
+  Reverse = [asin, acos, (func(X) = exp(X))],
+  Results = map_corresponding(
+    (func(F, R) = compose(R, F, 0.5)), 
+    Forward, Reverse),
+  write_list(Results, ", ", write_float, !IO),
+  write_string("\n", !IO).
+
+- Python
+  def compose(g):
+    '''Right to left function composition.'''
+    return lambda f: lambda x: g(f(x))
+
+
+
+
+## Ideas
+- I want functions to clearly demarcate the different parts without excess characters and syntax
+- I want to the argument syntax to indicate that the arguments are list
+- I want list/alist destructuring to look natural in the function signature
+- All functions are lambdas
+- Args
+  - multi and single argument should look the same
+
+
+
+  */
+
+
+
+/**
+ * TODO:
+ * - Look more into JQ and how it thinks about processing JSON https://stedolan.github.io/jq/
+ * - Decide between whitespace dependant and whitespace indipendent syntax
+ * - Create MVP with just import/export, and keys being passed down and normal JS syntax besides this
+ * - Deal with recursive references with outer scope key access && Look into circular JSON  
+ */
+}
+
+
+/** YAML Spec
+https://docs.ansible.com/ansible/latest/reference_appendices/YAMLSyntax.html
+https://www.cloudbees.com/blog/yaml-tutorial-everything-you-need-get-started
+
+comments:
+  singleLineJS: // this is a comment
+  singleLineYamlOrPython: # this is a comment
+  
+strings: 
+  singleLineWithDoubleQuotes: "string value"
+  doubleQuotesCanDoEscapeCharactersAndInterpolation: "Tab \t & \n NEWLINE & {{variableInString}}"
+  singleLineWithSingleQuotes: 'string value'
+  singleLineWithoutQuotes: string value
+  booleanKeywordsMustUseDoubleQuotes: 'yes'
+  singleLineOnMultipleLinesWhereNewLinesTurnIntoSpaces: >
+    string 
+    value
+  multiLineString: |
+    string 
+    value
+  removeWhitespaceAtEndOfString: |-
+    string 
+    value
+  keepWhitespaceAtEndOfString: >+
+    string 
+    value
+  colonInString: 'must use quotes: due to parsing'
+  
+nulls: 
+  normal: null
+  tilday: ~
+
+booleans:
+  create_key: yes
+  needs_agent: no
+  knows_oop: True
+  likes_emacs: TRUE
+  uses_cvs: false
+
+arrays:
+  singleLine: [ 1, "two" ]
+  multiLine:
+    - 1
+    - "two"
+  listOfObjects:
+    - things:
+      thing1: huey
+      things2: dewey
+      thing3: louie
+    - other things:
+      key: value
+
+objectOrDictionaries:
+  singleLine: { key1: value1, key2: value2 }
+  multiLine: 
+    foo: bar
+    bar: foo
+  keys can have spaces in them: 1
+ */
+
+/** goofing with syntax
+
+aListKey: {
+  nestedKey1: {
+    explanation: We can expand yaml principles to only use prefix operators and use whitespace to show closing scope
+  nestedKey2: [
+    - asdf
+    - fdsa
+
+aListKey:
+  nestedKey1: 
+    explanation: "We can expand yaml principles to only use prefix operators and use whitespace to show closing scope"
+  nestedKey2: 
+    - asdf
+    - fdsa
+
+{ 
+  aListKey: {
+    nestedKey1: {
+      explanation: "foo"
+    },
+    nestedKey2: ['asdf', 'fdsa']
+  }
+}
+{ aListKey: { nestedKey1: { explanation: "foo" }, nestedKey2: ['asdf', 'fdsa'] }}
+{ 
+  aListKey: {
+    nestedKey1: { explanation: "foo"},
+    nestedKey2: [
+      'asdf',
+      'fdsa'
+    ]
+  }
+}
+
+
+
+ */
+
+
+
+/**
+Set Mapping Thoughts
+- There are two Types of sets
+  * Bounded/Finite Sets 
+    - Order
+      * Ordered
+      * Unordered
+  * Infinite Sets
+    - Direction
+      * Unidirectional  *--------->
+      * Bidirectional   <----*---->
+    - Countability
+      * Countable ... -2, -1, 0, 1, 2 ...
+      * Uncountable 1, 1.1, 1.1111111, etc
+
+- We can convert sub-types of sets into others, such as unidirectional infinite to a bounded ordered set via using a < boundary
+
+- The goal of software is to do a set product of all possibilities, then to bound those possibilities
+  via metrics that achieve an objective that allows us to traverse that vector space
+  * The library of babel will likely have some incites on how to interact with infinite sets
+    in a bounded way
+  * For example, time is a unidirectional infinite vector space where we might want correlate with
+    varying possibilities in the dot product correlation with other variables/sets to predict
+    the behavior of varying of objects in space time over time.  We can do this by 
+    traversing the total vector space of possibilities in a bounded way.  That binding 
+    function being is the determining factor in the effectiveness in the predictions of the model.
+    Binding all possibilities to what is most likely in the future as we traverse that n-dimensional 
+    vector space collapsing into the present and the future becomes the past is the objective.
+  * We determine the path through the n-dimensional vector space of all possibilities through
+    a binding function that effectively allows us the traverse that vector space according 
+    to our objectives.
+  * Objectives, outside of enjoyment of discovering patterns in sets, primarily involve 
+    predicting the future based on the past. We accomplish this via various different parts of prediction process
+    - Like more thoroughly understanding the past in varying ways through numeric and hierarchical morphic abstractions
+    - Through rule to traverse that n-dimensional vector space based on the past
+      * Like weighting different sets in that bounded vector space
+- There are 2 parts to creating a model of 2 sets in terms of pure combinatorics
+  * A Binding function, and a traversal function in that bounded space of combinations
+    in that vector space
+  * The creation/ alteration of the binding and traversal function must be done on each
+    addition of a new set to the vector space, or when a new binding or traversal function
+    is discovered that more effectively achieves the objective of the model. This can 
+    also be referred to as Set Integration.
+  * The framework for creating and adjusting our binding and traversal functions starts with
+    a sort of combinatoric of mapping on set to another via the attributes of the sets
+    in relation to one another to create a modal space of all possibilities in those
+    relationships, at least in a conceptual sense.  Actually calculating the all combinatorics
+    in an n-dimensional vector space in physical reality isn't always possible, which is where
+    our Binding function comes in
+    - The Binding function serves the purpose of limiting the set of all possible combinations
+      to a set of possibilities that is more manageable via the medium we are working in.
+      That could be to limit the ideas conceptually for human understanding/compute resources,
+      or this binding could be for the resource limitations of the compute hardware involved
+      in a program.
+    - The binding function also serves the purpose of limiting the vector space to enable 
+      the traversal function to be most effective. You bind the set of all possibilities 
+      not randomly due to limitations of compute resources, but you objective in creating your 
+      model is what determines how you priorities the limiting/binding of combinatoric 
+      inclusion/exclusion of data in sets and the mapping between those sets.
+    - The traversal function in our now bounded vector space is in a sense the same thing as
+      the binding function, but I think the bounding function is a subset of a traversal function.
+      In other words, the binding function is a subset of a traversal function, as it binds
+      how you can effectively traverse through the modal reality of all sets in your vector space.
+    - The traversal function is a set of rules determining how you can effectively map
+      the possible combinations of sets in order to effectively accomplish your objective.
+    - It seems like there are binding functions with binary, or contiguous borders. 
+      Technically binary functions can be used to bind, contiguous would be use to traverse
+      your vector space.
+    
+Example:
+- Problem: I want to give phrase suggestions to someone typing into in an input of 50 characters.
+  First we try to figure out our vector space in it's entirety. Let's say there only 27 characters
+  possible for this input (alphabet + ' '). 
+
+- Binding: The possible combinations of strings is 27^50 which is 3.7e+71 (370
+  Duovigintillion), which is way more possibilities than we need for our objective. So one
+  binding function would be limitations in the english language in terms of letter 
+  combinations in correctly spelled words, but even then that still might not be enough 
+  binding to make solving this problem computational or conceptually graspable,
+  so we must add an additional binding function.  So lets say we bind the possibilities further,
+  by excluding word combinations by what has been put into this 50 character input in the past.
+  You would have to do the math to figure out the count of possibilities, but assuming the number is
+  now at a manageable amount computationally to traverse that vector space, you can move into
+  the traversal algorithm.
+- Traversal: So now that we have some bounded vector space of possibilities, lets think
+  about how to interact with those possibilities based on our objective. Think about 
+  what should happen if you as the observer are dropped into the middle of the vector space.
+  How would you move around this vector space? To put it in more concrete terms, lets say
+  you have that input with "Hello how are" in it.  How would you go about organizing your
+  vector space of possibilities so traversal through the possible options would lead you to
+  the most probable next word or remaining characters of the string.  Maybe binding our 
+  objective to one or a few words could be a temporary binding to conceptualize the solution.
+
+
+- The Boundary Function is similar to how you define the relationship between dimensions
+  in vector space
+
+
+Factors like if order matters, if combinations of things can be duplicated or not etc
+determines the type of math you do like using ! or ^
+
+
+What would be a good problem to solve in APL that I could use this conceptual framework
+to solve?
+
+I could do a running sentiment analysys on tweets from new twitter accounts.
+I could mess around with statistics around cards
+
+
+  Make a vscode plugin that is integration intelligence, and eventually create a code 
+  generation portion of the plugin where you can select options from a dropdown/drag and drop code type app
+  where you can easily just read the code and modify it derectly if needed.  Ideally it would connect to your polarity server
+  too to intuite things and push things to the server.
+ */
+
+/**
+  What if I was to do an analysis of github repos using APL/BQN to build out an optimal .eslint
+  and build it out as an MPV, saying fuck it to as many things as possible when programming it out.
+
+  Sort of build it out using and mvp TDD model
+*/
+/**
+ * ***********Better APL*************
+ * Symbols: /\| ()[]{}<> !@#$%^&*~-_`'"=+?.,
+  symbol indications:
+    |/\ <> ~-_= indicate direction
+    \\ // || indicates parrallel direction
+    ()[]{}<> indicates encapsulation
+    ? indicates randomness, uncertainty, and uniqueness
+    ! indicates not and exclamation/importance 
+    = indicates equality and assignment
+    @ indicates location
+    & indicates 'and' or 'then'
+    # indicates number of/size/length (tally)
+
+  symbol composition
+    prefix
+    scope
+    function
+      declaration
+        input/arguments
+        output/return
+
+      implementation
+        arguments 
+          accounting for currying/ partial application
+          more than one arg
+          object destructuring?
+          
+
+      composition
+        eval order
+        right to left or left to right consistency
+        implicit vs explicit composition
+          explicit
+            infix
+              -> or >> as a pipe symbol
+            prefix/outfix?
+              flow() or >>[] or $[]
+
+          implicit or modifier symbols
+            examples
+              +/ or /+  for add in reducing
+              implicit mapping + 
+            types of modifications
+              function application depth
+                ,/ is put between array/obj on depth 1
+                ,/$ is deep version meaning put between all depths or arrays/objects
+                ,/$2 is only apply to depth 2 in arrays
+              accumulate/scan
+                + a
+            
+    functions are data
+    left to right eval
+    modifier operators work as HOFs
+    
+
+
+ * concat: ,
+ * get: . or @
+ * uniq: ~
+ * not: ! or ^
+ * slice: \/
+ * 
+  Example 1
+    SUMMARY_TAG_DEFAULT_PATHS
+      >> concat[summaryTagPathsForThisType]
+      >> map[<< get[tableQueryDataResult] >> capitalize]
+      >> uniq
+      >> slice[0, 5],
+
+    SUMMARY_TAG_DEFAULT_PATHS 
+      concat summaryTagPathsForThisType 
+      map 
+      uniq
+      slice 
+
+    [...SUMMARY_TAG_DEFAULT_PATHS, ...summaryTagPathsForThisType]
+      map 
+      uniq
+      slice 
+
+    SUMMARY_TAG_DEFAULT_PATHS 
+      concat summaryTagPathsForThisType 
+      map get __ tableQueryDataResult capitalize
+      uniq
+      slice 0 5
+
+    , -> |/. __ tableQueryDataResult -> capitalize/ -> ~ -> \/ 0 5
+      
+    , -> 
+    |/
+      . __ tableQueryDataResult -> 
+      capitalize
+    / -> 
+    ~ -> 
+    \/ 0 5
+
+    ,|/@_tableQueryDataResult|^/~\/0,5/
+    
+    ,
+    |[@ _ tableQueryDataResult |^]
+    ~
+    \[0 5]
+
+    \~[|^, @[_, tableQueryDataResult]]|,
+
+    /,#[@_tableQueryDataResult>>|^]
+
+    concat summaryTagPathsForThisType map get __ tableQueryDataResult capitalize uniq slice 0 5
+    , summaryTagPathsForThisType # @ _ tableQueryDataResult |^$1 ~ \/ 0 5
+    
+    concat summaryTagPathsForThisType map(get(__ tableQueryDataResult) capitalize) uniq slice(0 5)
+    /, #(@(_ tableQueryDataResult) |^$1) ~ \/(0 5)
+    
+    concat summaryTagPathsForThisType map get __ tableQueryDataResult capitalize uniq slice 0 5
+    
+    outfixed
+      >>[
+        ,[summaryTagPathsForThisType] | 
+        #[
+          @[_ | tableQueryDataResult] | 
+          ^$1
+        ] | 
+        ~ | 
+        \/[0 | 5]
+      ]
+      >>[
+        $+[summaryTagPathsForThisType],
+        #[>>[
+          @[_, tableQueryDataResult],
+          ^$1
+        ]],
+        ~, 
+        \/[0,5]
+      ][input]
+    infixed
+      >>+->summaryTagPathsForThisType>>#->>>@->_->tableQueryDataResult>>^$1>>~>>\\/->0->5
+
+      >> + -> summaryTagPathsForThisType
+      >> # -> >> @ -> _ -> tableQueryDataResult >> ^$1
+      >> ~
+      >> \/ -> 0 -> 5
+      
+      >> + -> summaryTagPathsForThisType
+      >> # -> >> @ -> _ -> tableQueryDataResult >> ^$1
+      >> ~
+      >> \/ -> 0 -> 5
+
+    >>: +: summaryTagPathsForThisType, #: >>: @: __ tableQueryDataResult, ^^,, ~, \/: 0 5,
+
+    input: flow: concat: summaryTagPathsForThisType, map: flow: get: __ tableQueryDataResult, capitalize,, uniq, slice: 0 5,,
+    flow: 
+      concat: summaryTagPathsForThisType,
+      map: 
+        flow: 
+          get: __ tableQueryDataResult, 
+          capitalize,,
+      uniq,
+      slice: 0 5,
+
+    +summaryTagPathsForThisType#>>@__,tableQueryDataResult
+
+
+    [>>, [+, [summaryTagPathsForThisType]], [#,[>>, [@, __, tableQueryDataResult], ^|]], ~, [\/, [0, 5]]]
+    [>>, [
+      [+, [summaryTagPathsForThisType]], 
+      [#, [>>, 
+        [@, [__, tableQueryDataResult]], 
+        ^|
+      ]], 
+      ~, 
+      [\/, [0, 5]]
+    ]]
+    [>>, 
+      [+, summaryTagPathsForThisType], 
+      [#, >>, 
+        [@, __, tableQueryDataResult], 
+        ^|
+      ], 
+      ~, 
+      [\/, 0, 5]
+    ]
+    >>[ 
+      +[summaryTagPathsForThisType], 
+      #>>[ 
+        @[__, tableQueryDataResult], 
+        ^|
+      ], 
+      ~, 
+      \/[0, 5]
+    ]
+    >>: 
+      +:summaryTagPathsForThisType;, 
+      #:>>: 
+        @:__, tableQueryDataResult;, 
+        ^|
+      ;;, 
+      ~, 
+      \/:0, 5;
+    ;
+    >>: +:summaryTagPathsForThisType;, #:>>: @:__, tableQueryDataResult;, ^| ;;, ~, \/:0, 5;;
+    >>[+[summaryTagPathsForThisType], #[>>[@[__, tableQueryDataResult], ^|]], ~, \/[0, 5]]
+
+    [] {}
+
+    (
+      (
+        (
+          (
+            (input ++ summaryTagPathsForThisType)
+            #
+            ((tableQueryDataResult @ __) ^|)
+          )
+          ~
+        ) 
+        \| 
+        (0 , 5)
+      )
+    )
+
+    (
+      (
+        __ ++ summaryTagPathsForThisType
+      ) >>
+      (__ #
+        (
+          (tableQueryDataResult @ __) >> 
+          (__ ^|)
+        )
+      ) >>
+      (__ ~) >>
+      (__ \| (0 , 5))
+    )
+
+    (
+      (++ summaryTagPathsForThisType) >> 
+      (# (
+        (tableQueryDataResult @ __) >> 
+        ^|
+      )) >>
+      ~ >> 
+      (\| (0 , 5))
+    )
+
+    input >>/ ( 
+      ++ summaryTagPathsForThisType,
+      # ( >>/ (
+        (tableQueryDataResult @ __),
+        (^| 1)
+      )),
+      ~,
+      \| (0 , 5)
+    )
+
+    input >>/ (++ summaryTagPathsForThisType, # (>>/ ((tableQueryDataResult @ __), ^| 1)), ~, \/ (0 , 5) )
+    input >>/ (
+      ++ summaryTagPathsForThisType, 
+      #(>>/ ((tableQueryDataResult @ __), (^| 1))), 
+      ~, 
+      \|(0, 5)
+    )
+
+    input >>/ (
+      ++ summaryTagPathsForThisType, 
+      # >>/(tableQueryDataResult @ __, ^| 1), 
+      ~, 
+      \|(0, 5)
+    )
+    input >>/ [
+      ++ summaryTagPathsForThisType, 
+      # >>/[tableQueryDataResult @ __, ^| 1], 
+      ~, 
+      \|[0, 5]
+    ]
+  
+    
+Example 2
+  result 
+    >> getOr['tableQueryData', []], //result.tableQueryData || []
+    >> flatMap[[tableQueryDataResult] ==> {
+      summaryTagPathsForThisType: getTableQuerySummaryTagPathsType[entity.type], 
+      // Or entity >> get['type'] >> getTableQuerySummaryTagPathsType,
+      // Or entity.type >> getTableQuerySummaryTagPathsType,
+      //How to know if passing a single value,
+      allTableQueryPathValuesForThisResult: SUMMARY_TAG_DEFAULT_PATHS
+        >> concat[summaryTagPathsForThisType]
+        >> map[<< get[tableQueryDataResult] >> capitalize]
+        >> uniq
+        >> slice[0, 5],
+
+      activityTabForThisResult: 
+        !tableQueryDataResult.active &
+          [] |
+        tableQueryDataResult.active == 'true' &
+          'Active' |
+          'Inactive',
+
+      return: allTableQueryPathValuesForThisResult << concat[activityTabForThisResult]
+    }]
+    >> compact
+    >> uniq
+  
+  result >>/ [
+    @|['tableQueryData', []] OR
+    @ 'tableQueryData', || [],
+    #| (tableQueryDataResult) =>/ {
+      summaryTagPathsForThisType: entity >>/ [@ 'type', getTableQuerySummaryTagPathsType @ __],
+      
+      allTableQueryPathValuesForThisResult: SUMMARY_TAG_DEFAULT_PATHS >>/ [
+        ++ summaryTagPathsForThisType, 
+        # >>/[tableQueryDataResult @ __, ^| 1], 
+        ~, 
+        \|[0, 5]
+      ],
+
+      activityTabForThisResult: 
+        tableQueryDataResult@'active'! ?
+          [] || 
+        tableQueryDataResult@'active'! == 'true' ?
+          'Active' ||
+          'Inactive'
+
+      activityTabForThisResult ++ allTableQueryPathValuesForThisResult
+    },
+    $<<, //filter identity
+    ~
+  ]
+
+  => { result: __@0, entity: __@1, getTableQuerySummaryTagPathsType: file@'./index', 
+    aggregateTabResults: => {
+      tableQueryDataResult: __@0,
+      summaryTagPathsForThisType: entity >>/ [@ 'type', getTableQuerySummaryTagPathsType @ __],
+      
+      allTableQueryPathValuesForThisResult: SUMMARY_TAG_DEFAULT_PATHS >>/ [
+        ++ summaryTagPathsForThisType, 
+        # >>/[tableQueryDataResult @ __, ^| 1], 
+        ~, 
+        \|[0, 5]
+      ],
+
+      activityTabForThisResult: 
+        tableQueryDataResult@'active'! ??
+          [] ::
+        tableQueryDataResult@'active'! == 'true' ??
+          'Active' ::
+          'Inactive',
+
+      activityTabForThisResult ++ allTableQueryPathValuesForThisResult
+    },
+
+    result >>/ [
+      @ 'tableQueryData', 
+      || [],
+      #| aggregateTabResults,
+      $<<,
+      ~
+    ]
+  }
+
+Example 3
+  exampleFile: {
+    getTableQueryDataSummaryTags: => { assetData: __,
+      assetData##! ?? 
+        [assetData## `Assets: {__}`] :: 
+        []
+    },
+
+    getTotalAssetSummaryTag: => { knowledgeBaseData: __@'knowledgeBaseData',
+      knowledgeBaseData##! ?? 
+        [assetData## `Knowledge Base Documents: {__}`] ::
+        []
+    },
+    
+    SUMMARY_TAG_DEFAULT_PATHS: ['category'],
+
+    getTotalKbDocsSummaryTag:  => { result: __@0, entity: __@1, 
+      getTableQuerySummaryTagPathsType: file@'./index', 
+
+      aggregateTabResults: => { tableQueryDataResult: __,
+        summaryTagPathsForThisType: entity >>/ [@ 'type', getTableQuerySummaryTagPathsType @ __],
+        
+        allTableQueryPathValuesForThisResult: SUMMARY_TAG_DEFAULT_PATHS >>/ [
+          ++ summaryTagPathsForThisType, 
+          # >>/[tableQueryDataResult @ __, ^| 1], 
+          ~, 
+          \|[0, 5]
+        ],
+
+        activityTabForThisResult: tableQueryDataResult => {
+          notActive: __@'active'!,
+          notActive ?? [] ::
+          notActive == 'true' ?? Active' :: 
+            'Inactive'
+        }
+
+        activityTabForThisResult ++ allTableQueryPathValuesForThisResult
+      },
+
+      result >>/ [
+        @ 'tableQueryData', 
+        || [],
+        #| aggregateTabResults,
+        $<<,
+        ~
+      ]
+    }
+  }
+  {
+    functionImportedAndUsed: [result, entity] >> file@/['./index', 'exampleFile', 'getTotalKbDocsSummaryTag']
+  }
+Example 4:
+exampleFile2: {
+    queryAssets: file@'../querying/queryAssets',
+    queryTableData: file@'../querying/queryTableData',
+
+    ...file
+      @'./createSummaryTagsFunctions'
+      @\['getTableQueryDataSummaryTags','getTotalAssetSummaryTag'],
+
+    ...file
+      @'../displayStructures/index'
+      @\['assetsDisplayStructure', 'tableQueryDisplayStructure'];
+
+
+    assetsAndIncidentCustomFunctionality: {
+      queryFunction: =>~ {
+        ...__ >>~ queryAssets,
+        ...__ >>~ queryTableData
+      },
+      tableQueryQueryString: => { value: __@/[0, 'value'], incidentQueryFields: __@/[1, 'incidentQueryFields'],
+        incidentQueryFields! & 
+        incidentQueryFields >>/ [typeof, == 'string'] & 
+        incidentQueryFields## != 0 ??
+          incidentQueryFields >>/ [
+            \/ ',',
+            $<<,
+            # `{__\?}CONTAINS{value}`,
+            +| '^NQ'
+          }
+      }
+      createSummaryTags: =>
+        __ getTableQueryDataSummaryTags ++
+        __ getTotalAssetSummaryTag,
+      tableQuerySummaryTagPaths: ['number'],
+      displayTabNames: { assetData: 'Assets', tableQueryData: 'Incidents' },
+      displayStructure: {
+        assetData: assetsDisplayStructure,
+        tableQueryData: tableQueryDisplayStructure
+      }
+    }
+  },
+Example 5:
+  validateStringOptions: => { stringOptionsErrorMessages: _<@0, options:_<@1, otherErrors:_<@2 || []
+    stringOptionsErrorMessages >> #$ => {
+      agg: _<@0 || otherErrors, 
+      message: _<@1, 
+      optionName: _<@2,
+
+      optionValue: options@/[optionName, 'value']
+      isString: optionValue == 'string',
+      isEmptyString: &&/ [isString, optionValue isEmpty],
+      isString! || isEmptyString
+        ?? agg ++ {
+            key: optionName,
+            message
+          })
+        :: agg;
+    }
+  } 
+Lodash function translations
+  flow, 
+  map, 
+  size, 
+  mapValues, 
+  some, 
+  identity
+  flow,
+  keys,
+  values,
+  zipObject,
+  map,
+  first,
+  omit,
+  reduce,
+  size,
+  negate,
+  curry,
+  filter,
+  eq,
+  isEmpty,
+  get,
+  isArray,
+  identity,
+  join,
+  split,
+  getOr,
+  last
+
+  Primitive Operators
+  _<: left argument
+  _>: right argument
+  @: get
+  ~: reverse args?
+  >>: apply
+  {}: object scope operator
+  []: list
+  ...: spread operator
+
+  Accumulated Operators
+  >>: _< _> OR _< (_>) left: Any, right: Operator
+  _?: {boolean: _<, possibilities: _>,
+    {
+      true: possibilities@0,
+      false: possibilities@1,
+      '': possibilities@1,
+      undefined: possibilities@1
+    } @ boolean
+  }
+  #$: {iterable: _<, operator: _>,
+    iterable isObject ?? [agg, value, key] operator :: [agg, value] operator
+  }
+  #$: {iterable: _<, operator: _>,
+    {
+      true: [agg, value, key] operator, 
+      false: [agg, value] operator
+    } @ (iterable isObject) 
+  }
+
+  Reduce
+  #$: {iterable: _<, operator: _>,
+    TODO
+    iterable isObject _? [
+      [agg, value, key] operator,
+      [agg, value] operator
+    ]
+  }
+  /: {operator: _<, list: _>,
+    list #$ {agg: _<@0, value: _<@1,
+      agg operator value
+    }
+  }
+  #: {list: _<, operator: _>,
+    list #$ {agg: _<@0 || [], value: _<@1,
+      value >>/ [operator, ++~ agg]
+    }
+  }
+  asdf: {
+    [1,2,3] # {}
+  }
+ */
+
+/*
+Figure out how to make the way the object is acting here is as a function mapping inputs to outpus
+const modCharToFlag = {
+              g: { isGlobal: true },
+              i: { isCaseSensitive: false }
+            };
+
+            const regexModifiers = flow(
+              split,
+              reduce(
+                (agg, modifierCharacter) => ({
+                  ...agg,
+                  ...(modCharToFlag[modifierCharacter])
+                }),
+                {}
+              )
+            )(regexString.match(/([^\/]+$)/));
+
+Is it we need a better syntax for pattern matching?
+   */
+
+/**
+ * Symbol combos
+ * Single Chars: / \ | ( ) [ ] { } < > ! @ # $ % ^ & * ~ - _ ` ' " = + ? . ,
+ * Double Chars: // || !! \\ )) (( }} {{ ]] [[ >> << __ .. ,, -- ~~ ^^
+ * Two Chars: /| \| |/ \| |> >| <| |<
+ * 
+ * |/_ |/. |/- 
+ */
+
+/**
+ * APL Map Language Variant Rules:
+ * Everything is evaluated left to right unless there is a scope operator present
+ *
+ * [] List Creation scope operator
+ * - looks for next comma between [], and evaluates expression between starting [ or previous comma and that found comma
+ * 
+ * {} Map Creation scope operator
+ * - looks for next comma between [], and evaluates expression between starting [ or previous comma and that found comma
+ * - Evaluation of expression first splits each expression with : operator and evaluates the left expression and then the right expression
+ *   - the left expression gets stored as the alias/key to the resulting value of the right expression (variable) for the 'remainder of the scope'(i.e. until closing bracket })
+ *   - the evaluated keys and values available for access overall map after the expression is evaluated (e.g. { key: 1 } @ )
+ *   - keys (i.e. value to left of :) can just be characters which will be assumed to be a string assuming no
+ *   - values are evaluated as implicit expression scope (as if using expression scope operator)
+ * 
+ *   - if the last expression does not contain a `:` symbol between last comma and ending } that is the evaluated as an expression and is returned when the map is reference, thus making the Map Data Type into a Map Operator
+ *   - if every Map Scope Sub Expression has a : operator in it then then Map Data type is returned
+ * 
+ *   - _<: left argument or whatever is passed into the left of the Map or Map Reference
+ *     - Left is preferred to be data over operators
+ *   - _>: right argument or whatever is passed into the right of the Map or Map Reference
+ *   - if more than one argument operator is present in Map operator, and the use of the operator
+ *   - TODO: need mechanism to execute curried/ multi argument functions in a reasonable fashion
+ *   - TODO: need mechanism to get all keys (maybe return goes to return key) in Map operator
+ *   - TODO: need mechanism to do recursion in a reasonable way (base cases)
+ *   - TODO: need mechanism to reverse args (~ char?)
+ *   - TODO: need mechanism for parallel process running
+ *   - TODO: need mechanism to only run certain parts of lists and maps (if/flow)
+ *   - TODO: nm for partial application of list left arg
+ * 
+ * `` String scope operator
+ * - without unescaped {} in string `` just evaluates as a normal string
+ * - for each {} in string the string becomes an operator
+ * - `asdf: {_<}` `asdf: {x:_<@0, x+1}` becomes an unexecuted operator that takes a left argument 
+ * - `asdf: {otherVar + 1}` is evaluated as a string not operator as the expression doesn't have an argument
+ * - escaping works same as JS, and newlines must be explicit
+ * 
+ * - expressions are compositions of data and operators
+ * 
+ * () Expression scope operator
+ * -
+ * - Data types:
+ *   - Map {}
+ *   - List []
+ *   - String ``
+ *   - Number 0
+ *   - Boolean false
+ *   - Undefined undefined
+ * - Operators are expression that get repeatedly evaluated contextually when the Map Operator is referenced as words or symbols
+ * 
+ * @ Get Operator
+ * - {a: 1, b: 2} @ 'a' outputs 1
+ * - [1,2] @ 1 outputs 2
+ * - {a: {c: [ 3, 4 ] }, b: 2} @ `a` @ `c` @ 1  outputs 4
+ *   - TODO: better syntax for nested get (each operator APL?, get query lang for string?)
+ * - TODO: mechanism for pattern matching on keys
+ * 
+ * # Size Operator
+ * - [1,2,3]# outputs 3
+ * - `abc`# outputs 3
+ * - {a:1,b:2}# outputs 2
+ * 
+ * 
+ *  foo: {x: _<, { y: _<, { z: _<, 
+ *   x + y + z
+ *  }}},
+ * 
+ *  bar: 3 (2 (1 foo))
+ *  bar: [1, 2, 3] >>/ foo ?
+ * 
+ */
+
+/**
+ * Example 2
+  result 
+    @ 'tableQueryData' || []
+    flatMap { tableQueryDataResult: _<,
+      summaryTagPathsForThisType: entity@`type` getTableQuerySummaryTagPathsType,
+      allTableQueryPathValuesForThisResult: SUMMARY_TAG_DEFAULT_PATHS
+        ++ summaryTagPathsForThisType
+        map { tableQueryDataResult @ _< capitalize }
+        uniq
+        slice [0, 5],
+      
+      activityTabForThisResult: 
+        tableQueryDataResult@`active` ! _? [
+          [],
+          tableQueryDataResult@`active` = `true` _? [
+            `Active`,
+            `Inactive`
+          ]          
+        ],
+      allTableQueryPathValuesForThisResult ++ activityTabForThisResult
+    }
+    compact
+    uniq
+
+  { result: _<, entity: _>, 
+    getTableQuerySummaryTagPathsType: file@`./index`, 
+    aggregateTabResults: {
+      tableQueryDataResult: _<,
+      summaryTagPathsForThisType: entity@`type` @~ getTableQuerySummaryTagPathsType  
+      
+      allTableQueryPathValuesForThisResult: SUMMARY_TAG_DEFAULT_PATHS
+        ++ summaryTagPathsForThisType
+        map { tableQueryDataResult @ _< capitalize }
+        uniq
+        slice [0, 5],
+
+      activityTabForThisResult: 
+        tableQueryDataResult@`active` ! _? [
+          [],
+          tableQueryDataResult@`active` = `true` _? [
+            `Active`,
+            `Inactive`
+          ]          
+        ],
+
+      activityTabForThisResult ++ allTableQueryPathValuesForThisResult
+    },
+
+    result >>/ [
+      @ 'tableQueryData', 
+      || [],
+      #| aggregateTabResults,
+      $<<,
+      ~
+    ]
+  }
+ */

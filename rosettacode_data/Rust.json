@@ -1,0 +1,23 @@
+{
+  "total_tasks": 203,
+  "by_domain": {
+    "Other": 143,
+    "Games": 9,
+    "Classic CS problems": 3,
+    "File I/O": 4,
+    "Encryption": 5,
+    "Data Structures": 13,
+    "Graphics": 7,
+    "Text Processing": 5,
+    "Database": 1,
+    "Arithmetic": 9,
+    "Date and time": 4
+  },
+  "task_list_sample": [
+    "Rust",
+    "Tasks_not_implemented_in_Rust",
+    "100 doors",
+    "100 prisoners",
+    "10001th prime"
+  ]
+}

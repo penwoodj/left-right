@@ -1,0 +1,23 @@
+{
+  "total_tasks": 205,
+  "by_domain": {
+    "Other": 140,
+    "Games": 8,
+    "Graphics": 13,
+    "Classic CS problems": 4,
+    "File I/O": 1,
+    "Date and time": 4,
+    "Encryption": 4,
+    "Data Structures": 13,
+    "Text Processing": 7,
+    "Database": 1,
+    "Arithmetic": 10
+  },
+  "task_list_sample": [
+    "Python",
+    "Python compared to other languages",
+    "bytecode",
+    "Tasks_not_implemented_in_Python",
+    "100 doors"
+  ]
+}

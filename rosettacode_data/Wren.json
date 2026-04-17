@@ -1,0 +1,23 @@
+{
+  "total_tasks": 206,
+  "by_domain": {
+    "Other": 139,
+    "Games": 9,
+    "Graphics": 13,
+    "Classic CS problems": 4,
+    "File I/O": 1,
+    "Date and time": 5,
+    "Encryption": 4,
+    "Data Structures": 13,
+    "Text Processing": 7,
+    "Database": 1,
+    "Arithmetic": 10
+  },
+  "task_list_sample": [
+    "Wren",
+    "object-oriented",
+    "programming language",
+    "PureFox",
+    "Tasks not implemented in Wren"
+  ]
+}

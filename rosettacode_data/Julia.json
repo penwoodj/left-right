@@ -1,0 +1,23 @@
+{
+  "total_tasks": 204,
+  "by_domain": {
+    "Other": 137,
+    "Games": 9,
+    "Graphics": 13,
+    "Classic CS problems": 4,
+    "File I/O": 1,
+    "Date and time": 5,
+    "Encryption": 4,
+    "Data Structures": 13,
+    "Text Processing": 7,
+    "Database": 1,
+    "Arithmetic": 10
+  },
+  "task_list_sample": [
+    "Julia",
+    "MATLAB",
+    "Tasks_not_implemented_in_Julia",
+    "100 doors",
+    "100 prisoners"
+  ]
+}

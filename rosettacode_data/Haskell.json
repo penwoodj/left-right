@@ -1,0 +1,24 @@
+{
+  "total_tasks": 210,
+  "by_domain": {
+    "Other": 139,
+    "Games": 8,
+    "Classic CS problems": 4,
+    "File I/O": 4,
+    "Data Structures": 20,
+    "Graphics": 9,
+    "Text Processing": 7,
+    "Arithmetic": 10,
+    "Date and time": 3,
+    "Encryption": 4,
+    "System": 1,
+    "Concurrency": 1
+  },
+  "task_list_sample": [
+    "Haskell",
+    "Haskell compared to other languages",
+    "functional programming",
+    "lazy",
+    "Perl 6"
+  ]
+}

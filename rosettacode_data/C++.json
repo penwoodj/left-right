@@ -1,0 +1,23 @@
+{
+  "total_tasks": 210,
+  "by_domain": {
+    "Other": 152,
+    "Graphics": 6,
+    "Games": 8,
+    "Classic CS problems": 3,
+    "Date and time": 4,
+    "Encryption": 5,
+    "Data Structures": 13,
+    "Text Processing": 7,
+    "Database": 1,
+    "Arithmetic": 9,
+    "File I/O": 2
+  },
+  "task_list_sample": [
+    "C++",
+    "C++ compared to other languages",
+    "object-oriented language",
+    "object-oriented programming",
+    "procedural programming"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "total_tasks": 206,
+  "by_domain": {
+    "Other": 134,
+    "Games": 11,
+    "Classic CS problems": 2,
+    "File I/O": 4,
+    "Data Structures": 16,
+    "Graphics": 12,
+    "Text Processing": 7,
+    "Database": 1,
+    "Arithmetic": 11,
+    "Date and time": 4,
+    "Encryption": 2,
+    "System": 1,
+    "Concurrency": 1
+  },
+  "task_list_sample": [
+    "Racket",
+    "RacketCS",
+    "RacketBC",
+    "RacketScript",
+    "Tasks not implemented in Racket"
+  ]
+}

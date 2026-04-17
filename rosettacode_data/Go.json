@@ -1,0 +1,23 @@
+{
+  "total_tasks": 203,
+  "by_domain": {
+    "Other": 137,
+    "Games": 9,
+    "Classic CS problems": 4,
+    "File I/O": 1,
+    "Date and time": 5,
+    "Encryption": 4,
+    "Data Structures": 13,
+    "Graphics": 12,
+    "Text Processing": 7,
+    "Database": 1,
+    "Arithmetic": 10
+  },
+  "task_list_sample": [
+    "Go compared to other languages",
+    "Tasks not implemented in Go",
+    "100 doors",
+    "100 prisoners",
+    "10001th prime"
+  ]
+}

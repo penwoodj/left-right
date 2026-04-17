@@ -1,0 +1,24 @@
+{
+  "total_tasks": 212,
+  "by_domain": {
+    "Other": 142,
+    "Games": 7,
+    "File I/O": 4,
+    "Classic CS problems": 3,
+    "Date and time": 5,
+    "Graphics": 12,
+    "Text Processing": 7,
+    "Data Structures": 18,
+    "Arithmetic": 8,
+    "Encryption": 4,
+    "System": 1,
+    "Concurrency": 1
+  },
+  "task_list_sample": [
+    "Ruby",
+    "Ruby compared to other languages",
+    "object-oriented",
+    "Platform",
+    "Perl"
+  ]
+}

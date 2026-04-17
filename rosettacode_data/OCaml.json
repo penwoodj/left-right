@@ -1,0 +1,24 @@
+{
+  "total_tasks": 213,
+  "by_domain": {
+    "Other": 137,
+    "Games": 8,
+    "Classic CS problems": 2,
+    "Data Structures": 21,
+    "Text Processing": 10,
+    "Arithmetic": 11,
+    "Date and time": 2,
+    "Graphics": 13,
+    "Encryption": 1,
+    "File I/O": 6,
+    "System": 1,
+    "Concurrency": 1
+  },
+  "task_list_sample": [
+    "OCaml",
+    "OCaml compared to other languages",
+    "Caml",
+    "programming language",
+    "open source"
+  ]
+}
