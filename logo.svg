@@ -1,19 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 100" width="280" height="100">
   <defs>
-    <linearGradient id="leftGrad" x1="0%" y1="50%" x2="100%" y2="50%">
-      <stop offset="0%" style="stop-color:#24A148;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#55cbcb;stop-opacity:1" />
+    <linearGradient id="greenGrad" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" style="stop-color:#b7e4c7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#95d5b2;stop-opacity:1" />
     </linearGradient>
-    <linearGradient id="rightGrad" x1="0%" y1="50%" x2="100%" y2="50%">
-      <stop offset="0%" style="stop-color:#55cbcb;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#612d86;stop-opacity:1" />
+    <linearGradient id="violetGrad" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" style="stop-color:#a78bfa;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
     </linearGradient>
     <filter id="glow">
-      <feGaussianBlur stdDeviation="2" result="blur" />
+      <feGaussianBlur stdDeviation="1.5" result="blur" />
       <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
   </defs>
   <text x="140" y="68" text-anchor="middle" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="72" font-style="italic" font-weight="600" filter="url(#glow)">
-    <tspan fill="url(#leftGrad)">{_</tspan><tspan dx="-4" fill="url(#leftGrad)">&lt;</tspan><tspan fill="url(#rightGrad)">_</tspan><tspan dx="-4" fill="url(#rightGrad)">&gt;</tspan><tspan fill="url(#rightGrad)">}</tspan>
+    <tspan fill="#334155">{</tspan><tspan fill="url(#greenGrad)">_</tspan><tspan dx="-4" fill="url(#greenGrad)">&lt;</tspan><tspan fill="url(#violetGrad)">_</tspan><tspan dx="-4" fill="url(#violetGrad)">&gt;</tspan><tspan fill="#334155">}</tspan>
   </text>
 </svg>
