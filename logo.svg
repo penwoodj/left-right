@@ -1,31 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 100" width="280" height="100">
   <defs>
-    <!-- Left gradient: opens to left input -->
-    <linearGradient id="leftGradient" x1="0%" y1="50%" x2="100%" y2="50%">
+    <linearGradient id="logoGradient" x1="0%" y1="50%" x2="100%" y2="50%">
       <stop offset="0%" style="stop-color:#2563EB;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#06B6D4;stop-opacity:1" />
-    </linearGradient>
-    
-    <!-- Right gradient: from right input to close -->
-    <linearGradient id="rightGradient" x1="0%" y1="50%" x2="100%" y2="50%">
-      <stop offset="0%" style="stop-color:#0891B2;stop-opacity:1" />
+      <stop offset="35%" style="stop-color:#06B6D4;stop-opacity:1" />
+      <stop offset="65%" style="stop-color:#0891B2;stop-opacity:1" />
       <stop offset="100%" style="stop-color:#FF6B6B;stop-opacity:1" />
     </linearGradient>
   </defs>
-  
-  <text text-anchor="middle" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="72" font-style="italic" font-weight="600" letter-spacing="0">
-    
-    <!-- { - left bracket, left gradient -->
-    <tspan x="70" y="65" fill="url(#leftGradient)">{</tspan>
-    
-    <!-- _< - left input operator, left gradient -->
-    <tspan x="85" y="65" fill="url(#leftGradient)">_&lt;</tspan>
-    
-    <!-- _> - right input operator, right gradient (distinct color) -->
-    <tspan x="105" y="65" fill="url(#rightGradient)">_&gt;</tspan>
-    
-    <!-- } - right bracket, right gradient -->
-    <tspan x="120" y="65" fill="url(#rightGradient)">}</tspan>
-    
-  </text>
+  <text x="140" y="68" text-anchor="middle" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="72" font-style="italic" font-weight="600" fill="url(#logoGradient)">{_&lt;_&gt;}</text>
 </svg>
