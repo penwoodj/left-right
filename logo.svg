@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 120" width="420" height="120">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 100" width="380" height="100">
   <defs>
     <!-- Left gradient: opens to left input -->
     <linearGradient id="leftGradient" x1="0%" y1="50%" x2="100%" y2="50%">
@@ -14,37 +14,37 @@
     
     <!-- Subtle glow -->
     <filter id="glow" x="-10%" y="-10%" width="120%" height="120%">
-      <feGaussianBlur stdDeviation="1.5" result="blur" />
+      <feGaussianBlur stdDeviation="1.2" result="blur" />
       <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
   </defs>
   
   <!-- Subtle background flow lines -->
-  <g opacity="0.1">
-    <line x1="30" y1="30" x2="130" y2="30" stroke="#2563EB" stroke-width="1" />
-    <line x1="290" y1="90" x2="390" y2="90" stroke="#FF6B6B" stroke-width="1" />
+  <g opacity="0.08">
+    <line x1="25" y1="25" x2="105" y2="25" stroke="#2563EB" stroke-width="0.8" />
+    <line x1="275" y1="75" x2="355" y2="75" stroke="#FF6B6B" stroke-width="0.8" />
   </g>
   
-  <!-- Logo text: {_<_>} with gradient transitions -->
-  <!-- Each element has its own gradient that merges visually -->
-  <text x="210" y="82" text-anchor="middle" font-family="'JetBrains Mono', 'Fira Code', 'Source Code Pro', monospace" font-size="72" font-style="italic" font-weight="600" letter-spacing="0">
+  <!-- Logo text: {_<_>} with tight spacing and gradient transitions -->
+  <!-- Each element has its own gradient, gaps are 1/6th char width (~2-3px) -->
+  <text x="190" y="72" text-anchor="middle" font-family="'JetBrains Mono', 'Fira Code', 'Source Code Pro', monospace" font-size="68" font-style="italic" font-weight="600" letter-spacing="-0.5">
     
     <!-- { - left bracket, left gradient -->
     <tspan fill="url(#leftGradient)" filter="url(#glow)">{</tspan>
     
     <!-- _< - left input operator, left gradient -->
-    <tspan fill="url(#leftGradient)" dx="2">_</tspan>
-    <tspan fill="url(#leftGradient)" dx="3">&lt;</tspan>
+    <tspan fill="url(#leftGradient)" dx="1.5">_</tspan>
+    <tspan fill="url(#leftGradient)" dx="2">&lt;</tspan>
     
     <!-- _> - right input operator, right gradient (distinct color) -->
-    <tspan fill="url(#rightGradient)" dx="3">_</tspan>
+    <tspan fill="url(#rightGradient)" dx="2">_</tspan>
     <tspan fill="url(#rightGradient)">&gt;</tspan>
     
     <!-- } - right bracket, right gradient (merges from right) -->
-    <tspan fill="url(#rightGradient)" dx="2">}</tspan>
+    <tspan fill="url(#rightGradient)" dx="1.5">}</tspan>
     
   </text>
   
   <!-- Subtle underline -->
-  <line x1="125" y1="95" x2="295" y2="95" stroke="url(#rightGradient)" stroke-width="1.5" stroke-linecap="round" opacity="0.4" />
+  <line x1="110" y1="85" x2="270" y2="85" stroke="url(#rightGradient)" stroke-width="1.2" stroke-linecap="round" opacity="0.3" />
 </svg>
