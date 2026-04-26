@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 100" width="240" height="100">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 100" width="280" height="100">
   <defs>
     <!-- Left gradient: opens to left input -->
     <linearGradient id="leftGradient" x1="0%" y1="50%" x2="100%" y2="50%">
@@ -11,37 +11,21 @@
       <stop offset="0%" style="stop-color:#0891B2;stop-opacity:1" />
       <stop offset="100%" style="stop-color:#FF6B6B;stop-opacity:1" />
     </linearGradient>
-    
-    <!-- Subtle glow -->
-    <filter id="glow" x="-10%" y="-10%" width="120%" height="120%">
-      <feGaussianBlur stdDeviation="1.2" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-    </filter>
   </defs>
   
-  <!-- Subtle background flow lines -->
-  <g opacity="0.08">
-    <line x1="25" y1="25" x2="95" y2="25" stroke="#2563EB" stroke-width="0.8" />
-    <line x1="265" y1="75" x2="335" y2="75" stroke="#FF6B6B" stroke-width="0.8" />
-  </g>
-  
-  <!-- Logo text: {_<_>} with ultra-tight spacing -->
-  <text text-anchor="middle" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="68" font-style="italic" font-weight="600" letter-spacing="-1">
+  <text text-anchor="middle" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="72" font-style="italic" font-weight="600" letter-spacing="0">
     
     <!-- { - left bracket, left gradient -->
-    <tspan x="75" y="72" fill="url(#leftGradient)" filter="url(#glow)">{</tspan>
+    <tspan x="70" y="65" fill="url(#leftGradient)">{</tspan>
     
     <!-- _< - left input operator, left gradient -->
-    <tspan x="100" y="72" fill="url(#leftGradient)">_&lt;</tspan>
+    <tspan x="85" y="65" fill="url(#leftGradient)">_&lt;</tspan>
     
     <!-- _> - right input operator, right gradient (distinct color) -->
-    <tspan x="140" y="72" fill="url(#rightGradient)">_&gt;</tspan>
+    <tspan x="105" y="65" fill="url(#rightGradient)">_&gt;</tspan>
     
     <!-- } - right bracket, right gradient -->
-    <tspan x="180" y="72" fill="url(#rightGradient)">}</tspan>
+    <tspan x="120" y="65" fill="url(#rightGradient)">}</tspan>
     
   </text>
-  
-  <!-- Subtle underline -->
-  <line x1="75" y1="85" x2="200" y2="85" stroke="url(#rightGradient)" stroke-width="1.2" stroke-linecap="round" opacity="0.3" />
 </svg>
