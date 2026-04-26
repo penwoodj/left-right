@@ -1,15 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 100" width="280" height="100">
   <defs>
     <linearGradient id="leftGrad" x1="0%" y1="50%" x2="100%" y2="50%">
-      <stop offset="0%" style="stop-color:#2563EB;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#06B6D4;stop-opacity:1" />
+      <stop offset="0%" style="stop-color:#6366F1;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#A855F7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#EC4899;stop-opacity:1" />
     </linearGradient>
     <linearGradient id="rightGrad" x1="0%" y1="50%" x2="100%" y2="50%">
-      <stop offset="0%" style="stop-color:#0891B2;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#FF6B6B;stop-opacity:1" />
+      <stop offset="0%" style="stop-color:#EC4899;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#D946EF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#06B6D4;stop-opacity:1" />
     </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
   </defs>
-  <text x="140" y="68" text-anchor="middle" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="72" font-style="italic" font-weight="600">
-    <tspan fill="url(#leftGrad)">{_</tspan><tspan dx="-2" fill="url(#leftGrad)">&lt;</tspan><tspan fill="url(#rightGrad)">_</tspan><tspan dx="-2" fill="url(#rightGrad)">&gt;</tspan><tspan fill="url(#rightGrad)">}</tspan>
+  <text x="140" y="68" text-anchor="middle" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="72" font-style="italic" font-weight="600" filter="url(#glow)">
+    <tspan fill="url(#leftGrad)">{_</tspan><tspan dx="-4" fill="url(#leftGrad)">&lt;</tspan><tspan fill="url(#rightGrad)">_</tspan><tspan dx="-4" fill="url(#rightGrad)">&gt;</tspan><tspan fill="url(#rightGrad)">}</tspan>
   </text>
 </svg>
