@@ -25,25 +25,23 @@
     <line x1="265" y1="75" x2="335" y2="75" stroke="#FF6B6B" stroke-width="0.8" />
   </g>
   
-  <!-- Logo text: {_<_>} with minimal 0.5px spacing -->
-  <text x="180" y="72" text-anchor="middle" font-family="'JetBrains Mono', 'Fira Code', 'Source Code Pro', monospace" font-size="68" font-style="italic" font-weight="600" letter-spacing="-0.5">
+  <!-- Logo text: {_<_>} with absolute positioning for tight spacing -->
+  <text text-anchor="middle" font-family="'JetBrains Mono', 'Fira Code', 'Source Code Pro', monospace" font-size="68" font-style="italic" font-weight="600" letter-spacing="-0.5">
     
     <!-- { - left bracket, left gradient -->
-    <tspan fill="url(#leftGradient)" filter="url(#glow)">{</tspan>
+    <tspan x="85" y="72" fill="url(#leftGradient)" filter="url(#glow)">{</tspan>
     
     <!-- _< - left input operator, left gradient -->
-    <tspan fill="url(#leftGradient)" dx="0.5">_</tspan>
-    <tspan fill="url(#leftGradient)" dx="0.5">&lt;</tspan>
+    <tspan x="125" y="72" fill="url(#leftGradient)">_&lt;</tspan>
     
     <!-- _> - right input operator, right gradient (distinct color) -->
-    <tspan fill="url(#rightGradient)" dx="0.5">_</tspan>
-    <tspan fill="url(#rightGradient)">&gt;</tspan>
+    <tspan x="190" y="72" fill="url(#rightGradient)">_&gt;</tspan>
     
     <!-- } - right bracket, right gradient (merges from right) -->
-    <tspan fill="url(#rightGradient)" dx="0.5">}</tspan>
+    <tspan x="250" y="72" fill="url(#rightGradient)">}</tspan>
     
   </text>
   
   <!-- Subtle underline -->
-  <line x1="105" y1="85" x2="255" y2="85" stroke="url(#rightGradient)" stroke-width="1.2" stroke-linecap="round" opacity="0.3" />
+  <line x1="85" y1="85" x2="275" y2="85" stroke="url(#rightGradient)" stroke-width="1.2" stroke-linecap="round" opacity="0.3" />
 </svg>
