@@ -26,5 +26,16 @@
     </filter>
   </defs>
   
-  <text x="140" y="68" text-anchor="middle" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="72" font-style="italic" font-weight="600" filter="url(#softGlow)" fill="url(#fullGrad)"><tspan>{</tspan><tspan dx="-18">_</tspan><tspan dx="28">&lt;</tspan><tspan dx="-23">_</tspan><tspan dx="-15">&gt;</tspan><tspan>}</tspan></text>
+  <!-- Gap-to-right positioning: {→5 _→-18 <→28 _→-23 >→-15 }→0 -->
+  <!-- Visual widths approx: {27 _43 <32 _43 >32 }27 -->
+  <!-- Cumulative x: {0 _32(57) <89 _117(137) }154(181) -->
+  <!-- Centered: start at 50 -->
+  <text y="68" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="72" font-style="italic" font-weight="600" filter="url(#softGlow)" fill="url(#fullGrad)">
+    <tspan x="50">{</tspan>
+    <tspan x="32">_</tspan>
+    <tspan x="89">&lt;</tspan>
+    <tspan x="117">_</tspan>
+    <tspan x="137">&gt;</tspan>
+    <tspan x="154">}</tspan>
+  </text>
 </svg>
