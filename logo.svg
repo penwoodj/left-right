@@ -26,5 +26,13 @@
     </filter>
   </defs>
   
-  <text x="140" y="68" text-anchor="middle" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="72" font-style="italic" font-weight="600" filter="url(#softGlow)" fill="url(#fullGrad)"><tspan>{</tspan><tspan>_</tspan><tspan dx="-5">&lt;</tspan><tspan dx="6">_</tspan><tspan dx="-2">&gt;</tspan><tspan>}</tspan></text>
+  <!-- Absolute x positioning per character — no dx accumulation issues -->
+  <text y="68" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="72" font-style="italic" font-weight="600" filter="url(#softGlow)" fill="url(#fullGrad)">
+    <tspan x="20">{</tspan>
+    <tspan x="52">_</tspan>
+    <tspan x="73">&lt;</tspan>
+    <tspan x="112">_</tspan>
+    <tspan x="133">&gt;</tspan>
+    <tspan x="172">}</tspan>
+  </text>
 </svg>
