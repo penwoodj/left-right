@@ -30,11 +30,11 @@
   <!-- Left group {_< then gap, right group _>} -->
   <!-- Gaps: {→_ = 32, _→< = 10, <→_ = 39 (inter-group), _→> = 10, >→} = 39 -->
   <text y="68" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="72" font-style="italic" font-weight="600" filter="url(#softGlow)" fill="url(#fullGrad)">
-    <tspan x="75">{</tspan>
-    <tspan x="107">_</tspan>
-    <tspan x="117">&lt;</tspan>
-    <tspan x="156">_</tspan>
-    <tspan x="166">&gt;</tspan>
-    <tspan x="205">}</tspan>
+    <tspan x="43">{</tspan>
+    <tspan x="117">_</tspan>
+    <tspan x="65">&lt;</tspan>
+    <tspan x="113">_</tspan>
+    <tspan x="32">&gt;</tspan>
+    <tspan x="170">}</tspan>
   </text>
 </svg>
