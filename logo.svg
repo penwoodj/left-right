@@ -26,5 +26,5 @@
     </filter>
   </defs>
   
-  <text x="140" y="68" text-anchor="middle" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="72" font-style="italic" font-weight="600" filter="url(#softGlow)" fill="url(#fullGrad)"><tspan>{</tspan><tspan dx="-5">_</tspan><tspan dx="-10">&lt;</tspan><tspan dx="10">_</tspan><tspan dx="-10">&gt;</tspan><tspan dx="-10">}</tspan></text>
+  <text x="140" y="68" text-anchor="middle" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="72" font-style="italic" font-weight="600" filter="url(#softGlow)" fill="url(#fullGrad)"><tspan>{</tspan><tspan dx="-4" dy="-1">_</tspan><tspan dx="-14" dy="-6">&lt;</tspan><tspan dx="8" dy="6">_</tspan><tspan dx="-10" dy="-6">&gt;</tspan><tspan dx="-10" dy="6">}</tspan></text>
 </svg>
