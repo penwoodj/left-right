@@ -26,13 +26,15 @@
     </filter>
   </defs>
   
-  <!-- Absolute x positioning per character — no dx accumulation issues -->
+  <!-- Absolute x positioning per character -->
+  <!-- Left group {_< then gap, right group _>} -->
+  <!-- Gaps: {→_ = 32, _→< = 10, <→_ = 39 (inter-group), _→> = 10, >→} = 39 -->
   <text y="68" font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="72" font-style="italic" font-weight="600" filter="url(#softGlow)" fill="url(#fullGrad)">
-    <tspan x="20">{</tspan>
-    <tspan x="52">_</tspan>
-    <tspan x="73">&lt;</tspan>
-    <tspan x="112">_</tspan>
-    <tspan x="133">&gt;</tspan>
-    <tspan x="172">}</tspan>
+    <tspan x="75">{</tspan>
+    <tspan x="107">_</tspan>
+    <tspan x="117">&lt;</tspan>
+    <tspan x="156">_</tspan>
+    <tspan x="166">&gt;</tspan>
+    <tspan x="205">}</tspan>
   </text>
 </svg>
