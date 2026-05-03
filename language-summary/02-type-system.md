@@ -154,7 +154,7 @@ obj: { a: 1 },
 missingValue: obj @b  // Returns undefined
 
 // Failed operation defaults to undefined
-result: {} @['nested', 'path']  // Returns undefined
+result: {} @[, ]  // Returns undefined
 ```
 
 ---
@@ -323,10 +323,10 @@ The same operator changes meaning based on input types, enabling polymorphic beh
 
 | Input Type | Behavior | Example |
 |------------|----------|----------|
-| Text | Property access | `obj @['name']` → `obj.name` |
+| Text | Property access | `obj @[]` → `obj.name` |
 | List | Index access | `arr @[0]` → `arr[0]` |
 | Number | Index access (numeric path) | `arr @0` → `arr[0]` |
-| List of text | Nested path access | `data @['user', 'profile', 'email']` → `data.user.profile.email` |
+| List of text | Nested path access | `data @[, , ]` → `data.user.profile.email` |
 
 ### `#` Size Operator Behavior
 
@@ -405,7 +405,7 @@ Errors default to `undefined` rather than throwing exceptions.
 ```penroscript
 // Missing key returns undefined
 obj: { a: 1 },
-missing: obj @['nonexistent']  // undefined
+missing: obj @[]  // undefined
 
 // Out of bounds returns undefined
 arr: [1, 2, 3],
@@ -595,7 +595,7 @@ Use implicit coercion for flexible APIs:
 // Truthy/falsy coercion for conditional logic
 {
   result: value & 'truthy',
-  isActive: config @['enabled'] ?? false
+  isActive: config @[] ?? false
 }
 ```
 

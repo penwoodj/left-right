@@ -471,20 +471,20 @@ This order matches user intuition: "I have a list, I want to add to the list" no
   },
 
   // Map path access
-  name: data @['user', 'name'],           // `Alice`
-  email: data @['user', 'emails', 0],     // `alice@work.com`
+  name: data @[`user`, `name`],           // `Alice`
+  email: data @[`user`, `emails`, 0],     // `alice@work.com`
 
   // List indexing
-  first: data @['items', 0],            // 10
-  last: data @['items', -1],            // 50
-  slice: data @['items', 1:3],         // [20, 30]
+  first: data @[`items`, 0],            // 10
+  last: data @[`items`, -1],            // 50
+  slice: data @[`items`, 1:3],         // [20, 30]
 
   // Missing keys → undefined
-  missing: data @['user', 'age'],      // undefined
-  outOfBounds: data @['items', 100],    // undefined
+  missing: data @[`user`, `age`],      // undefined
+  outOfBounds: data @[`items`, 100],    // undefined
 
   // Invalid operations → undefined
-  invalid: 42 @['key'],                // undefined
+  invalid: 42 @[`key`],                // undefined
 }
 ```
 
@@ -654,7 +654,7 @@ The `?` operator serves two purposes:
 
   // Nested values
   nested: { x: { y: `test` } },
-  typeOfY: nested @['x', 'y'] ?,
+  typeOfY: nested @[, ] ?,
   // 'text'
 }
 ```
@@ -666,17 +666,17 @@ The `?` operator serves two purposes:
   // Check if value equals specific type
   // Format: value ?= expectedType
 
-  isText1: `hello` ?= 'text',      // true
-  isText2: 42 ?= 'text',           // false
+  isText1: `hello` ?= `text`,      // true
+  isText2: 42 ?= `text`,           // false
 
-  isNumber: 42 ?= 'number',            // true
+  isNumber: 42 ?= `number`,            // true
 
-  isList: [1, 2] ?= 'list',          // true
-  isNotList: 42 ?= 'list',          // false
+  isList: [1, 2] ?= `list`,          // true
+  isNotList: 42 ?= `list`,          // false
 
-  isMap: {a: 1} ?= 'map',            // true
+  isMap: {a: 1} ?= `map`,            // true
 
-  isUndefined: undefined ?= 'undefined', // true
+  isUndefined: undefined ?= `undefined`, // true
 }
 ```
 
@@ -684,7 +684,7 @@ The `?` operator serves two purposes:
 ```penroscript
 {
   // These are equivalent
-  check1: `hello` ?= 'text',
+  check1: `hello` ?= `text`,
   check2: `hello` ? = 'text',
 
   // Both evaluate as: `hello` ? → 'text', then 'text' = 'text' → true
@@ -693,7 +693,7 @@ The `?` operator serves two purposes:
 
 ### Evaluation Order Walkthrough
 
-Let's trace `` `hello` ?= 'text' `` step-by-step:
+Let's trace `` `hello` ?= `text` `` step-by-step:
 
 ```
 1. Evaluate left operand: `hello`
@@ -730,7 +730,7 @@ Final result: true
 
   // This is likely a type error - comparing 'number' text to number
   // Better to check type first, then compare:
-  result2: (value ?= 'number') & (value > 40),
+  result2: (value ?= `number`) & (value > 40),
   // true AND true → true
 }
 ```
@@ -757,9 +757,9 @@ The `?` operator is **configurable** at multiple levels:
   ageType: 42 ?,                // 'num' (instead of 'number')
 
   // Equality checks adapt to configured names
-  isText: `hello` ?= 'text',    // true
-  isNum: 42 ?= 'num',          // true
-  isTextOld: `hello` ?= 'text',  // false (name changed)
+  isText: `hello` ?= `text`,    // true
+  isNum: 42 ?= `num`,          // true
+  isTextOld: `hello` ?= `text`,  // false (name changed)
 }
 ```
 
@@ -809,11 +809,11 @@ The `?` operator is **configurable** at multiple levels:
   data: [1, `hello`, 42, `world`, true],
 
   // Process only text
-  text: data $? { _< ?= 'text' },
+  text: data $? { _< ?= `text` },
   // [`hello`, `world`]
 
   // Process only numbers
-  numbers: data $? { _< ?= 'number' },
+  numbers: data $? { _< ?= `number` },
   // [1, 42]
 }
 
@@ -822,7 +822,7 @@ The `?` operator is **configurable** at multiple levels:
   value: getUserInput(),  // Could be anything
 
   // Safe addition (only if number)
-  safeAdd: value ?= 'number' ? value + 10 : undefined,
+  safeAdd: value ?= `number` ? value + 10 : undefined,
   // If value is `hello`, returns undefined instead of error
 }
 
@@ -830,8 +830,8 @@ The `?` operator is **configurable** at multiple levels:
 {
   validateUser: { user: _<,
     // Check required fields
-    hasName: user @['name'] ?= 'text',
-    hasAge: user @['age'] ?= 'number',
+    hasName: user @[] ?= `text`,
+    hasAge: user @[] ?= `number`,
 
     // Return validation result
     result: hasName & hasAge
@@ -1190,14 +1190,14 @@ collection ?|! { predicate }
     { name: `Bob`, active: true },
     { name: `Charlie`, active: true }
   ],
-  allActive: users ?|! { @['active'] },
+  allActive: users ?|! { @[] },
   // true (all active: true)
 
   users2: [
     { name: `Alice`, active: true },
     { name: `Bob`, active: false }
   ],
-  allActive2: users2 ?|! { @['active'] },
+  allActive2: users2 ?|! { @[] },
   // false (Bob is not active)
 }
 ```
@@ -1236,7 +1236,7 @@ collection ?|! { predicate }
   required: [`name`, `email`, `age`],
 
   allPresent: required ?|! { field: _<,
-    formData @field ?= 'undefined'
+    formData @field ?= `undefined`
   },
   // true (all required fields present)
 }
@@ -1249,7 +1249,7 @@ collection ?|! { predicate }
     { id: 3, valid: true }
   ],
 
-  allValid: records ?|! { @['valid'] },
+  allValid: records ?|! { @[] },
   // true
 
   // Partially valid
@@ -1257,7 +1257,7 @@ collection ?|! { predicate }
     { id: 1, valid: true },
     { id: 2, valid: false }
   ],
-  allValid2: records2 ?|! { @['valid'] },
+  allValid2: records2 ?|! { @[] },
   // false
 }
 
@@ -1267,7 +1267,7 @@ collection ?|! { predicate }
   requiredPermission: `read`,
 
   allCanRead: users ?|! { user: _<,
-    user @['permissions'] ?| { _< = requiredPermission }
+    user @[] ?| { _< = requiredPermission }
   },
   // true (all users have 'read' permission)
 }
@@ -1280,7 +1280,7 @@ collection ?|! { predicate }
     { name: `test3`, passed: true }
   ],
 
-  allPass: tests ?|! { @['passed'] },
+  allPass: tests ?|! { @[] },
   // true
 
   // Some failed
@@ -1288,7 +1288,7 @@ collection ?|! { predicate }
     { name: `test1`, passed: true },
     { name: `test2`, passed: false }
   ],
-  allPass2: tests2 ?|! { @['passed'] },
+  allPass2: tests2 ?|! { @[] },
   // false
 }
 ```

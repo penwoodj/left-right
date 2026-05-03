@@ -72,8 +72,8 @@ Left-Right is optimized as a general-purpose scripting language for:
 {
   threats: [...]  // Input data
   result: threats
-    ?{ @['confidence'] = 'high' }  // Filter
-    ${ @['classification'] "^_ }          // Transform
+    ?{ @[] = 'high' }  // Filter
+    ${ @[] "^_ }          // Transform
     ~                                      // Unique
     >< ', '                              // Join
 }
@@ -131,7 +131,7 @@ The language uses JSON-like structure so programs "look like data, act like code
 // Looks like JSON data
 {
   step1: { extract: `user` },
-  step2: step1.extract @['email'],
+  step2: step1.extract @[],
   step3: step2 ?/ `@company.com`,
   result: step3
 }
@@ -279,13 +279,13 @@ The same operator changes meaning based on input type, enabling polymorphic beha
 **Example: `@` Path Access**
 ```penroscript
 // Text: property access
-obj @['name']      // obj.name
+obj @[]      // obj.name
 
 // List: index access
 arr @[0]            // arr[0]
 
 // Map: nested path access
-data @['user', 'profile', 'email']  // data.user.profile.email
+data @[, , ]  // data.user.profile.email
 ```
 
 This design:

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="draw.io" version="26.0.0">
+  <diagram name="Left-Right Logo">
+    <mxGraphModel>
+      <root>
+        <mxCell id="0" />
+        <!-- { - left bracket, blue to cyan gradient -->
+        <mxCell id="1" value="{" style="html=1;fillColor=#2563EB;strokeColor=#06B6D4;fontFamily=JetBrains Mono;fontStyle=italic;fontSize=72;fontWeight=600" }" style="endArrow=block;endFill=0;endSize=0;html=1;strokeColor=#06B6D4;" vertex="1" parent="0">
+          <mxGeometry x="50" y="72" width="80" height="90" as="geometry" />
+        </mxCell>
+        
+        <!-- _< - left input operator, blue to cyan gradient -->
+        <mxCell id="2" value="_&lt;" style="endArrow=block;endFill=0;endSize=0;html=1;fillColor=#2563EB;strokeColor=#06B6D4;fontFamily=JetBrains Mono;fontStyle=italic;fontSize=72;fontWeight=600" vertex="1" parent="0">
+          <mxGeometry x="130" y="72" width="80" height="90" as="geometry" />
+        </mxCell>
+        
+        <!-- _> - right input operator, cyan to pink gradient (distinct) -->
+        <mxCell id="3" value="_&gt;" style="endArrow=block;endFill=0;endSize=0;html=1;fillColor=#0891B2;strokeColor=#FF6B6B;fontFamily=JetBrains Mono;fontStyle=italic;fontSize=72;fontWeight=600" vertex="1" parent="0">
+          <mxGeometry x="210" y="72" width="80" height="90" as="geometry" />
+        </mxCell>
+        
+        <!-- } - right bracket, cyan to pink gradient -->
+        <mxCell id="4" value="}" style="endArrow=block;endFill=0;endSize=0;html=1;fillColor=#0891B2;strokeColor=#FF6B6B;fontFamily=JetBrains Mono;fontStyle=italic;fontSize=72;fontWeight=600" vertex="1" parent="0">
+          <mxGeometry x="290" y="72" width="80" height="90" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

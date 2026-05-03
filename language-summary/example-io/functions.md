@@ -248,7 +248,7 @@ fn get_entity_types(types_to_get: serde_json::Value, entities: serde_json::Value
 - Nested conditional blocks: `? { ... }`
 
 Key patterns:
-- `typesToGet !?= 'text'` — runtime type check with ternary-like syntax
+- `typesToGet !?= `text`` — runtime type check with ternary-like syntax
 - `typesToGet ${'_}` — lowercase operator (map case)
 - `lowerTypesToGet ?| { typeToGet: _<@0, lowerEntityTypes >< typeToGet }` — some() with lambda
 

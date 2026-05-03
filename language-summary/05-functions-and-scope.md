@@ -207,8 +207,8 @@ Deep paths can be destructured using the `@` operator:
 ```javascript
 // Destructure nested structure
 {
-  value: _<@['nested', 'path', 'value'],
-  key: _<@['nested', 'path', 'key'],
+  value: _<@[, , ],
+  key: _<@[, , ],
   value + key
 }
 ```
@@ -506,7 +506,7 @@ Override operators for entire project:
 @: {
   path: _<@0,
   // Custom path access with logging
-  path @- @['customPath']
+  path @- @[]
 }
 ```
 
