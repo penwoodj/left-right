@@ -44,7 +44,7 @@
 | [06-collections-and-paths.md](./06-collections-and-paths.md) | Maps, arrays, @ path access, collection operations, ETL patterns |
 | [07-strings-and-templates.md](./07-strings-and-templates.md) | Template literals, string interpolation, case operators, spatial symbology |
 | [08-modules-and-interop.md](./08-modules-and-interop.md) | File/package system, JS/Rust library interop, import/export, FFI |
-| [09-error-handling.md](./09-error-handling.md) | Undefined defaults, !? type checking, error propagation through pipelines |
+| [09-error-handling.md](./09-error-handling.md) | Undefined defaults, ? type checking, error propagation through pipelines |
 | [10-transpiler-architecture.md](./10-transpiler-architecture.md) | Rust transpiler, JS/Rust targets, compilation pipeline, deterministic design |
 | [11-open-questions.md](./11-open-questions.md) | Unresolved design decisions, TODOs from 25-category spec, edge cases |
 | [12-file-extension-options.md](./12-file-extension-options.md) | .lr availability analysis, alternative extensions, recommendations |

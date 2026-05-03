@@ -12,10 +12,10 @@ getResultForThisEntity: { entity: _<, options: _>,
 
   entityType = `custom` & {
     customType: entity@`types`@0,
-    result: queryFields$?{ _<@`name` = customType }
+    result: queryFields?{ _<@`name` = customType }
       ${ _<@`query` }
   } | {
-    result: queryFields$?{ _<@`name` = entityType }
+    result: queryFields?{ _<@`name` = entityType }
       ${ _<@`query` }
   }
 }
@@ -73,11 +73,11 @@ fn get_result_for_this_entity(
 **Left-Right:**
 ```left-right
 getKustoQueryResults: { query: _<, results: _<,
-  parsed: results$?{ _<@`status` = `success` },
+  parsed: results?{ _<@`status` = `success` },
 
-  validData: parsed$?{ _<@`data` | 0 },
+  validData: parsed?{ _<@`data` | 0 },
 
-  formatted: validData${ _<@`rows` }$?{ _<@`value` | 0 }
+  formatted: validData${ _<@`rows` }?{ _<@`value` | 0 }
 }
 ```
 
@@ -390,7 +390,7 @@ fn get_highest_lowest(mut values: Vec<i32>) -> serde_json::Value {
 buildIncidentQuery: { filters: _<,
   base: `incident?sysparm_query=`,
 
-  queryParts: filters$?{ _<@`active` }
+  queryParts: filters?{ _<@`active` }
     ${ _<@`condition` },
 
   fullQuery: base & queryParts >< `^NQ`,
@@ -507,7 +507,7 @@ fn aggregate_table_data(results: serde_json::Value) -> Vec<serde_json::Value> {
 checkUserPermissions: { user: _<, required: _<,
   userRoles: user@`roles`,
 
-  hasPermission: required$?{ permission =>
+  hasPermission: required?{ permission =>
     userRoles?|{ role =>
       role@`permissions`?|{ perm =>
         perm@`name` = permission
@@ -635,8 +635,8 @@ validateIncident: { incident: _<,
   validated: {
     !incident@`number` & errors + [`Incident number required`],
     !incident@`description` & errors + [`Description required`],
-    incident@`priority` !? = `number` & errors + [`Priority must be number`],
-    incident@`state` !? = [`active`, `pending`, `resolved`] & errors + [`Invalid state`]
+    !incident@`priority` ?= `number` & errors + [`Priority must be number`],
+    ![`active`, `pending`, `resolved`] >< incident@`state` & errors + [`Invalid state`]
   },
 
   isValid: errors$# == 0,
@@ -657,7 +657,7 @@ const validateIncident = (incident) => {
   if (!incident.number) errors.push(`Incident number required`);
   if (!incident.description) errors.push(`Description required`);
   if (typeof incident.priority !== `number`) errors.push(`Priority must be number`);
-  if ([`active`, `pending`, `resolved`].includes(incident.state)) {
+  if (![`active`, `pending`, `resolved`].includes(incident.state)) {
     errors.push(`Invalid state`);
   }
 
@@ -932,4 +932,4 @@ aggregatePartialResponses([
 // → { sum: 150, count: 3, errors: [`timeout`] }
 ```
 
-**Explanation:** Identity elements (`undefined`, ``, `[]`) act as neutral values for `+`. This enables graceful handling of missing data, optional parameters, and partial responses without explicit null checks. The behavior mirrors JavaScript's nullish coalescing but integrated into operator semantics.
+**Explanation:** Identity elements (`undefined`, ``, `[]`) act as neutral values for `+`. This enables graceful handling of missing data, optional parameters, and partial responses without explicit null checks. The behavior mirrors JavaScript's null coalescing but integrated into operator semantics.

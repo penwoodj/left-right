@@ -446,7 +446,7 @@ pub fn greet(name: &str) -> String {
 // File: processor.lr
 {
   processData: { data: _<,
-    data${ _< * 2 }$?{ _< > 10 }
+    data${ _< * 2 }?{ _< > 10 }
   }
 }
 ```

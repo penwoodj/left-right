@@ -93,9 +93,9 @@ deep: file[`./lib/core/math.lr`]
 
 ## Module Patterns
 
-### Giant Hashmap-Array of Intent
+### Giant Map-Array of Intent
 
-Conceptual model: Each file is a "giant hashmap-array" that represents program intent:
+Conceptual model: Each file is a "giant map-array" that represents program intent:
 
 ```javascript
 // File: dataProcessor.lr
@@ -288,7 +288,7 @@ Override specific operator variants:
 {
   +: {
     // When left is text and right is not text
-    _<!?=`text`|_>!?=`text`: `adding text fun`,
+    _<?=`text`|_>?=`text`: `adding text fun`,
     _<+_>
   },
 
@@ -299,7 +299,7 @@ Override specific operator variants:
 
 **Notes:**
 - `_<` and `_>` are directional placeholders for operands
-- `!?` checks type (e.g., `!?=`text` means "is text type")
+- `?` checks type (e.g., `?=`text` means "is text type")
 - `|` separates cases (like pattern matching)
 - Unspecified cases fall through to original operator
 

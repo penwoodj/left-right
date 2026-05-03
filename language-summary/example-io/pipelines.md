@@ -27,7 +27,7 @@ Left-to-right evaluation, multi-stage data transforms, function composition, and
 
 **Left-Right:**
 ```left-right
-[1, 2, 3, 4, 5]$?{ _< > 2 }
+[1, 2, 3, 4, 5]?{ _< > 2 }
 ```
 
 **JavaScript:**
@@ -68,7 +68,7 @@ Left-to-right evaluation, multi-stage data transforms, function composition, and
 **Left-Right:**
 ```left-right
 [1, 2, 3, 4, 5, 6]
-  $?{ _< % 2 == 0 }
+  ?{ _< % 2 == 0 }
   ${ _< * 2 }
   ${ _< + _< }  // reduce
 ```
@@ -98,7 +98,7 @@ Left-to-right evaluation, multi-stage data transforms, function composition, and
 ```left-right
 [`alice`, `bob`, `alice`, `charlie`, `bob`]
   ${ _<^_ }
-  $?
+  ?{ _< > 3 }
   ~
 ```
 
@@ -140,7 +140,7 @@ let capitalize = |s: &str| -> String {
   {name: `Bob`, age: 25, salary: 45000},
   {name: `Charlie`, age: 35, salary: 60000}
 ]
-  $?{ _<@`age` > 28 }
+  ?{ _<@`age` > 28 }
   ${ _<@`salary` * 1.1 }
   ${ _<@`name`^ }
   >< `, `
@@ -221,7 +221,7 @@ employees
 {
   threats: _<@[0, `threats`],
   maliciousThreatsCount: threats
-    $?{ _<@[`AI Confidence Level`, `value`] = `malicious` }
+    ?{ _<@[`AI Confidence Level`, `value`] = `malicious` }
     #,
   threatClassifications: threats
     ${ _<@[`Classification`, `value`] ^_ }
@@ -296,7 +296,7 @@ fn analyze_threats(threats: serde_json::Value) -> serde_json::Value {
 **Explanation:** Complex threat analysis pipeline from ServiceNow integration. Demonstrates:
 - Path access with list syntax: `@[`AI Confidence Level`, `value`]`
 - Filtering by nested properties
-- Counting filtered results: `$?{...} #`
+- Counting filtered results: `?{...} #`
 - Mapping and capitalizing: `${ _< ^_ }`
 - Deduplicating: `~`
 - Joining: `>< `, `
@@ -415,7 +415,7 @@ pipeline("hello world")
   addOne: { _< + 1 }
   process: square >> addOne
 }
-[1, 2, 3, 4] ${ process } $?{ _< < 20 }
+[1, 2, 3, 4] ${ process } ?{ _< < 20 }
 ```
 
 **JavaScript:**
@@ -451,7 +451,7 @@ let process = |x: i32| add_one(square(x));
 **Left-Right:**
 ```left-right
 [1, 2, 3]
-  $?{ _< > 1 }
+  ?{ _< > 1 }
   ${ _< * 2 }
   ${ _< + 10 }
 ```
@@ -491,7 +491,7 @@ Step 4: [14, 16]         # After map + 10
 **Left-Right:**
 ```left-right
 {
-  filtered: [1, 2, 3, 4, 5]$?{ _< % 2 == 0 },
+  filtered: [1, 2, 3, 4, 5]?{ _< % 2 == 0 },
   result: filtered${ _< * 2 }#  // filtered is now [2, 4]
 }
 ```
@@ -529,7 +529,7 @@ let result = filtered
 ```left-right
 [1, 2, 3, 4, 5]
   ${ _< / 0 | _< }
-  $?{ _< ! undefined }
+  ?{ _< ! undefined }
 ```
 
 **JavaScript:**
@@ -561,8 +561,8 @@ let result = filtered
 **Left-Right:**
 ```left-right
 data: [1, 2, 3, 4, 5]
-  branch1: data$?{ _< > 2 }$#
-  branch2: data$?{ _< <= 2 }$#
+  branch1: data?{ _< > 2 }$#
+  branch2: data?{ _< <= 2 }$#
   combined: [branch1, branch2]
 ```
 

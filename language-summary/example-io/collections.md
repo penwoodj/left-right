@@ -1,8 +1,8 @@
 # Collections
 
-Working with maps (hashmaps), lists, paths, filtering, mapping, and other collection operations in Left-Right.
+Working with maps (maps), lists, paths, filtering, mapping, and other collection operations in Left-Right.
 
-## Map (Hashmap) Creation and Access
+## Map Creation and Access
 
 ### Simple Map
 
@@ -282,7 +282,7 @@ serde_json::json!({
 
 **Left-Right:**
 ```left-right
-[1, 2, 3, 4, 5]$?{ _< > 3 }
+[1, 2, 3, 4, 5]?{ _< > 3 }
 ```
 
 **JavaScript:**
@@ -295,13 +295,13 @@ serde_json::json!({
 [1, 2, 3, 4, 5].into_iter().filter(|x| x > 3).collect::<Vec<_>>()
 ```
 
-**Explanation:** `$?{ predicate }` filters collection. `_<` references current element. Returns elements where predicate is true.
+**Explanation:** `?{ predicate }` filters collection. `_<` references current element. Returns elements where predicate is true.
 
 ### Complex Filter
 
 **Left-Right:**
 ```left-right
-[1, 2, 3, 4, 5, 6]$?{ _< % 2 == 0 & _< > 2 }
+[1, 2, 3, 4, 5, 6]?{ _< % 2 == 0 & _< > 2 }
 ```
 
 **JavaScript:**
@@ -326,7 +326,7 @@ serde_json::json!({
   {name: `Alice`, age: 30},
   {name: `Bob`, age: 25},
   {name: `Charlie`, age: 35}
-]$?{ _<@`age` > 28 }
+]?{ _<@`age` > 28 }
 ```
 
 **JavaScript:**

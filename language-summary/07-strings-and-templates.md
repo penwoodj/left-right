@@ -1,27 +1,27 @@
-# Strings and Templates — Interpolation and Manipulation
+# Text and Templates — Interpolation and Manipulation
 
-Left-Right treats all strings as template literals by default, with powerful interpolation and transformation capabilities. This document covers string handling, interpolation syntax, case transformation, and comparison with template engines.
+Left-Right treats all text as template literals by default, with powerful interpolation and transformation capabilities. This document covers text handling, interpolation syntax, case transformation, and comparison with template engines.
 
-## Backtick-Only String Syntax
+## Backtick-Only Text Syntax
 
-**Critical Design Decision:** Strings use ONLY backticks in Left-Right.
+**Critical Design Decision:** Text uses ONLY backticks in Left-Right.
 
-- `` `text` `` is the ONLY string syntax
-- No single quotes or double quotes for strings
+- `` `text` `` is the ONLY text syntax
+- No single quotes or double quotes for text
 - `"` and `'` are reserved for operator names (e.g., `"` is toLower, `^` is toUpper)
 - NO other operator may contain the backtick `` ` `` character
 
 This is a foundational design decision that provides:
-- Clear distinction between strings and operators
+- Clear distinction between text and operators
 - Visual clarity in code
-- No ambiguity about string vs operator
+- No ambiguity about text vs operator
 - Matches JavaScript template literal syntax
 
 ## Template Literals
 
 ### Default Behavior
 
-All strings in Left-Right are template literals, supporting interpolation:
+All text in Left-Right are template literals, supporting interpolation:
 
 ```javascript
 // Basic interpolation
@@ -38,7 +38,7 @@ All strings in Left-Right are template literals, supporting interpolation:
 
 #### Curly Brace Delimiters
 
-Curly braces `{ }` denote interpolation in strings:
+Curly braces `{ }` denote interpolation in text:
 
 ```javascript
 // Simple variable
@@ -66,14 +66,14 @@ Interpolate nested paths:
 `Field: {obj@[dynamicField]}`
 ```
 
-## String as Operators
+## Text as Operators
 
 ### Operator Lifting
 
-Strings become callable operators when they contain placeholder expressions (`_<` or `_>`):
+An interpolated text becomes an operator when any `{ }` contains `_<` or `_>`. Otherwise the text evaluates as Text (normal text).
 
 ```javascript
-// String with placeholder becomes operator
+// Text with placeholder becomes operator
 { input: _<@0,
   `Thanks {_<} for your help`
 }
@@ -85,7 +85,7 @@ user >> `Thanks {_<} for your help`
 
 ### Template Functions
 
-Define reusable string templates:
+Define reusable text templates:
 
 ```javascript
 // Greeting template
@@ -115,13 +115,13 @@ message['Bob', true] // "Hello Bob"
 message['Bob', false] // "Goodbye Bob"
 ```
 
-## String Transformation Operators
+## Text Transformation Operators
 
 ### Case Operators
 
 #### ^ — Uppercase
 
-Convert string to uppercase:
+Convert text to uppercase:
 
 ```javascript
 `hello`^ // "HELLO"
@@ -146,7 +146,7 @@ threats ${ @['AI Confidence Level', 'value'] "^_}
 
 #### " — Lowercase
 
-Convert string to lowercase:
+Convert text to lowercase:
 
 ```javascript
 `HELLO"^ // "hello"
@@ -162,9 +162,9 @@ The spatial arrangement of `^` and `"` creates case transformation operators:
 
 | Operator | Position | Effect |
 |----------|----------|---------|
-| `^` | Prefix | Uppercase entire string |
+| `^` | Prefix | Uppercase entire text |
 | `^_` | Prefix + suffix | Capitalize first character |
-| `_"` | Suffix + prefix | Lowercase entire string |
+| `_"` | Suffix + prefix | Lowercase entire text |
 
 **Rationale:**
 - `^` suggests raising/elevating (uppercase)
@@ -199,7 +199,7 @@ Concatenate collection elements with separator:
 
 #### <> — Split
 
-Break string into parts:
+Break text into parts:
 
 ```javascript
 // Split by comma
@@ -238,7 +238,7 @@ userInput <" ~~ lowercase // Trim and lowercase
 
 #### >"< — Replace
 
-Substitute patterns in string:
+Substitute patterns in text:
 
 ```javascript
 // Replace substring
@@ -254,14 +254,14 @@ Substitute patterns in string:
 // Result: "test [at] example.com"
 ```
 
-## Advanced String Patterns
+## Advanced Text Patterns
 
-### Multi-Line Strings
+### Multi-Line Text
 
-Strings can span multiple lines:
+Text can span multiple lines:
 
 ```javascript
-// Multi-line string
+// Multi-line text
 `Line 1
 Line 2
 Line 3`
@@ -366,7 +366,7 @@ This behavior allows for flexible template composition where operators can be pa
 
 ### Escaping Literal Braces
 
-To include literal curly braces in a string, escape them with backslash:
+To include literal curly braces in text, escape them with backslash:
 
 ```javascript
 // Escaped braces appear literally
@@ -387,6 +387,27 @@ To include literal curly braces in a string, escape them with backslash:
 - `\}` → literal `}`
 - `\\` → literal `\`
 - Unescaped `{` and `}` trigger interpolation
+
+### Map-to-Text Conversion
+
+When a map is interpolated into text or used in text context, it textifies as minified JSON-like text (no spaces, no line breaks):
+
+```javascript
+// Map textifies in template
+{
+  data: { a: 1, b: 2 },
+  `Result: {data}`
+}
+// Evaluates to: `Result: {a:1,b:2}`
+
+// Example from evaluation model
+[`param1content`, `param2content`] {
+  param1: _<@0,
+  param2: _<@1,
+  `Result: {param1 + param2}`
+}
+// Evaluates to: `Result: param1contentparam2content`
+```
 
 ## Comparison with Template Engines
 
@@ -442,11 +463,11 @@ To include literal curly braces in a string, escape them with backslash:
 <p>Status: {active ? `Active` : `Inactive`}</p>
 ```
 
-## String Pipeline Patterns
+## Text Pipeline Patterns
 
 ### Sequential Transformations
 
-Apply multiple string operations:
+Apply multiple text operations:
 
 ```javascript
 // Chain transformations
@@ -461,7 +482,7 @@ userInput
 
 ### Collection Processing
 
-Transform strings in collections:
+Transform text in collections:
 
 ```javascript
 // Capitalize all names
@@ -499,11 +520,11 @@ Format structured data:
 
 ## Related Concepts
 
-- **Template Literals** — String interpolation
-- **String Interpolation** — Variable substitution
+- **Template Literals** — Text interpolation
+- **Text Interpolation** — Variable substitution
 - **Template Engines** — Handlebars, Jinja, Mustache
 - **Code Generation** — Creating code from templates
 - **Templating DSLs** — Languages for text generation
 - **Curly Brace Templates** — `{variable}` syntax style
-- **String Manipulation** — Transformation operations
+- **Text Manipulation** — Transformation operations
 - **Case Conversion** — Uppercase, lowercase, capitalize

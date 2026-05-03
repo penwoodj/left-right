@@ -108,7 +108,7 @@ items ${ _< * 2 }
 // Equivalent to: items ${ { input: _<@0, input * 2 } }
 
 // Multiple point-free stages
-data $?{ _< > 5 } ${ _< * 10 } # size
+data ?{ _< > 5 } ${ _< * 10 } # size
 // Filter, map, count
 ```
 
@@ -124,7 +124,7 @@ const result = items
   .length;
 
 // Point-free style (Left-Right)
-items $?{ _< > 5 } ${ _< * 10 } #
+items ?{ _< > 5 } ${ _< * 10 } #
 ```
 
 **Advantages:**
@@ -179,7 +179,7 @@ Composition preserves scope visibility:
 {
   threshold: 5,
   result: items
-    $?{ _< > threshold }
+    ?{ _< > threshold }
     ${ _< * 2 }
 }
 ```
@@ -266,7 +266,7 @@ data ${ _< * 2 }
 ```javascript
 // Chain multiple transformations
 data
-  $?{ _< > 5 }        // Filter
+  ?{ _< > 5 }        // Filter
   ${ _< * 10 }        // Transform
   ~                    // Unique
   #                    // Count
@@ -287,7 +287,7 @@ data
 
 ### Implicit Currying
 
-Diatic operators automatically curry when one argument is provided:
+Dyadic operators automatically curry when one argument is provided:
 
 ```javascript
 // Static value creates curried function
@@ -305,7 +305,7 @@ Pipeline stages can be partially applied:
 ```javascript
 // Stage 1: Partial filter
 data
-  $?{ _< > 5 }        // Filter with predicate
+  ?{ _< > 5 }        // Filter with predicate
 
 // Stage 2: Partial map
   ${ _< * 10 }        // Transform with function
@@ -339,7 +339,7 @@ map (*2) . filter (>5)
 **Left-Right:**
 ```javascript
 // Point-free pipeline
-data $?{ _< > 5 } ${ _< * 2 }
+data ?{ _< > 5 } ${ _< * 2 }
 ```
 
 ### Clojure Partial Application
@@ -373,7 +373,7 @@ process(items);
 ```javascript
 // Native pipeline
 items
-  $?{ _< > 5 }
+  ?{ _< > 5 }
   ${ _< * 2 }
   ~
 ```
@@ -392,7 +392,7 @@ const process = R.pipe(
 **Left-Right:**
 ```javascript
 // Built-in pipeline syntax
-items $?{ _< > 5 } ${ _< * 2 } ~
+items ?{ _< > 5 } ${ _< * 2 } ~
 ```
 
 ## Function as Data
@@ -465,7 +465,7 @@ Partial overrides can specify behavior for specific types:
 +: {
   left: _<@0,
   right: _<@1,
-  left !? = `text` & right !? = `text`
+  left ? = `text` & right ? = `text`
     ? left >< right  // Text concatenation with separator
     : left + right   // Default for other types
 }
@@ -548,7 +548,7 @@ Partial overrides use type checking for conditional behavior:
 operatorName: {
   param1: _<@0,
   param2: _<@1,
-  param1 !? = `number` & param2 !? = `number`
+  param1 ? = `number` & param2 ? = `number`
     ? param1 + param2
     : param1 >< param2  // Different behavior for non-numbers
 }
@@ -556,7 +556,7 @@ operatorName: {
 
 ### Best Practices
 
-1. **Be explicit about types** — Use `!?` operator for type checks in partial overrides
+1. **Be explicit about types** — Use `?` operator for type checks in partial overrides
 2. **Document overrides** — Add comments explaining why override exists
 3. **Test thoroughly** — Overrides affect all operator calls in scope
 4. **Use narrow scope** — Prefer folder/file over global when possible
@@ -593,7 +593,7 @@ Truthy/falsy-returning functions for filtering:
 {
   threshold: 5,
   isAboveThreshold: { _< > threshold },
-  items $?{ isAboveThreshold }
+  items ?{ isAboveThreshold }
 }
 ```
 
@@ -620,7 +620,7 @@ Functions for reduction:
 2. **Anonymous by Default** — No function names required
 3. **Implicit Parameters** — Point-free style enabled
 4. **Sequential Scope** — Keys reference earlier bindings
-5. **Auto-Currying** — Diatic operators curry automatically
+5. **Auto-Currying** — Dyadic operators curry automatically
 6. **Composable** — Functions chain via pipelines
 7. **Destructuring** — Array and path unpacking
 

@@ -6,9 +6,9 @@ Comprehensive reference for all Left-Right operators, including syntax, type-dep
 
 ## Directional Operators
 
-### `_<` — Left Argument Placeholder
+### `_<` — Left Variable Placeholder
 
-Placeholder for the left argument in operator definition. Creates a lambda that takes a left argument.
+Placeholder for the left variable in operator definition. Creates a lambda that takes a left variable.
 
 **Syntax:**
 ```penroscript
@@ -16,13 +16,13 @@ Placeholder for the left argument in operator definition. Creates a lambda that 
 ```
 
 **Behavior:**
-- Creates a unary operator waiting for left argument
-- When applied, binds left argument to `_<`
+- Creates a unary operator waiting for left variable
+- When applied, binds left variable to `_<`
 - Executes expression with bound value
 
 **Examples:**
 ```penroscript
-// Add 10 to any left argument
+// Add 10 to any left variable
 add10: { _< + 10 }
 
 // Usage
@@ -31,9 +31,9 @@ add10: { _< + 10 }
 // Equivalent to: 5 + 10
 ```
 
-### `_>` — Right Argument Placeholder
+### `_>` — Right Variable Placeholder
 
-Placeholder for the right argument in operator definition. Creates a lambda that takes a right argument.
+Placeholder for the right variable in operator definition. Creates a lambda that takes a right variable.
 
 **Syntax:**
 ```penroscript
@@ -66,13 +66,13 @@ Both placeholders create a binary operator.
 ```
 
 **Behavior:**
-- Creates a binary operator with two named arguments
+- Creates a binary operator with two named variables
 - Useful for clarity in complex expressions
-- Enables explicit argument naming
+- Enables explicit variable naming
 
 **Examples:**
 ```penroscript
-// Binary operator with named arguments
+// Binary operator with named variables
 add: { _< + _> }
 
 // Usage
@@ -91,9 +91,9 @@ Access nested properties in maps and indices in arrays. Supports path-based acce
 
 **Syntax:**
 ```penroscript
-value @['path', 'to', 'key']
-value @[index]
-value @property
+value @['path', 'to', 'key']    // Array path (PRIMARY - idiomatic)
+value @[index]                     // Index access
+value @property                    // Single property access
 ```
 
 **Behavior:**
@@ -101,7 +101,7 @@ value @property
 | Input Type | Behavior | Example |
 |------------|----------|----------|
 | Map + Text | Property access | `obj @['name']` → `obj.name` |
-| Map + List | Nested path access | `data @['user', 'profile', 'email']` → `data.user.profile.email` |
+| Map + List | Nested path access (PRIMARY) | `data @['user', 'profile', 'email']` → `data.user.profile.email` |
 | List + Number | Index access | `arr @[0]` → `arr[0]` |
 | List + List | Multiple indices | `arr @[0, 2, 4]` → `[arr[0], arr[2], arr[4]]` |
 | List + Text | Invalid → returns `undefined` |  |
@@ -120,10 +120,13 @@ value @property
   email: user @['email']          // `alice@example.com`
 }
 
-// Nested path access
+// Nested path access (PRIMARY/idiomatic - use array path)
 {
   data: { user: { profile: { email: `alice@example.com` } } },
   email: data @['user', 'profile', 'email']  // `alice@example.com`
+
+  // Non-idiomatic alternative (chained @):
+  // email: data @['user'] @['profile'] @['email']  // Same result but less idiomatic
 }
 
 // List indexing
@@ -139,6 +142,8 @@ value @property
   email: user @['profile'] @['email']  // undefined (profile missing)
 }
 ```
+
+**Note:** For nested access, always pass the full path as an array on the right side of `@`. This is the idiomatic approach. Chained `@` operations work but are non-idiomatic.
 
 ### `@+` — Pick
 
@@ -375,12 +380,14 @@ Apply an operation to each element in a collection.
 **Syntax:**
 ```penroscript
 collection ${ operation }
+collection ${_}              // Map with curry reversal
 ```
 
 **Behavior:**
 - Applies operation to each element
 - Returns new collection with transformed elements
 - Preserves collection type (list → list, map → map)
+- `_` suffix reverses currying direction (curry reversal)
 
 **Examples:**
 ```penroscript
@@ -398,31 +405,48 @@ collection ${ operation }
   scores: { alice: 85, bob: 92, charlie: 78 },
   adjusted: scores ${ _< + 5 }  // { alice: 90, bob: 97, charlie: 83 }
 }
+
+// Map with curry reversal
+{
+  typesToGet: [`String`, `Number`],
+  lowerTypesToGet: typesToGet !?= `string`: [typesToGet],
+    typesToGet ${'_}  // Reverse curry direction
+}
 ```
 
-### `$?` — Filter
+### `?{` — Filter
 
 Keep elements that satisfy a predicate condition.
 
 **Syntax:**
 ```penroscript
-collection $?{ predicate }
+collection ?{ predicate }
+list ?{ condition } #,     // Filter with count suffix
 ```
 
 **Behavior:**
 - Tests each element with predicate
 - Keeps elements where predicate returns truthy
 - Returns collection of same type (filtered)
+- Count suffix `#,` returns number of matching elements
 
 **Examples:**
 ```penroscript
 // List filtering
 {
   numbers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-  evens: numbers $?{ _< / 2 = 0 }  // [2, 4, 6, 8, 10]
+  evens: numbers ?{ _< / 2 = 0 }  // [2, 4, 6, 8, 10]
 
   emails: [`alice@example.com`, `invalid`, `bob@test.org`, `x@y`],
-  valid: emails $?{ _< ?/ '@' }  // [`alice@example.com`, `bob@test.org`]
+  valid: emails ?{ _< ?/ '@' }  // [`alice@example.com`, `bob@test.org`]
+
+  // Filter with count
+  threats: [
+    { level: `malicious` },
+    { level: `suspicious` },
+    { level: `malicious` }
+  ],
+  maliciousCount: threats ?{ _< @['level'] = `malicious` } #,  // 2
 }
 ```
 
@@ -589,19 +613,27 @@ Reverse the order of elements in a collection.
 
 ## Text Operators
 
-### `><` — Join
+### `><` — Join / Includes
 
-Combine text or lists into a single text with a separator.
+**Type-dependent operator** with two behaviors:
+
+1. **List + Text**: Join list elements with separator
+2. **List + Item**: Check if item exists in list (includes)
 
 **Syntax:**
 ```penroscript
-collection >< separator
+list >< separator      // Join
+list >< item           // Includes check
+text >< text           // Concatenation
 ```
 
 **Behavior:**
-- Joins list elements with separator
-- Returns text for lists of text
-- Type-dependent: lists join, text concatenate
+
+| Input Types | Behavior | Example |
+|-------------|----------|---------|
+| List + Text | Join elements with separator | `[`a`,`b`] >< `,` → `a,b` |
+| List + Item | Check if item in list (includes) | `[1,2,3] >< 2` → `true` |
+| Text + Text | Concatenation | `` `a` + `b` `` → `` `ab` `` |
 
 **Examples:**
 ```penroscript
@@ -612,6 +644,24 @@ collection >< separator
 
   // Join without separator
   concatenated: words >< ``  // `helloworldfromleft-right`
+}
+
+// Includes check
+{
+  numbers: [1, 2, 3, 4, 5],
+  hasThree: numbers >< 3,       // true
+  hasSix: numbers >< 6,        // false
+
+  emails: [`alice@example.com`, `bob@test.org`],
+  hasAlice: emails >< `alice@example.com`  // true
+
+  // In filter context
+  lowerTypes: [`string`, `number`, `boolean`],
+  entityTypes: [`String`, `Number`],
+  typesInSet: lowerTypes ?|{
+    typeToGet: _<,
+    entityTypes ?>< typeToGet
+  }
 }
 
 // Text concatenation
@@ -703,52 +753,65 @@ Convert all characters in a text to uppercase.
 
 **Syntax:**
 ```penroscript
-string ^
+text "^
 ```
 
 **Behavior:**
 - Converts lowercase to uppercase
 - Leaves non-letter characters unchanged
-- Type-dependent: strings only
+- Type-dependent: text only
+- Base operator (no `_` suffix)
 
 **Examples:**
 ```penroscript
 {
-  // Flatten nested arrays
-  data: [[1, 2], [3, 4], [5]],
-  flat: data $_{ _< }  // [1, 2, 3, 4, 5]
+  greeting: `hello world`,
+  uppercased: greeting "^  // `HELLO WORLD`
 
-  // Extract nested property arrays
-  users: [
-    { name: `Alice`, emails: [`alice@work.com`, `alice@home.com`] },
-    { name: `Bob`, emails: [`bob@work.com`] }
-  ],
-  allEmails: users $_{ @['emails'] }  // [`alice@work.com`, `alice@home.com`, `bob@work.com`]
+  name: `alice`,
+  upperName: name "^  // `ALICE`
 }
 ```
 
 ### `^_` — Capitalize
 
-Convert the first character of a text to uppercase.
+Convert the first character of a text to uppercase. This is the `^` operator with the `_` curry reversal suffix.
 
 **Syntax:**
 ```penroscript
-text ^_
+text "^_
 ```
 
 **Behavior:**
 - Uppercases first character only
 - Leaves rest of text unchanged
 - Type-dependent: text only
+- `_` suffix reverses operator behavior (curry reversal)
 
 **Spatial Symbology:**
-- `^` (up/uppercase) + `_` (lower/first) = capitalize first
+- `^` (up/uppercase) + `_` (underscore/lower) = capitalize first only
+- The `_` suffix indicates reversal from "uppercase all" to "uppercase first"
+
+**Curry Reversal Pattern:**
+- `text "^` → uppercase all characters
+- `text "^_` → uppercase first character only
 
 **Examples:**
 ```penroscript
 {
   text: `hello world`,
-  capitalized: text ^_  // `Hello world`
+  capitalized: text "^_  // `Hello world`
+
+  // In map context with curry reversal
+  threats: [
+    { classification: `malicious` },
+    { classification: `suspicious` }
+  ],
+  threatClassifications: threats
+    ${ _< @['classification'] "^_}
+    ~
+    >< `, `
+  // `Malicious, Suspicious`
 }
 ```
 
@@ -758,29 +821,25 @@ Convert all characters in a text to lowercase.
 
 **Syntax:**
 ```penroscript
-"string
+"text"
 ```
 
 **Behavior:**
 - Converts uppercase to lowercase
 - Leaves non-letter characters unchanged
-- Type-dependent: strings only
+- Type-dependent: text only
 
 **Examples:**
 ```penroscript
 {
-  // List join
-  words: [`hello`, `world`, `from`, `left-right`],
-  joined: words >< ` `  // `hello world from left-right`
+  greeting: `HELLO WORLD`,
+  lowercased: "greeting  // `hello world`
 
-  // Map keys join
-  config: { host: `localhost`, port: 8080, debug: true },
-  keysJoined: config @< >< `,`  // `host,port,debug`
+  name: `ALICE`,
+  lowerName: "name  // `alice`
 
-  // Text join (chars to text)
-  greeting: `hello`,
-  name: `world`,
-  message: [greeting, name] >< `, `  // `hello, world`
+  classification: `MALICIOUS`,
+  lowerClassification: "classification  // `malicious`
 }
 ```
 
@@ -817,23 +876,40 @@ Negate a truthy/falsy value or expression.
 }
 ```
 
-### `&` — And
+### `&` — And / Conditional Append
 
-Logical AND of two or more truthy/falsy expressions.
+**Type-dependent operator** with two behaviors:
+
+1. **Logical AND**: Boolean logic between expressions
+2. **Conditional Append**: Append template if value is truthy
 
 **Syntax:**
 ```penroscript
-expression1 & expression2
+expression1 & expression2          // Logical AND
+value & 'template {var}'            // Conditional append
 ```
 
 **Behavior:**
+
+| Input Types | Behavior | Example |
+|-------------|----------|---------|
+| Boolean + Boolean | Logical AND | `true & false` → `false` |
+| Truthy + Template | Append if truthy | `` `name` & `hello {name}` `` |
+
+**Logical AND:**
 - Returns `true` only if all expressions are truthy
 - Short-circuits: returns `false` on first falsy value
-- Type-dependent: works on booleans and other truthy/falsy values
+- Works on booleans and other truthy/falsy values
+
+**Conditional Append:**
+- Appends template string to value if value is truthy
+- Supports template interpolation with `{var}` syntax
+- Returns value + template if truthy, otherwise undefined
 
 **Examples:**
 ```penroscript
 {
+  // Logical AND
   a: true,
   b: true,
   c: false,
@@ -841,6 +917,15 @@ expression1 & expression2
   result1: a & b & c,     // false (short-circuits at c)
   result2: a & b,         // true
   result3: c & b,         // false
+
+  // Conditional append
+  threatClassifications: `malicious, suspicious`,
+  message: threatClassifications & `Threat Classifications: {threatClassifications}`
+  // `Threat Classifications: malicious, suspicious`
+
+  // Conditional append with falsy value
+  empty: undefined,
+  noMessage: empty & `This won't appear`  // undefined
 }
 ```
 
@@ -1107,8 +1192,9 @@ left + right
 
 **Identity Elements:**
 - `undefined` is identity for numbers: `1 + undefined` → `1`
-- `` `` `` (empty text) is identity for text: `1 + `` `` → `` `1` `` (type coercion)
-- `[]` is identity for lists: `[] + 0` → `[0]`
+- `undefined` is identity for text: `` `hello` + undefined `` → `` `hello` ``
+- `undefined` is identity for maps: `{a:1} + undefined` → `{a:1}`
+- `undefined` APPENDS to lists: `[1,2] + undefined` → `[1,2,undefined]`
 - Non-identity from different set: value disappears
 - Text concat when either side is text
 - List concat/append when either side is list
@@ -1303,13 +1389,13 @@ Negate a truthy/falsy value.
 }
 ```
 
-### `!?` — Type Check
+### `?` — Type Check
 
 Returns the type of a value.
 
 **Syntax:**
 ```penroscript
-value !?
+value ?
 ```
 
 **Behavior:**
@@ -1323,33 +1409,33 @@ value !?
 - **Per-file:** Configure type names for individual files
 
 **LTR Evaluation:**
-`` `hello` !? = `text` `` — Full LTR: `` `hello` `` evaluates first, `!?` outputs `text`, `=` compares
+`` `hello` ? = `text` `` — Full LTR: `` `hello` `` evaluates first, `?` outputs `text`, `=` compares
 
 **Examples:**
 ```penroscript
 {
   // Type checking
-  textType: `hello` !?,       // `text`
-  numType: 42 !?,            // `number`
-  truthyType: true !?,        // `undefined` (truthy/falsy values are not types)
-  undefType: undefined !?,    // `undefined`
-  listType: [1,2,3] !?,     // `list`
-  mapType: {a:1} !?,        // `map`
-  operatorType: + !?,        // `operator`
+  textType: `hello` ?,       // `text`
+  numType: 42 ?,            // `number`
+  truthyType: true ?,        // `undefined` (truthy/falsy values are not types)
+  undefType: undefined ?,    // `undefined`
+  listType: [1,2,3] ?,     // `list`
+  mapType: {a:1} ?,        // `map`
+  operatorType: + ?,        // `operator`
 
   // Type comparison
-  isText: `hello` !? = `text`,      // true
-  isNumber: 42 !? = `number`,        // true
+  isText: `hello` ? = `text`,      // true
+  isNumber: 42 ? = `number`,        // true
 }
 ```
 
-### `!?"` — Conditional/Type Check
+### `?"` — Conditional/Type Check
 
 Conditional type check or ternary operator.
 
 **Syntax:**
 ```penroscript
-expression !?truthyValue:falsyValue
+expression ?truthyValue:falsyValue
 ```
 
 **Behavior:**
@@ -1361,13 +1447,13 @@ expression !?truthyValue:falsyValue
 ```penroscript
 {
   value: 42,
-  result1: value !?is number:not number,
+  result1: value ?is number:not number,
 
   isEmpty: [],
-  result2: !isEmpty !?array is empty:has items,
+  result2: !isEmpty ?array is empty:has items,
 
   age: 25,
-  canVote: age >= 18 !?yes:no,
+  canVote: age >= 18 ?yes:no,
 }
 ```
 

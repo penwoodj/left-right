@@ -136,7 +136,7 @@ allow_operator_override = true
 # File for custom operator definitions
 custom_operators_file = "~/.config/left-right/custom-ops.lr"
 
-# !? operator output format
+# ? operator output format
 # Default: "js" (matches JavaScript typeof semantics)
 # Options: "js", "rust", "python", "simple"
 type_of_format = "js"
@@ -367,9 +367,9 @@ Now usable in any Left-Right code:
 }
 ```
 
-### !? Operator Configuration
+### ? Operator Configuration
 
-The `!?` operator (type inspection) can be configured at different levels:
+The `?` operator (type inspection) can be configured at different levels:
 
 **Global Config (`~/.config/left-right/config.toml`)**:
 ```toml
@@ -393,17 +393,17 @@ type_of_format = "simple"
 **Usage Example**:
 ```left-right
 # With type_of_format = "js"
-{ type: 42 >> !? }
+{ type: 42 >> ? }
 # Output: "number"
 
-{ type: `hello` >> !? }
+{ type: `hello` >> ? }
 # Output: "text"
 
-{ type: [1, 2, 3] >> !? }
+{ type: [1, 2, 3] >> ? }
 # Output: "list"
 
 # With type_of_format = "simple"
-{ type: 42 >> !? }
+{ type: 42 >> ? }
 # Output: "number"
 ```
 

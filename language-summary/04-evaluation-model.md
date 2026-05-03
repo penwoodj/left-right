@@ -73,9 +73,9 @@ Traditional languages use complex precedence tables that developers must memoriz
 
 ## Left-Hungry Currying
 
-### Default Behavior for Diatic Operators
+### Default Behavior for Dyadic Operators
 
-Diatic (two-argument) operators are left-hungry by default. When one argument is statically provided, the operator becomes a monadic function waiting for the remaining argument.
+Dyadic (two-argument) operators are left-hungry by default. When one argument is statically provided, the operator becomes a monadic function waiting for the remaining argument.
 
 ```javascript
 // Static value on left creates right-hungry function
@@ -194,24 +194,24 @@ Grouping is particularly important when mixing operations:
 // 3. 7 * 3 = 21
 ```
 
-## LTR Evaluation Walkthrough: !?= Chain
+## LTR Evaluation Walkthrough: ?= Chain
 
-The `!?` type check operator chained with `=` demonstrates full LTR evaluation:
+The `?` type check operator chained with `=` demonstrates full LTR evaluation:
 
 **Example:**
 ```penroscript
-`hello` !? = `text`
+`hello` ? = `text`
 ```
 
 **Step-by-Step Evaluation:**
 1. `` `hello` `` evaluates → `hello` (text value)
-2. `!?` applied to `hello` → outputs `text` (type name)
+2. `?` applied to `hello` → outputs `text` (type name)
 3. `=` compares `text` = `text` → `true`
 
 **Full LTR Flow:**
 ```
 `hello`   → evaluates to text value
-  !?      → outputs type name: "text"
+  ?      → outputs type name: "text"
     =      → compares to right side
       `text` → text literal
 ```
@@ -295,34 +295,64 @@ When braces end with a non-key-value expression or contain `_<` or `_>` placehol
 }
 ```
 
-### Detection Rules
+### Detection Rules: Map as Operator
 
-The language distinguishes between the two forms using these rules:
+A map `{}` becomes an operator (function) when EITHER:
+- (a) Last expression after final `,` has no `:` assignment, OR
+- (b) `{}` contains `_<` or `_>`
 
-1. **Ending Non-KeyValue Expression** → Operator block
-2. **Contains `_<` or `_>`** → Operator block
-3. **All key: value pairs** → JSON object
+Otherwise `{}` evaluates at runtime as a Map (data structure).
 
 ```javascript
-// Operator block (ends with expression)
+// Operator: last expression has no : assignment
 {
   a: 1,
   b: 2,
   a + b
 }
 
-// Operator block (contains directional marker)
+// Operator: contains _< directional marker
 {
   input: _<@0,
   input + 1
 }
 
-// JSON object (all key-value pairs)
+// Map: all key-value pairs (last has : assignment)
 {
   a: 1,
   b: 2,
   sum: 3
 }
+
+// Map example with operator application
+[`param1content`, `param2content`] {
+  param1: _<@0,
+  param2: _<@1,
+  param1 + param2
+}
+// Evaluates to: `param1contentparam2content`
+```
+
+### Detection Rules: String as Operator
+
+An interpolated string becomes an operator when any `{ }` contains `_<` or `_>`. Otherwise the string evaluates as Text.
+
+```javascript
+// Text: no _< or _> in interpolation
+`foo {var_in_scope}`
+// Executes at runtime, produces text value
+
+// Operator: contains _< in interpolation
+`foo {_< + `bar`}`
+// Returns unexecuted operator
+
+// Operator application example
+[`param1content`, `param2content`] {
+  param1: _<@0,
+  param2: _<@1,
+  `Result: {param1 + param2}`
+}
+// Evaluates to: `Result: param1contentparam2content`
 ```
 
 ## Comparison with Traditional Evaluation
@@ -480,7 +510,7 @@ Once parsed and applied, operators execute with **type-dependent semantics**:
 1. **Identity elements disappear** — `0` for addition, `` (empty) for concatenation, `[]` (empty list) wraps
 2. **Type coercion** — Operands coerce to compatible types based on operator rules
 3. **Dynamic dispatch** — Same operator symbol uses different implementations per type combination
-4. **Truthy/falsy logic** — No Boolean type; all values evaluate as truthy or falsy contextually
+4. **Truthy/falsy logic** — Boolean type exists; non-Boolean values evaluate as truthy or falsy contextually
 
 ```
 [left-right]
@@ -535,7 +565,7 @@ decrement 10  // Applies left=undefined, right=10
 
 1. **Deterministic LTR Evaluation** — Same order, same result, always
 2. **No Implicit Precedence** — Explicit grouping only
-3. **Left-Hungry Currying** — Diatic operators curry by default
+3. **Left-Hungry Currying** — Dyadic operators curry by default
 4. **Directional Forms** — `_</_>` control argument binding
 5. **Sequential Map Evaluation** — Keys evaluate top to bottom
 6. **Clear Block Distinction** — Operators vs JSON objects
