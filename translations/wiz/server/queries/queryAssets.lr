@@ -1,0 +1,140 @@
+# Original JavaScript
+# const { MAX_PAGE_SIZE } = require('../constants');
+# const queryEntitiesWithQueryStringBuilder = require('./queryEntitiesWithQueryStringBuilder');
+#
+# const queryAssets = async (entitiesWithIds, options) =>
+#   await queryEntitiesWithQueryStringBuilder(
+#     entitiesWithIds,
+#     options,
+#     buildAssetQueryString
+#   );
+#
+# const buildAssetQueryString = (entity, options) => `
+#   ${entity.id}: cloudResources(
+#     first: ${MAX_PAGE_SIZE},
+#     filterBy: {
+#       search: "${entity.value}",
+#       ${options.parsedAssetQueryTypes.length ? `type: ${JSON.stringify(options.parsedAssetQueryTypes)}` : ''}
+#     }
+#   ) {
+#     nodes {
+#       ... on CloudResource {
+#         id
+#         name
+#         type
+#         subscriptionName
+#
+#         graphEntity {
+#           id
+#           name
+#           type
+#           firstSeen
+#           lastSeen
+#           properties
+#           projects {
+#             id
+#             name
+#             description
+#             businessUnit
+#             riskProfile {
+#               businessImpact
+#               hasExposedAPI
+#             }
+#           }
+#           technologies {
+#             name
+#             description
+#             risk
+#             propertySections {
+#               name
+#               properties {
+#                 name
+#                 value
+#               }
+#             }
+#           }
+#         }
+#       }
+#     }
+#   }`;
+#
+# module.exports = queryAssets;
+
+# Left-Right Translation
+
+{
+  MAX_PAGE_SIZE: 10,
+
+  # buildAssetQueryString - build GraphQL query string for Assets (cloud resources) API
+  # Each query is named by entity.id and searches for assets matching entity.value (IP/domain/CVE)
+  # Can filter by asset types if provided in options.parsedAssetQueryTypes
+  buildAssetQueryString: { entity: _<@0, options: _<@1,
+    # Check if asset type filter is provided
+    parsedAssetQueryTypes: options@`parsedAssetQueryTypes`,
+    hasTypeFilter: parsedAssetQueryTypes # > 0,
+
+    # Build type filter string if types are specified
+    typeFilterString: hasTypeFilter ? { `type: ` & jsonStringify(parsedAssetQueryTypes) },
+    typeFilterString: ``,
+
+    # Use template string with entity.id, entity.value, and optional type filter
+    graphqlFragment: `
+      ${entity@`id`}: cloudResources(
+        first: ${MAX_PAGE_SIZE},
+        filterBy: {
+          search: "${entity@`value`}"${typeFilterString}
+        }
+      ) {
+        nodes {
+          ... on CloudResource {
+            id
+            name
+            type
+            subscriptionName
+
+            graphEntity {
+              id
+              name
+              type
+              firstSeen
+              lastSeen
+              properties
+
+              projects {
+                id
+                name
+                description
+                businessUnit
+                riskProfile {
+                  businessImpact
+                  hasExposedAPI
+                }
+              }
+
+              technologies {
+                name
+                description
+                risk
+                propertySections {
+                  name
+                  properties {
+                    name
+                    value
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `,
+    graphqlFragment
+  },
+
+  # queryAssets - query Wiz API for cloud resources (assets)
+  # Can search by IP address, domain, or CVE
+  # Uses queryEntitiesWithQueryStringBuilder for batching and parallel execution
+  queryAssets: { entitiesWithIds: _<@0, options: _<@1,
+    queryEntitiesWithQueryStringBuilder(entitiesWithIds, options, buildAssetQueryString)
+  }
+}

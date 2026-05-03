@@ -1,0 +1,125 @@
+# Original JavaScript
+# const { size, map, some } = require('lodash/fp');
+# const { getResultForThisEntity } = require('./dataTransformations');
+# const { MAX_PAGE_SIZE } = require('./constants');
+#
+# const assembleLookupResults = (entities, issues, vulnerabilities, assets, options) =>
+#   map((entity) => {
+#     const resultsForThisEntity = getResultsForThisEntity(
+#       entity,
+#       issues,
+#       vulnerabilities,
+#       assets,
+#       options
+#     );
+#
+#     const resultsFound = some(size, resultsForThisEntity);
+#
+#     const lookupResult = {
+#       entity,
+#       data: resultsFound
+#         ? {
+#             summary: createSummaryTags(resultsForThisEntity, options),
+#             details: resultsForThisEntity
+#           }
+#         : null
+#     };
+#
+#     return lookupResult;
+#   }, entities);
+#
+# const getResultsForThisEntity = (entity, issues, vulnerabilities, assets, options) => ({
+#   issues: getResultForThisEntity(entity, issues),
+#   vulnerabilities: getResultForThisEntity(entity, vulnerabilities),
+#   assets: getResultForThisEntity(entity, assets)
+# });
+#
+# const createSummaryTags = ({ issues, vulnerabilities, assets }, options) =>
+#   []
+#     .concat(
+#       size(issues)
+#         ? `Issues: ${size(issues)}${size(issues) === MAX_PAGE_SIZE ? '+' : ''}`
+#         : []
+#     )
+#     .concat(
+#       size(vulnerabilities)
+#         ? `Vulns: ${size(vulnerabilities)}${
+#             size(vulnerabilities) === MAX_PAGE_SIZE ? '+' : ''
+#           }`
+#         : []
+#     )
+#     .concat(
+#       size(assets)
+#         ? `Assets: ${size(assets)}${size(assets) === MAX_PAGE_SIZE ? '+' : ''}`
+#         : []
+#     );
+#
+# module.exports = assembleLookupResults;
+
+# Left-Right Translation
+
+{
+  MAX_PAGE_SIZE: 10,
+
+  # getResultsForThisEntity - gather all results (issues, vulns, assets) for a single entity
+  # Results are lists of entities with matching resultId
+  getResultsForThisEntity: { entity: _<@0, issues: _<@1, vulnerabilities: _<@2, assets: _<@3,
+    issues: issues ?{ result: _<@0,
+      result@`resultId` = entity@`value`
+    } ${ result: _<@0, result@`result` } ~,
+
+    vulnerabilities: vulnerabilities ?{ result: _<@0,
+      result@`resultId` = entity@`value`
+    } ${ result: _<@0, result@`result` } ~,
+
+    assets: assets ?{ result: _<@0,
+      result@`resultId` = entity@`value`
+    } ${ result: _<@0, result@`result` } ~
+  },
+
+  # createSummaryTags - create summary string tags from results
+  # Shows counts with '+' if results hit MAX_PAGE_SIZE limit
+  createSummaryTags: { results: _<@0,
+    issues: results@`issues`,
+    vulnerabilities: results@`vulnerabilities`,
+    assets: results@`assets`,
+
+    issueCount: issues #,
+    vulnCount: vulnerabilities #,
+    assetCount: assets #,
+
+    # Create tags for non-empty result lists
+    issueTag: issueCount > 0 ? { `Issues: ` & issueCount & (issueCount = MAX_PAGE_SIZE ? `+` : ``) },
+    vulnTag: vulnCount > 0 ? { `Vulns: ` & vulnCount & (vulnCount = MAX_PAGE_SIZE ? `+` : ``) },
+    assetTag: assetCount > 0 ? { `Assets: ` & assetCount & (assetCount = MAX_PAGE_SIZE ? `+` : ``) },
+
+    # Combine all tags into one list
+    [] + issueTag + vulnTag + assetTag ~
+  },
+
+  # assembleLookupResults - map entities to their lookup results
+  # Each entity gets a lookup result with summary and details if any results found
+  assembleLookupResults: { entities: _<@0, issues: _<@1, vulnerabilities: _<@2, assets: _<@3,
+    entities ${ entity: _<@0,
+      resultsForThisEntity: getResultsForThisEntity(entity, issues, vulnerabilities, assets),
+
+      # Check if any results exist (any non-empty list)
+      resultsFound: resultsForThisEntity ?|{
+        resultList: _<@0,
+        resultList # > 0
+      },
+
+      # Build lookup result with summary + details or null
+      lookupResult: {
+        entity: entity,
+        data: resultsFound ? {
+          summary: createSummaryTags(resultsForThisEntity),
+          details: resultsForThisEntity
+        },
+        data: null
+      },
+
+      lookupResult
+    }
+  }
+}
