@@ -1,0 +1,1354 @@
+# Left-Right Translation: Google Threat Intelligence Integration (Part 1)
+# Original: /home/jon/code/left-right/translations/google-threat-intelligence-original/integration.js
+
+# ============================================================================
+# MODULE IMPORTS
+# ============================================================================
+
+# ``` JS Original
+# 'use strict';
+# const request = require('postman-request');
+# const _ = require('lodash');
+# const fp = require('lodash/fp');
+# const {
+#   flow, get, compact, isString, isPlainObject, some, values,
+#   groupBy, toPairs, flatMap, uniq, reduce, entries, replace,
+#   startCase, includes, size, uniqBy, sortBy, keys, isArray,
+#   curry, assign, mapValues, forEach, isEmpty, omitBy,
+#   isUndefined, filter, has, mean
+# } = fp;
+# const showdown = require('showdown');
+# const async = require('async');
+# let schedule = require('node-schedule');
+# ```
+
+# LR: Built-in operators + interop libraries (HTTP/async handled via SDK)
+# No explicit import statements needed in LR - operators are first-class
+# HTTP requests: use LR SDK interop (show as `http.request`)
+# Async patterns: use LR async operators (show as `async.parallel`, `async.map`)
+
+# ============================================================================
+# CONSTANTS
+# ============================================================================
+
+# ``` JS Original
+# const LOOKUP_URI_BY_TYPE = {
+#   ip: 'https://www.virustotal.com/api/v3/ip_addresses',
+#   domain: 'https://www.virustotal.com/api/v3/domains',
+#   hash: 'https://www.virustotal.com/api/v3/files',
+#   url: 'https://www.virustotal.com/api/v3/urls'
+# };
+# ```
+
+# LR: Map of type → API endpoint strings
+LOOKUP_URI_BY_TYPE: {
+  ip: `https://www.virustotal.com/api/v3/ip_addresses`,
+  domain: `https://www.virustotal.com/api/v3/domains`,
+  hash: `https://www.virustotal.com/api/v3/files`,
+  url: `https://www.virustotal.com/api/v3/urls`
+}
+
+# ``` JS Original
+# const TYPES_BY_SHOW_NO_DETECTIONS = {
+#   ip: 'showIpsWithNoDetections',
+#   domain: 'showDomainsWithNoDetections',
+#   hash: 'showHashesWithNoDetections',
+#   url: 'showUrlsWithNoDetections'
+# };
+# ```
+
+# LR: Map of type → option name
+TYPES_BY_SHOW_NO_DETECTIONS: {
+  ip: `showIpsWithNoDetections`,
+  domain: `showDomainsWithNoDetections`,
+  hash: `showHashesWithNoDetections`,
+  url: `showUrlsWithNoDetections`
+}
+
+# ``` JS Original
+# const GTI_LOOKUP_LIMIT = 5;
+# ```
+
+# LR: Simple number constant
+GTI_LOOKUP_LIMIT: 5
+
+# ``` JS Original
+# const IGNORED_IPS = new Set(['127.0.0.1', '255.255.255.255', '0.0.0.0']);
+# ```
+
+# LR: List of ignored IPs (lookup via `><` operator)
+IGNORED_IPS: [`127.0.0.1`, `255.255.255.255`, `0.0.0.0`]
+
+# ============================================================================
+# doLookup: Entity categorization & parallel lookups
+# ============================================================================
+
+# ``` JS Original
+# function doLookup(entities, options, cb) {
+#   if (throttleCache.has(options.apiKey)) {
+#     if (options.warnOnThrottle && !throttleCache.get(options.apiKey)) {
+#       throttleCache.set(options.apiKey, true);
+#       return cb(`Throttling lookups for ${options.lookupThrottleDuration} minute`, []);
+#     } else {
+#       return cb(null, []);
+#     }
+#   }
+#   let ipv4Entities = [];
+#   let domainEntities = [];
+#   let urlEntities = [];
+#   let cveEntities = [];
+#   let entityLookup = {};
+#   let hashGroups = [];
+#   let hashGroup = [];
+#   let nonCveOrThreatActorEntities = [];
+#   let threatActorsEntities = [];
+#   Logger.trace({ entities }, 'Entities');
+#   const MAX_HASHES_PER_GROUP = options.maxHashesPerGroup;
+#   entities.forEach(function (entity) {
+#     if (_isEntityBlocked(entity, options)) {
+#       return;
+#     }
+#     if (entity.types.includes('custom.allText') && !(...)) {
+#       // threat actor matching logic...
+#     } else if (!entity.types.includes('cve')) {
+#       nonCveOrThreatActorEntities.push(entity);
+#     }
+#     if (entity.isMD5 || entity.isSHA1 || entity.isSHA256) {
+#       if (hashGroup.length >= MAX_HASHES_PER_GROUP) {
+#         hashGroups.push(hashGroup);
+#         hashGroup = [];
+#       }
+#       if (!entityLookup[entity.value.toLowerCase()]) {
+#         hashGroup.push(entity.value);
+#         entityLookup[entity.value.toLowerCase()] = entity;
+#       }
+#     } else if (entity.isIPv4 && !entity.isPrivateIP && !IGNORED_IPS.has(entity.value)) {
+#       ipv4Entities.push(entity);
+#     } else if (entity.isDomain) {
+#       domainEntities.push(entity);
+#     } else if (entity.isURL) {
+#       urlEntities.push(entity);
+#     } else if (entity.types.includes('cve')) {
+#       cveEntities.push(entity);
+#     }
+#   });
+#   if (hashGroup.length > 0) {
+#     hashGroups.push(hashGroup);
+#   }
+#   async.parallel({
+#     ipLookups: function (callback) { ... },
+#     domainLookups: function (callback) { ... },
+#     urlLookups: function (callback) { ... },
+#     hashLookups: function (callback) { ... },
+#     cveLookups: function (callback) { ... },
+#     threatActorLookups: function (callback) { ... }
+#   }, function (err, lookupResults) {
+#     let combinedResults = [];
+#     ['hashLookups', 'ipLookups', 'domainLookups', 'urlLookups',
+#      'cveLookups', 'threatActorLookups'].forEach((key) =>
+#       combinedResults.push(...lookupResults[key])
+#     );
+#     cb(null, combinedResults);
+#   });
+# }
+# ```
+
+# LR: Categorize entities into groups, then parallel lookups
+# Note: throttleCache is SDK-managed state, async.parallel is LR async operator
+doLookup: { entities: _<@0, options: _<@1, cb: _<@2,
+  throttleCache@options.apiKey ?{
+    options@warnOnThrottle & !throttleCache@options.apiKey: {
+      throttleCache: { options.apiKey: true },
+      cb: `Throttling lookups for ${options@lookupThrottleDuration} minute`
+    },
+    cb: null
+  },
+  ipv4Entities: [],
+  domainEntities: [],
+  urlEntities: [],
+  cveEntities: [],
+  entityLookup: {},
+  hashGroups: [],
+  hashGroup: [],
+  nonCveOrThreatActorEntities: [],
+  threatActorsEntities: [],
+
+  # Categorize each entity by type
+  entities ${ entity: _<,
+    _isEntityBlocked(entity, options) & [],
+
+    # Threat actor matching (regex-based)
+    entity@types >< `custom.allText` ?{
+      !(entity@isMD5 | entity@isSHA1 | entity@isSHA256 |
+       (entity@isIPv4 & !entity@isPrivateIP & !(IGNORED_IPS >< entity@value)) |
+       entity@isDomain | entity@isURL | entity@types >< `cve`): {
+        # Filter threat actor names by regex match
+        threatActorNamesForThisEntity: threatActorNames ?{ name: _<,
+          entity@value ?< new RegExp(name)@test
+        },
+        threatActorNamesForThisEntity # ?|{
+          threatActorsEntities: threatActorNamesForThisEntity ${
+            threatActorName: _<,
+            entity,
+            value: threatActorName,
+            displayValue: threatActorName
+          }
+        }
+      }
+    },
+    !(entity@types >< `cve`): {
+      nonCveOrThreatActorEntities: nonCveOrThreatActorEntities + entity
+    },
+
+    # Hash grouping (MAX_HASHES_PER_GROUP limit)
+    (entity@isMD5 | entity@isSHA1 | entity@isSHA256): {
+      hashGroup@# >= options@maxHashesPerGroup: {
+        hashGroups: hashGroups + hashGroup,
+        hashGroup: []
+      },
+      !(entityLookup@(entity@value '_)): {
+        hashGroup: hashGroup + entity@value,
+        entityLookup: { (entity@value '_'): entity }
+      }
+    },
+
+    # IP entities (excluding private and ignored IPs)
+    (entity@isIPv4 & !entity@isPrivateIP & !(IGNORED_IPS >< entity@value)): {
+      ipv4Entities: ipv4Entities + entity
+    },
+
+    # Domain entities
+    entity@isDomain: {
+      domainEntities: domainEntities + entity
+    },
+
+    # URL entities
+    entity@isURL: {
+      urlEntities: urlEntities + entity
+    },
+
+    # CVE entities
+    entity@types >< `cve`: {
+      cveEntities: cveEntities + entity
+    }
+  },
+
+  # Add trailing hash group
+  hashGroup@# > 0: {
+    hashGroups: hashGroups + hashGroup
+  },
+
+  # Parallel lookups via async operator
+  async.parallel({
+    ipLookups: ipv4Entities@# > 0 ?{
+      async.concat(ipv4Entities, { ipEntity: _<, concatDone: _<,
+        { ip: ipEntity@value } `http.get`,
+        _lookupEntityType(`ip`, ipEntity, options, concatDone)
+      }, { err, results: _<,
+        err ? concatDone(err) : concatDone(null, results)
+      })
+    } & [],
+    domainLookups: domainEntities@# > 0 ?{
+      async.concat(domainEntities, { domainEntity: _<, concatDone: _<,
+        { domain: domainEntity@value } `http.get`,
+        _lookupEntityType(`domain`, domainEntity, options, concatDone)
+      }, { err, results: _<,
+        err ? { err, results } `error` & concatDone(err) : concatDone(null, results)
+      })
+    } & [],
+    urlLookups: urlEntities@# > 0 ?{
+      async.concat(urlEntities, { urlEntity: _<, concatDone: _<,
+        { url: urlEntity@value } `http.get`,
+        _lookupUrl(urlEntity, options, concatDone)
+      }, { err, results: _<,
+        err ? concatDone(err) : concatDone(null, results)
+      })
+    } & [],
+    hashLookups: hashGroups@# > 0 ?{
+      { hashGroups } `http.get`,
+      async.map(hashGroups, { hashGroup: _<, mapDone: _<,
+        _lookupHash(hashGroup, entityLookup, options, mapDone)
+      }, { err, results: _<,
+        err ? mapDone(err) : {
+          # Flatten hashGroup results
+          unrolledResults: results ${ hashGroup: _<,
+            hashGroup ${ hashResult: _<, unrolledResults: unrolledResults + hashResult }
+          },
+          mapDone(null, unrolledResults)
+        }
+      })
+    } & [],
+    cveLookups: cveEntities@# > 0 ?{
+      async.concat(cveEntities, { entity: _<, concatDone: _<,
+        { cve: entity@value } `http.get`,
+        _lookupVulnerabilities(entity, options, concatDone)
+      }, { err, results: _<,
+        err ? concatDone(err) : concatDone(null, results)
+      })
+    } & [],
+    threatActorLookups: threatActorsEntities@# > 0 ?{
+      async.concat(threatActorsEntities, { entity: _<, concatDone: _<,
+        { threatActor: entity@value } `http.get`,
+        _lookupThreatActors(entity, options, concatDone)
+      }, { err, results: _<,
+        err ? concatDone(err) : concatDone(null, results)
+      })
+    } & []
+  }, { err, lookupResults: _<,
+    err ? cb(err) : {
+      combinedResults: [`hashLookups`, `ipLookups`, `domainLookups`, `urlLookups`, `cveLookups`, `threatActorLookups`] ${
+        key: _<, lookupResults@key
+      } ?{},
+      cb(null, combinedResults)
+    }
+  })
+}
+
+# ============================================================================
+# _isEntityBlocked: Regex blocklist checks
+# ============================================================================
+
+# ``` JS Original
+# function _isEntityBlocked(entity, options) {
+#   const blocklist = options.blocklist;
+#   const currentIpBlocklistRegex = options.ipBlocklistRegex;
+#   const currentDomainUrlBlocklistRegex = options.domainUrlBlocklistRegex;
+#
+#   if (ipBlocklistRegex === null && currentIpBlocklistRegex.length > 0) {
+#     Logger.debug('Initializing ip blocklist regex');
+#     ipBlocklistRegex = new RegExp(currentIpBlocklistRegex);
+#   }
+#   if (domainUrlBlocklistRegex === null && currentDomainUrlBlocklistRegex.length > 0) {
+#     Logger.debug('Initializing domain/url blocklist regex');
+#     domainUrlBlocklistRegex = new RegExp(currentDomainUrlBlocklistRegex);
+#   }
+#
+#   if (currentIpBlocklistRegex.length === 0) {
+#     ipBlocklistRegex = null;
+#   }
+#   if (currentDomainUrlBlocklistRegex.length === 0) {
+#     domainUrlBlocklistRegex = null;
+#   }
+#
+#   if (ipBlocklistRegex !== null &&
+#       ipBlocklistRegex.toString() !== `/${currentIpBlocklistRegex}/`) {
+#     Logger.debug('Updating ipBlocklistRegex');
+#     ipBlocklistRegex = new RegExp(currentIpBlocklistRegex);
+#   }
+#   if (domainUrlBlocklistRegex !== null &&
+#       domainUrlBlocklistRegex.toString() !== `/${currentDomainUrlBlocklistRegex}/`) {
+#     Logger.debug('Updating domainUrlBlocklistRegex');
+#     domainUrlBlocklistRegex = new RegExp(currentDomainUrlBlocklistRegex);
+#   }
+#
+#   Logger.trace({ blocklist }, 'Blocklist value');
+#
+#   if (_.includes(blocklist, entity.value.toLowerCase())) {
+#     Logger.debug({ entity: entity.value }, 'Blocked Entity');
+#     return true;
+#   }
+#
+#   if (entity.isIP && !entity.isPrivateIP) {
+#     if (ipBlocklistRegex !== null) {
+#       if (ipBlocklistRegex.test(entity.value)) {
+#         Logger.debug({ ip: entity.value }, 'IP lookup blocked due to blocklist regex');
+#         return true;
+#       }
+#     }
+#   }
+#
+#   if (entity.isDomain) {
+#     if (domainUrlBlocklistRegex !== null) {
+#       if (domainUrlBlocklistRegex.test(entity.value)) {
+#         Logger.debug({ domain: entity.value }, 'Domain lookup blocked due to blocklist regex');
+#         return true;
+#       }
+#     }
+#   }
+#
+#   if (entity.isURL) {
+#     if (domainUrlBlocklistRegex !== null) {
+#       const urlObj = new URL(entity.value);
+#       const hostname = urlObj.hostname;
+#       Logger.debug(hostname, 'Hostname of url to block');
+#       if (domainUrlBlocklistRegex.test(hostname)) {
+#         Logger.debug({ url: entity.value }, 'URL lookup blocked due to blocklist regex');
+#         return true;
+#       }
+#     }
+#   }
+#
+#   return false;
+# }
+# ```
+
+# LR: Blocklist regex state management + entity filtering
+# Note: Logger is SDK, new RegExp() is LR interop
+_isEntityBlocked: { entity: _<@0, options: _<@1,
+  blocklist: options@blocklist,
+  currentIpBlocklistRegex: options@ipBlocklistRegex,
+  currentDomainUrlBlocklistRegex: options@domainUrlBlocklistRegex,
+
+  # Initialize IP blocklist regex if needed
+  ipBlocklistRegex == null & currentIpBlocklistRegex@# > 0: {
+    `Initializing ip blocklist regex` `debug`,
+    ipBlocklistRegex: new RegExp(currentIpBlocklistRegex)
+  },
+
+  # Initialize domain/url blocklist regex if needed
+  domainUrlBlocklistRegex == null & currentDomainUrlBlocklistRegex@# > 0: {
+    `Initializing domain/url blocklist regex` `debug`,
+    domainUrlBlocklistRegex: new RegExp(currentDomainUrlBlocklistRegex)
+  },
+
+  # Clear IP regex if empty
+  currentIpBlocklistRegex@# = 0: {
+    ipBlocklistRegex: null
+  },
+
+  # Clear domain/url regex if empty
+  currentDomainUrlBlocklistRegex@# = 0: {
+    domainUrlBlocklistRegex: null
+  },
+
+  # Update IP regex if changed
+  ipBlocklistRegex != null &
+  ipBlocklistRegex@toString != `/${currentIpBlocklistRegex}/`: {
+    `Updating ipBlocklistRegex` `debug`,
+    ipBlocklistRegex: new RegExp(currentIpBlocklistRegex)
+  },
+
+  # Update domain/url regex if changed
+  domainUrlBlocklistRegex != null &
+  domainUrlBlocklistRegex@toString != `/${currentDomainUrlBlocklistRegex}/`: {
+    `Updating domainUrlBlocklistRegex` `debug`,
+    domainUrlBlocklistRegex: new RegExp(currentDomainUrlBlocklistRegex)
+  },
+
+  { blocklist } `trace`,
+
+  # Check exact blocklist match
+  blocklist >< entity@value '_': {
+    { entity: entity@value } `debug`,
+    true
+  },
+
+  # IP blocklist regex check
+  entity@isIP & !entity@isPrivateIP: {
+    ipBlocklistRegex != null & ipBlocklistRegex@test(entity@value): {
+      { ip: entity@value } `debug`,
+      true
+    }
+  },
+
+  # Domain blocklist regex check
+  entity@isDomain: {
+    domainUrlBlocklistRegex != null & domainUrlBlocklistRegex@test(entity@value): {
+      { domain: entity@value } `debug`,
+      true
+    }
+  },
+
+  # URL blocklist regex check (extract hostname)
+  entity@isURL: {
+    domainUrlBlocklistRegex != null: {
+      urlObj: new RegExp(entity@value)@hostname,
+      hostname: urlObj@hostname,
+      hostname `trace`,
+      domainUrlBlocklistRegex@test(hostname): {
+        { url: entity@value } `debug`,
+        true
+      }
+    }
+  },
+
+  false
+}
+
+# ============================================================================
+# _handleRequestError: HTTP status code handling
+# ============================================================================
+
+# ``` JS Original
+# function _handleRequestError(err, response, body, options, cb) {
+#   if (err) {
+#     cb(_createJsonErrorPayload(
+#       'Unable to connect to GTI server', null, '500', '2A',
+#       'GTI HTTP Request Failed', { err: err }
+#     ));
+#     return;
+#   }
+#
+#   if (response.statusCode === 429) {
+#     if (!throttleCache.has(options.apiKey)) {
+#       setTimeout(_removeFromThrottleCache(options.apiKey),
+#                  options.lookupThrottleDuration * 60 * 1000);
+#       throttleCache.set(options.apiKey, false);
+#     }
+#     if (options.warnOnLookupLimit) {
+#       cb('API Lookup Limit Reached');
+#     } else if (options.warnOnThrottle) {
+#       throttleCache.set(options.apiKey, true);
+#       cb(`Throttling lookups for ${options.lookupThrottleDuration} minute`, []);
+#     } else {
+#       cb(null, { __keyLimitReached: true });
+#     }
+#     return;
+#   }
+#
+#   if (response.statusCode === 403 || response.statusCode === 401) {
+#     cb('You do not have permission to access GTI. Validate your API key.');
+#     return;
+#   }
+#
+#   if (response.statusCode === 404) return cb();
+#
+#   if (response.statusCode !== 200) {
+#     if (body) {
+#       cb(body);
+#     } else {
+#       cb(_createJsonErrorPayload(
+#         response.statusMessage, null, response.statusCode, '2A',
+#         'GTI HTTP Request Failed', { response: response, body: body }
+#       ));
+#     }
+#     return;
+#   }
+#
+#   cb(null, body);
+# }
+# ```
+
+# LR: Handle HTTP errors with status code checks
+# Note: setTimeout is LR interop, throttleCache is SDK state
+_handleRequestError: { err: _<@0, response: _<@1, body: _<@2, options: _<@3, cb: _<@4,
+  err ?{
+    cb: {
+      errors: [{
+        detail: `Unable to connect to GTI server`,
+        status: `500`,
+        title: `GTI HTTP Request Failed`,
+        code: `VIRUSTOTAL_2A`,
+        meta: { err }
+      }]
+    }
+  },
+  response@statusCode = 429: {
+    !throttleCache@options.apiKey: {
+      setTimeout({
+        throttleCache: { options.apiKey: null }
+      }, options@lookupThrottleDuration * 60 * 1000),
+      throttleCache: { options.apiKey: false }
+    },
+    options@warnOnLookupLimit ?{
+      cb: `API Lookup Limit Reached`
+    } : options@warnOnThrottle ?{
+      throttleCache: { options.apiKey: true },
+      cb: `Throttling lookups for ${options@lookupThrottleDuration} minute`
+    } :{
+      cb: { __keyLimitReached: true }
+    }
+  },
+  (response@statusCode = 403 | response@statusCode = 401): {
+    cb: `You do not have permission to access GTI. Validate your API key.`
+  },
+  response@statusCode = 404: {
+    cb: null
+  },
+  response@statusCode != 200: {
+    body ?{
+      cb: body
+    } :{
+      cb: {
+        errors: [{
+          detail: response@statusMessage,
+          status: response@statusCode,
+          title: `GTI HTTP Request Failed`,
+          code: `VIRUSTOTAL_2A`,
+          meta: { response, body }
+        }]
+      }
+    }
+  },
+  cb(null, body)
+}
+
+# ============================================================================
+# _lookupHash: Batch hash lookups
+# ============================================================================
+
+# ``` JS Original
+# function _lookupHash(hashesArray, entityLookup, options, done) {
+#   async.mapLimit(
+#     hashesArray, 10,
+#     (hashValue, next) => {
+#       let requestOptions = {
+#         uri: `${LOOKUP_URI_BY_TYPE.hash}/${hashValue}`,
+#         method: 'GET',
+#         headers: { 'x-apikey': options.apiKey }
+#       };
+#       requestWithDefaults(requestOptions, function (err, response, body) {
+#         _handleRequestError(err, response, body, options, function (err, body) {
+#           if (err) {
+#             Logger.error(err, 'Error Looking up Hash');
+#             return next(err);
+#           }
+#           const formattedResult = _processLookupItem(
+#             'file', body, entityLookup[fp.toLower(hashValue)],
+#             options[TYPES_BY_SHOW_NO_DETECTIONS.hash],
+#             options.showNoInfoTag
+#           );
+#           next(null, formattedResult);
+#         });
+#       });
+#     },
+#     (err, results) => {
+#       if (err) return done(err);
+#       done(null, compact(results));
+#     }
+#   );
+# }
+# ```
+
+# LR: Parallel hash lookups with concurrency limit 10
+_lookupHash: { hashesArray: _<@0, entityLookup: _<@1, options: _<@2, done: _<@3,
+  async.mapLimit(hashesArray, 10, { hashValue: _<, next: _<,
+    requestOptions: {
+      uri: `${LOOKUP_URI_BY_TYPE@hash}/${hashValue}`,
+      method: `GET`,
+      headers: { `x-apikey`: options@apiKey }
+    },
+    requestOptions `http.request`,
+    _handleRequestError(err, response, body, options, { err, body: _<,
+      err ?{
+        err `error`,
+        next(err)
+      } :{
+        formattedResult: _processLookupItem(
+          `file`, body, entityLookup@(hashValue '_'),
+          options@(TYPES_BY_SHOW_NO_DETECTIONS@hash),
+          options@showNoInfoTag
+        ),
+        next(null, formattedResult)
+      }
+    })
+  }, { err, results: _<,
+    err ? done(err) : done(null, results ?{})
+  })
+}
+
+# ============================================================================
+# _lookupUrl: URL lookups (base64 encoded)
+# ============================================================================
+
+# ``` JS Original
+# function _lookupUrl(entity, options, done) {
+#   const urlAsBase64WithoutPadding = Buffer.from(entity.value)
+#     .toString('base64')
+#     .replace(/=+$/, '');
+#
+#   let requestOptions = {
+#     uri: `${LOOKUP_URI_BY_TYPE.url}/${urlAsBase64WithoutPadding}`,
+#     method: 'GET',
+#     headers: { 'x-apikey': options.apiKey }
+#   };
+#
+#   Logger.debug({ requestOptions }, 'Request Options for URL Lookup');
+#
+#   requestWithDefaults(requestOptions, function (err, response, body) {
+#     _handleRequestError(err, response, body, options, function (err, result) {
+#       if (err) {
+#         Logger.error(err, 'Error Looking up URL');
+#         return done(err);
+#       }
+#       const lookupResult = _processLookupItem(
+#         'url', result, entity,
+#         options[TYPES_BY_SHOW_NO_DETECTIONS.url],
+#         options.showNoInfoTag
+#       );
+#       done(null, lookupResult);
+#     });
+#   });
+# }
+# ```
+
+# LR: URL lookup with base64 encoding
+# Note: Buffer.from() is LR interop
+_lookupUrl: { entity: _<@0, options: _<@1, done: _<@2,
+  urlAsBase64WithoutPadding: Buffer.from(entity@value)@base64.replace(`=+$`, ``),
+  requestOptions: {
+    uri: `${LOOKUP_URI_BY_TYPE@url}/${urlAsBase64WithoutPadding}`,
+    method: `GET`,
+    headers: { `x-apikey`: options@apiKey }
+  },
+  { requestOptions } `debug`,
+  requestOptions `http.request`,
+  _handleRequestError(err, response, body, options, { err, result: _<,
+    err ?{
+      err `error`,
+      done(err)
+    } :{
+      lookupResult: _processLookupItem(
+        `url`, result, entity,
+        options@(TYPES_BY_SHOW_NO_DETECTIONS@url),
+        options@showNoInfoTag
+      ),
+      done(null, lookupResult)
+    }
+  })
+}
+
+# ============================================================================
+# _lookupVulnerabilities: CVE lookups
+# ============================================================================
+
+# ``` JS Original
+# const _lookupVulnerabilities = (entity, options, done) => {
+#   Logger.trace({ entity }, 'Searching Vulnerabilities');
+#
+#   const requestOptions = {
+#     url: `https://www.virustotal.com/api/v3/collections`,
+#     qs: {
+#       filter: `name:"${entity.value}" AND collection_type:vulnerability`,
+#       relationships: 'subscription_preferences,owner,malware_families,threat_actors',
+#       limit: GTI_LOOKUP_LIMIT
+#     },
+#     headers: { 'x-apikey': options.apiKey },
+#     json: true
+#   };
+#
+#   Logger.trace({ requestOptions }, 'Request Options');
+#
+#   requestWithDefaults(requestOptions, function (err, response, body) {
+#     _handleRequestError(err, response, body, options, function (err, responseBody) {
+#       if (err) {
+#         Logger.error(err, 'Error Searching Vulnerabilities');
+#         return done(err);
+#       }
+#       if (!get('data.length', responseBody)) return done(null, { entity, data: null });
+#
+#       Logger.trace({ responseBody }, 'Response Body of Vulnerabilities Lookup');
+#
+#       const details = {
+#         vulnerabilities: formatVulnerabilities(responseBody)
+#       };
+#
+#       const vulnerabilitiesLookupResult = {
+#         entity,
+#         data: {
+#           summary: _getVulnSummaryTags(details),
+#           details
+#         }
+#       };
+#
+#       done(null, vulnerabilitiesLookupResult);
+#     });
+#   });
+# };
+# ```
+
+# LR: CVE/vulnerability lookup with summary tags
+_lookupVulnerabilities: { entity: _<@0, options: _<@1, done: _<@2,
+  { entity } `trace`,
+  requestOptions: {
+    url: `https://www.virustotal.com/api/v3/collections`,
+    qs: {
+      filter: `name:"${entity@value}" AND collection_type:vulnerability`,
+      relationships: `subscription_preferences,owner,malware_families,threat_actors`,
+      limit: GTI_LOOKUP_LIMIT
+    },
+    headers: { `x-apikey`: options@apiKey },
+    json: true
+  },
+  { requestOptions } `trace`,
+  requestOptions `http.request`,
+  _handleRequestError(err, response, body, options, { err, responseBody: _<,
+    err ?{
+      err `error`,
+      done(err)
+    } :{
+      !(responseBody@data@length): {
+        done(null, { entity, data: null })
+      },
+      { responseBody } `trace`,
+      details: {
+        vulnerabilities: formatVulnerabilities(responseBody)
+      },
+      vulnerabilitiesLookupResult: {
+        entity,
+        data: {
+          summary: _getVulnSummaryTags(details),
+          details
+        }
+      },
+      done(null, vulnerabilitiesLookupResult)
+    }
+  })
+}
+
+# ============================================================================
+# formatVulnerabilities: Massive data transformation (CVSS, severity, EPSS)
+# ============================================================================
+
+# ``` JS Original
+# const formatVulnerabilities = (vulnerabilitiesResponseBody) =>
+#   flow(
+#     get('data'),
+#     map((vulnerability) => ({
+#       ...vulnerability.attributes,
+#       id: vulnerability.id,
+#       relationships: vulnerability.relationships,
+#       htmlDescription: convertMarkdownToHtml(vulnerability.attributes.description),
+#       htmlAnalysis: convertMarkdownToHtml(vulnerability.attributes.analysis),
+#       htmlExecutiveSummary: convertMarkdownToHtml(vulnerability.attributes.executive_summary),
+#       confidenceGroupedData: groupByConfidence(vulnerability.attributes),
+#       date_of_disclosure: vulnerability.attributes.date_of_disclosure
+#         ? vulnerability.attributes.date_of_disclosure * 1000
+#         : null,
+#       exploitation: {
+#         ...vulnerability.attributes.exploitation,
+#         first_exploitation: vulnerability.attributes.exploitation?.first_exploitation
+#           ? vulnerability.attributes.exploitation.first_exploitation * 1000
+#           : null
+#       },
+#       cisa_known_exploited: vulnerability.attributes.cisa_known_exploited
+#         ? {
+#             ...vulnerability.attributes.cisa_known_exploited,
+#             added_date: vulnerability.attributes.cisa_known_exploited.added_date
+#               ? vulnerability.attributes.cisa_known_exploited.added_date * 1000
+#               : null,
+#             due_date: vulnerability.attributes.cisa_known_exploited.due_date
+#               ? vulnerability.attributes.cisa_known_exploited.due_date * 1000
+#               : null
+#           }
+#         : null,
+#       cve_id: vulnerability.attributes.cve_id,
+#       mve_id: vulnerability.attributes.mve_id,
+#       cwe: vulnerability.attributes.cwe || {},
+#       risk_rating: vulnerability.attributes.risk_rating,
+#       predicted_risk_rating: vulnerability.attributes.predicted_risk_rating,
+#       priority: vulnerability.attributes.priority,
+#       cvssScore: flow((attrs) => {
+#         const cvss3Score =
+#           get('cvss.cvssv3_1.base_score', attrs) ||
+#           get('cvss.cvssv3_x.base_score', attrs);
+#         const cvss2Score = get('cvss.cvssv2_0.base_score', attrs);
+#         return cvss3Score || cvss2Score || null;
+#       })(vulnerability.attributes),
+#       cvssVector: flow((attrs) => {
+#         const cvss3Vector =
+#           get('cvss.cvssv3_1.vector', attrs) || get('cvss.cvssv3_x.vector', attrs);
+#         const cvss2Vector = get('cvss.cvssv2_0.vector', attrs);
+#         return cvss3Vector || cvss2Vector || null;
+#       })(vulnerability.attributes),
+#       severity: flow((attrs) => {
+#         const cvss3Score =
+#           get('cvss.cvssv3_1.base_score', attrs) ||
+#           get('cvss.cvssv3_x.base_score', attrs);
+#         const cvss2Score = get('cvss.cvssv2_0.base_score', attrs);
+#         const score = cvss3Score || cvss2Score;
+#         if (!score) return 'Unknown';
+#         if (score >= 9.0) return 'Critical';
+#         if (score >= 7.0) return 'High';
+#         if (score >= 4.0) return 'Medium';
+#         return 'Low';
+#       })(vulnerability.attributes),
+#       exploitation_state: vulnerability.attributes.exploitation_state,
+#       exploit_availability: vulnerability.attributes.exploit_availability,
+#       exploitabilityMetrics: flow((attrs) => ({
+#         epssScore: get('epss.score', attrs)
+#           ? parseFloat(get('epss.score', attrs).toFixed(5))
+#           : 0,
+#         epssPercentile: get('epss.percentile', attrs)
+#           ? parseFloat(get('epss.percentile', attrs) * 100).toFixed(2)
+#           : 0,
+#         hasExploit: !!(
+#           get('exploitation.exploit_release_date', attrs) ||
+#           get('cisa_known_exploited', attrs) ||
+#           get('exploitation_state', attrs) === 'exploited'
+#         ),
+#         daysToExploit: flow((attrs) => {
+#           const firstExploit = get('exploitation.first_exploitation', attrs);
+#           const techDetails = get('exploitation.tech_details_release_date', attrs);
+#           const disclosure = get('date_of_disclosure', attrs);
+#           if (firstExploit && techDetails) {
+#             return Math.floor((firstExploit - techDetails) / (24 * 60 * 60));
+#           } else if (firstExploit && disclosure) {
+#             return Math.floor((firstExploit - disclosure) / (24 * 60 * 60));
+#           }
+#           return null;
+#         })(attrs)
+#       }))(vulnerability.attributes),
+#       exploitation_consequence: vulnerability.attributes.exploitation_consequence,
+#       exploitation_vectors: vulnerability.attributes.exploitation_vectors || [],
+#       cpes: vulnerability.attributes.cpes || [],
+#       targetedIndustryNames: flow(
+#         get('targeted_industries'),
+#         uniq,
+#         compact
+#       )(vulnerability.attributes),
+#       available_mitigation: vulnerability.attributes.available_mitigation || [],
+#       mitigationDetails: flow(
+#         get('vendor_fix_references'),
+#         map((fix) => ({
+#           ...fix,
+#           published_date: fix.published_date
+#             ? fix.published_date * 1000
+#             : fix.published_date
+#         }))
+#       )(vulnerability.attributes),
+#       timeToMitigation: flow((attrs) => {
+#         const exploitDate = get('exploitation.first_exploitation', attrs);
+#         const fixDate = flow(get('vendor_fix_references'), (fixes) =>
+#           fixes && fixes.length
+#             ? Math.min(
+#                 ...fixes
+#                   .map((f) => (get('published_date', f) ? f.published_date : null))
+#                   .filter(Boolean)
+#               )
+#             : null
+#         )(attrs);
+#         if (exploitDate && fixDate) {
+#           return Math.floor((exploitDate - fixDate) / (24 * 60 * 60));
+#         }
+#         return null;
+#       })(vulnerability.attributes),
+#       tags: vulnerability.attributes.tags || [],
+#       sources: vulnerability.attributes.sources || [],
+#       impactSummary: flow(
+#         (attrs) => ({
+#           systems: get('affected_systems', attrs) || [],
+#           consequence: get('exploitation_consequence', attrs),
+#           priority: get('priority', attrs),
+#           riskRating: get('risk_rating', attrs),
+#           cvssScore:
+#             get('cvss.cvssv3_1.base_score', attrs) ||
+#             get('cvss.cvssv3_x.base_score', attrs) ||
+#             get('cvss.cvssv2_0.base_score', attrs),
+#           hasPublicExploit: !!(
+#             get('exploitation.exploit_release_date', attrs) ||
+#             get('cisa_known_exploited', attrs)
+#           ),
+#           epssScore: get('epss.score', attrs)
+#         }),
+#         (impact) => ({
+#           ...impact,
+#           summary: compact([
+#             impact.riskRating ? `${impact.riskRating} Risk` : null,
+#             impact.priority,
+#             impact.cvssScore ? `CVSS ${impact.cvssScore}` : null,
+#             impact.hasPublicExploit ? 'Public Exploit' : null,
+#             impact.epssScore ? `EPSS ${(impact.epssScore * 100).toFixed(1)}%` : null,
+#             impact.consequence,
+#             impact.systems.length
+#               ? `Affects ${impact.systems.slice(0, 3).join(', ')}${
+#                   impact.systems.length > 3 ? '...' : ''
+#                 }`
+#               : null
+#           ]).join(' • ')
+#         })
+#       )(vulnerability.attributes)
+#     }))
+#   )(vulnerabilitiesResponseBody);
+# ```
+
+# LR: Vulnerability formatting with CVSS scoring, severity, EPSS metrics
+# Note: convertMarkdownToHtml is LR interop, parseFloat/Math.floor are built-in
+formatVulnerabilities: { vulnerabilitiesResponseBody: _<,
+  vulnerabilitiesResponseBody@data ${ vulnerability: _<,
+    # Spread attributes with computed fields
+    ...vulnerability@attributes,
+    id: vulnerability@id,
+    relationships: vulnerability@relationships,
+
+    # Markdown conversion (interop)
+    htmlDescription: convertMarkdownToHtml(vulnerability@attributes@description),
+    htmlAnalysis: convertMarkdownToHtml(vulnerability@attributes@analysis),
+    htmlExecutiveSummary: convertMarkdownToHtml(vulnerability@attributes@executive_summary),
+
+    confidenceGroupedData: groupByConfidence(vulnerability@attributes),
+
+    # Timestamp conversion (seconds → ms)
+    date_of_disclosure: vulnerability@attributes@date_of_disclosure
+      ? vulnerability@attributes@date_of_disclosure * 1000
+      : null,
+
+    exploitation: {
+      ...vulnerability@attributes@exploitation,
+      first_exploitation: vulnerability@attributes@exploitation@first_exploitation
+        ? vulnerability@attributes@exploitation@first_exploitation * 1000
+        : null
+    },
+
+    cisa_known_exploited: vulnerability@attributes@cisa_known_exploited ?{
+      ...vulnerability@attributes@cisa_known_exploited,
+      added_date: vulnerability@attributes@cisa_known_exploited@added_date
+        ? vulnerability@attributes@cisa_known_exploited@added_date * 1000
+        : null,
+      due_date: vulnerability@attributes@cisa_known_exploited@due_date
+        ? vulnerability@attributes@cisa_known_exploited@due_date * 1000
+        : null
+    } & null,
+
+    # Identifiers and classification
+    cve_id: vulnerability@attributes@cve_id,
+    mve_id: vulnerability@attributes@mve_id,
+    cwe: vulnerability@attributes@cwe | {},
+
+    # Risk assessment
+    risk_rating: vulnerability@attributes@risk_rating,
+    predicted_risk_rating: vulnerability@attributes@predicted_risk_rating,
+    priority: vulnerability@attributes@priority,
+
+    # CVSS scoring (try v3.1, v3.x, then v2.0)
+    cvssScore: vulnerability@attributes ?{
+      cvss3Score: vulnerability@cvss@cvssv3_1@base_score | vulnerability@cvss@cvssv3_x@base_score,
+      cvss2Score: vulnerability@cvss@cvssv2_0@base_score,
+      cvss3Score | cvss2Score | null
+    },
+
+    cvssVector: vulnerability@attributes ?{
+      cvss3Vector: vulnerability@cvss@cvssv3_1@vector | vulnerability@cvss@cvssv3_x@vector,
+      cvss2Vector: vulnerability@cvss@cvssv2_0@vector,
+      cvss3Vector | cvss2Vector | null
+    },
+
+    # Severity calculation from CVSS score
+    severity: vulnerability@attributes ?{
+      cvss3Score: vulnerability@cvss@cvssv3_1@base_score | vulnerability@cvss@cvssv3_x@base_score,
+      cvss2Score: vulnerability@cvss@cvssv2_0@base_score,
+      score: cvss3Score | cvss2Score,
+      !score ? `Unknown`
+      : score >= 9.0 ? `Critical`
+      : score >= 7.0 ? `High`
+      : score >= 4.0 ? `Medium`
+      : `Low`
+    },
+
+    # Exploitation status
+    exploitation_state: vulnerability@attributes@exploitation_state,
+    exploit_availability: vulnerability@attributes@exploit_availability,
+
+    # Exploitability metrics (EPSS)
+    exploitabilityMetrics: vulnerability@attributes ?{
+      epssScore: vulnerability@epss@score
+        ? parseFloat(vulnerability@epss@score@toFixed(5))
+        : 0,
+      epssPercentile: vulnerability@epss@percentile
+        ? parseFloat(vulnerability@epss@percentile * 100)@toFixed(2)
+        : 0,
+      hasExploit: !!(
+        vulnerability@exploitation@exploit_release_date |
+        vulnerability@cisa_known_exploited |
+        vulnerability@exploitation_state = `exploited`
+      ),
+      daysToExploit: vulnerability ?{
+        firstExploit: vulnerability@exploitation@first_exploitation,
+        techDetails: vulnerability@exploitation@tech_details_release_date,
+        disclosure: vulnerability@date_of_disclosure,
+        firstExploit & techDetails ?{
+          Math.floor((firstExploit - techDetails) / 86400)
+        } : firstExploit & disclosure ?{
+          Math.floor((firstExploit - disclosure) / 86400)
+        } : null
+      }
+    },
+
+    # Impact and consequences
+    exploitation_consequence: vulnerability@attributes@exploitation_consequence,
+    exploitation_vectors: vulnerability@attributes@exploitation_vectors | [],
+
+    # Affected systems
+    cpes: vulnerability@attributes@cpes | [],
+
+    # Targeted industries
+    targetedIndustryNames: vulnerability@attributes
+      ? vulnerability@targeted_industries ~ ?{}
+      : [],
+
+    # Mitigation and remediation
+    available_mitigation: vulnerability@attributes@available_mitigation | [],
+    mitigationDetails: vulnerability@attributes@vendor_fix_references ${
+      fix: _<,
+      ...fix,
+      published_date: fix@published_date ? fix@published_date * 1000 : fix@published_date
+    },
+
+    timeToMitigation: vulnerability@attributes ?{
+      exploitDate: vulnerability@exploitation@first_exploitation,
+      fixDate: vulnerability@attributes@vendor_fix_references ${
+        fixes: _<,
+        fixes@# > 0 ?{
+          Math.min(fixes ${ fix: _<, fix@published_date ? fix@published_date : null } ?{})
+        } : null
+      },
+      exploitDate & fixDate ?{
+        Math.floor((exploitDate - fixDate) / 86400)
+      } : null
+    },
+
+    # Metadata
+    tags: vulnerability@attributes@tags | [],
+    sources: vulnerability@attributes@sources | [],
+
+    # Impact summary
+    impactSummary: vulnerability@attributes ?{
+      systems: vulnerability@affected_systems | [],
+      consequence: vulnerability@exploitation_consequence,
+      priority: vulnerability@priority,
+      riskRating: vulnerability@risk_rating,
+      cvssScore: vulnerability@cvss@cvssv3_1@base_score |
+                vulnerability@cvss@cvssv3_x@base_score |
+                vulnerability@cvss@cvssv2_0@base_score,
+      hasPublicExploit: !!(
+        vulnerability@exploitation@exploit_release_date |
+        vulnerability@cisa_known_exploited
+      ),
+      epssScore: vulnerability@epss@score
+    } ?{
+      ...impact,
+      summary: [
+        impact@riskRating ? `${impact@riskRating} Risk`,
+        impact@priority,
+        impact@cvssScore ? `CVSS ${impact@cvssScore}`,
+        impact@hasPublicExploit ? `Public Exploit`,
+        impact@epssScore ? `EPSS ${(impact@epssScore * 100)@toFixed(1)}%`,
+        impact@consequence,
+        impact@systems@# > 0 ?{
+          `Affects ${impact@systems@[\`0\`..2\`] >< `, `}${impact@systems@# > 3 ? `...` : ``}`
+        }
+      ] ?{@`, ` } • `
+    }
+  }
+}
+
+# ============================================================================
+# _getVulnSummaryTags: Generate summary tags from vulnerabilities
+# ============================================================================
+
+# ``` JS Original
+# const _getVulnSummaryTags = (details) => {
+#   if (details.vulnerabilities.length === 1 && details.vulnerabilities[0].risk_rating) {
+#     return [`Risk: ${details.vulnerabilities[0].risk_rating}`];
+#   }
+#   if (details.vulnerabilities.length === 1 &&
+#       details.vulnerabilities[0].predicted_risk_rating) {
+#     return [`Risk: ${details.vulnerabilities[0].predicted_risk_rating}`];
+#   }
+#   return [`Vulns: ${details.vulnerabilities.length}`];
+# };
+# ```
+
+# LR: Single vuln → risk tag, multiple → count tag
+_getVulnSummaryTags: { details: _<,
+  details@vulnerabilities@# = 1 & details@vulnerabilities@[\`0\`]@risk_rating: {
+    [`Risk: ${details@vulnerabilities@[\`0\`]@risk_rating}`]
+  },
+  details@vulnerabilities@# = 1 & details@vulnerabilities@[\`0\`]@predicted_risk_rating: {
+    [`Risk: ${details@vulnerabilities@[\`0\`]@predicted_risk_rating}`]
+  },
+  [`Vulns: ${details@vulnerabilities@#}`]
+}
+
+# ============================================================================
+# _lookupThreatActors: Threat actor lookups
+# ============================================================================
+
+# ``` JS Original
+# const _lookupThreatActors = (entity, options, done) => {
+#   Logger.trace({ entity }, 'Searching Threat Actors');
+#
+#   const requestOptions = {
+#     url: `https://www.virustotal.com/api/v3/collections`,
+#     qs: {
+#       filter: `name:"${entity.value}" AND collection_type:threat-actor`,
+#       relationships: 'subscription_preferences,owner,malware_families,threat_actors',
+#       limit: GTI_LOOKUP_LIMIT
+#     },
+#     headers: { 'x-apikey': options.apiKey },
+#     json: true
+#   };
+#
+#   Logger.trace({ requestOptions }, 'Request Options');
+#
+#   requestWithDefaults(requestOptions, function (err, response, body) {
+#     _handleRequestError(err, response, body, options, function (err, responseBody) {
+#       if (err) {
+#         Logger.error(err, 'Error Searching Threat Actors');
+#         return done(err);
+#       }
+#       if (!get('data.length', responseBody)) return done(null, { entity, data: null });
+#
+#       Logger.trace({ responseBody }, 'Result of Threat Actors Lookup');
+#
+#       const threatActorsLookupResult = {
+#         entity,
+#         data: {
+#           summary: [`Threat Actors: ${get('data.length', responseBody)}`],
+#           details: {
+#             threatActors: formatThreatActors(responseBody)
+#           }
+#         }
+#       };
+#
+#       done(null, threatActorsLookupResult);
+#     });
+#   });
+# };
+# ```
+
+# LR: Threat actor lookup with count in summary
+_lookupThreatActors: { entity: _<@0, options: _<@1, done: _<@2,
+  { entity } `trace`,
+  requestOptions: {
+    url: `https://www.virustotal.com/api/v3/collections`,
+    qs: {
+      filter: `name:"${entity@value}" AND collection_type:threat-actor`,
+      relationships: `subscription_preferences,owner,malware_families,threat_actors`,
+      limit: GTI_LOOKUP_LIMIT
+    },
+    headers: { `x-apikey`: options@apiKey },
+    json: true
+  },
+  { requestOptions } `trace`,
+  requestOptions `http.request`,
+  _handleRequestError(err, response, body, options, { err, responseBody: _<,
+    err ?{
+      err `error`,
+      done(err)
+    } :{
+      !(responseBody@data@length): {
+        done(null, { entity, data: null })
+      },
+      { responseBody } `trace`,
+      threatActorsLookupResult: {
+        entity,
+        data: {
+          summary: [`Threat Actors: ${responseBody@data@length}`],
+          details: {
+            threatActors: formatThreatActors(responseBody)
+          }
+        }
+      },
+      done(null, threatActorsLookupResult)
+    }
+  })
+}
+
+# ============================================================================
+# formatThreatActors: Threat actor data transformation
+# ============================================================================
+
+# ``` JS Original
+# const formatThreatActors = (threatActorsResponseBody) =>
+#   flow(
+#     get('data'),
+#     map((threatActor) => ({
+#       ...threatActor.attributes,
+#       id: threatActor.id,
+#       relationships: threatActor.relationships,
+#       targetedIndustryNames: flow(
+#         get('targeted_industries_tree'),
+#         map(({ industry_group, industry }) =>
+#           size(industry_group) > size(industry) ? industry_group : industry
+#         ),
+#         uniq,
+#         compact
+#       )(threatActor.attributes),
+#       targetedRegionNames: flow(
+#         get('targeted_regions_hierarchy'),
+#         map((region) => {
+#           const country = region.country || region.country_iso2 || '';
+#           const subRegion = region.sub_region || region.region || '';
+#           if (country && subRegion) {
+#             return `${country}, ${subRegion}`;
+#           } else if (country) {
+#             return country;
+#           } else if (subRegion) {
+#             return subRegion;
+#           } else {
+#             return '';
+#           }
+#         }),
+#         compact
+#       )(threatActor.attributes),
+#       htmlDescription: convertMarkdownToHtml(threatActor.attributes.description),
+#       confidenceGroupedData: groupByConfidence(threatActor.attributes),
+#       first_seen: threatActor.attributes.first_seen
+#         ? threatActor.attributes.first_seen * 1000
+#         : threatActor.attributes.first_seen,
+#       last_seen: threatActor.attributes.last_seen
+#         ? threatActor.attributes.last_seen * 1000
+#         : threatActor.attributes.last_seen,
+#       last_modification_date: threatActor.attributes.last_modification_date
+#         ? threatActor.attributes.last_modification_date * 1000
+#         : threatActor.attributes.last_modification_date
+#     }))
+#   )(threatActorsResponseBody);
+# ```
+
+# LR: Threat actor formatting with targeted regions/industries
+formatThreatActors: { threatActorsResponseBody: _<,
+  threatActorsResponseBody@data ${ threatActor: _<,
+    # Spread attributes with computed fields
+    ...threatActor@attributes,
+    id: threatActor@id,
+    relationships: threatActor@relationships,
+
+    # Targeted industries (pick longer name)
+    targetedIndustryNames: threatActor@attributes@targeted_industries_tree ${
+      { industry_group: _<, industry: _<,
+        industry_group@# > industry@# ? industry_group : industry
+      } ~ ?{}
+    },
+
+    # Targeted regions (format as "Country, SubRegion")
+    targetedRegionNames: threatActor@attributes@targeted_regions_hierarchy ${
+      region: _<,
+      country: region@country | region@country_iso2 | ``,
+      subRegion: region@sub_region | region@region | ``,
+      country & subRegion ?{
+        `${country}, ${subRegion}`
+      } : country ?{
+        country
+      } : subRegion ?{
+        subRegion
+      } : ``
+    } ?{}
+    },
+
+    # Markdown conversion
+    htmlDescription: convertMarkdownToHtml(threatActor@attributes@description),
+
+    confidenceGroupedData: groupByConfidence(threatActor@attributes),
+
+    # Timestamp conversion (seconds → ms)
+    first_seen: threatActor@attributes@first_seen
+      ? threatActor@attributes@first_seen * 1000
+      : threatActor@attributes@first_seen,
+    last_seen: threatActor@attributes@last_seen
+      ? threatActor@attributes@last_seen * 1000
+      : threatActor@attributes@last_seen,
+    last_modification_date: threatActor@attributes@last_modification_date
+      ? threatActor@attributes@last_modification_date * 1000
+      : threatActor@attributes@last_modification_date
+  }
+}
+
+# ============================================================================
+# PART 1 COMPLETE
+# ============================================================================
+# Translated functions:
+# - Module imports (interop pattern documented)
+# - Constants (LOOKUP_URI_BY_TYPE, TYPES_BY_SHOW_NO_DETECTIONS, GTI_LOOKUP_LIMIT, IGNORED_IPS)
+# - doLookup (entity categorization, async.parallel lookups)
+# - _isEntityBlocked (regex blocklists)
+# - _handleRequestError (HTTP status handling)
+# - _lookupHash (batch hash lookups)
+# - _lookupUrl (URL lookups)
+# - _lookupVulnerabilities (CVE lookups)
+# - formatVulnerabilities (massive data transformation)
+# - _getVulnSummaryTags (summary tags)
+# - _lookupThreatActors (threat actor lookups)
+# - formatThreatActors (threat actor data transformation)
+# ============================================================================

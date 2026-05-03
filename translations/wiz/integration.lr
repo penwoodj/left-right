@@ -1,0 +1,142 @@
+# Original JavaScript
+# 'use strict';
+# const {
+#   logging: { setLogger, getLogger },
+#   errors: { parseErrorToReadableJson }
+# } = require('polarity-integration-utils');
+#
+# const {
+#   removePrivateIps,
+#   getEntityTypes,
+#   addIdsToEntities,
+# } = require('./server/dataTransformations');
+#
+# const { validateOptions } = require('./server/userOptions');
+# const { queryIssues, queryVulnerabilities, queryAssets } = require('./server/queries');
+# const assembleLookupResults = require('./server/assembleLookupResults');
+#
+# const doLookup = async (entities, _options, cb) => {
+#   const Logger = getLogger();
+#   try {
+#     Logger.debug({ entities }, 'Entities');
+#
+#     const options = {
+#       ..._options,
+#       maxConcurrent: 1,
+#       minimumMillisecondsRequestWillTake: 350,
+#       parsedAssetQueryTypes: _options.assetQueryTypeList.map(asset => asset.value)
+#     };
+#
+#     let searchableEntities = entities;
+#
+#     if(!options.searchPrivateIps){
+#       searchableEntities = removePrivateIps(entities);
+#     }
+#
+#     const entitiesWithIds = addIdsToEntities(searchableEntities);
+#
+#     const cveEntities = getEntityTypes('cve', entitiesWithIds);
+#
+#     const [issues, vulnerabilities, assets] = await Promise.all([
+#       options.queryIssues ? queryIssues(cveEntities, options) : [],
+#       options.queryVulnerabilities ? queryVulnerabilities(cveEntities, options) : [],
+#       options.queryAssets ? queryAssets(entitiesWithIds, options) : []
+#     ]);
+#
+#     Logger.trace({ issues, vulnerabilities, assets });
+#
+#     const lookupResults = assembleLookupResults(
+#       entities,
+#       issues,
+#       vulnerabilities,
+#       assets,
+#       options
+#     );
+#
+#     Logger.trace({ lookupResults }, 'Lookup Results');
+#
+#     cb(null, lookupResults);
+#   } catch (error) {
+#     const err = parseErrorToReadableJson(error);
+#
+#     Logger.error({ error, formattedError: err }, 'Get Lookup Results Failed');
+#     cb({ detail: error.message || 'Lookup Failed', err });
+#   }
+# };
+#
+# module.exports = {
+#   startup: setLogger,
+#   validateOptions,
+#   doLookup
+# };
+
+# Left-Right Translation
+
+{
+  # doLookup - main lookup function: process entities and query Wiz API
+  # Called by Polarity platform when user searches for entities
+  doLookup: { entities: _<@0, _options: _<@1, cb: _<@2,
+    # Build options object with defaults and parsed asset query types
+    options: {
+      ..._options,
+      maxConcurrent: 1,
+      minimumMillisecondsRequestWillTake: 350,
+      parsedAssetQueryTypes: _options@`assetQueryTypeList` ${ asset: _<@0, asset@`value` }
+    },
+
+    # Filter out private IPs if searchPrivateIps is disabled
+    searchableEntities: {
+      searchPrivateIps: options@`searchPrivateIps`,
+      searchPrivateIps ? entities : removePrivateIps(entities)
+    },
+
+    # Add random IDs to entities for tracking query results
+    entitiesWithIds: addIdsToEntities(searchableEntities),
+
+    # Extract CVE entities for issues/vulnerabilities queries
+    cveEntities: getEntityTypes(`cve`, entitiesWithIds),
+
+    # Run all three queries in parallel
+    # Each query returns list if enabled, empty list otherwise
+    queryIssuesEnabled: options@`queryIssues`,
+    queryVulnerabilitiesEnabled: options@`queryVulnerabilities`,
+    queryAssetsEnabled: options@`queryAssets`,
+
+    issues: queryIssuesEnabled ? queryIssues(cveEntities, options),
+    issues: [],
+
+    vulnerabilities: queryVulnerabilitiesEnabled ? queryVulnerabilities(cveEntities, options),
+    vulnerabilities: [],
+
+    assets: queryAssetsEnabled ? queryAssets(entitiesWithIds, options),
+    assets: [],
+
+    # Assemble final lookup results with entities and their findings
+    lookupResults: assembleLookupResults(entities, issues, vulnerabilities, assets, options),
+
+    # Return results via callback (Polarity pattern)
+    cb(null, lookupResults)
+  },
+
+  # Handle errors in doLookup - format error and call callback with error
+  doLookupError: { error: _<@0, cb: _<@1,
+    err: parseErrorToReadableJson(error),
+    errorMessage: error@`message` ?= `undefined` ? error@`message`,
+    errorMessage: `Lookup Failed`,
+
+    cb({
+      detail: errorMessage,
+      err: err
+    })
+  },
+
+  # startup - called by Polarity during integration startup
+  # Configures logger for the integration
+  startup: { loggerConfig: _<@0,
+    setLogger(loggerConfig)
+  },
+
+  # validateOptions - exported from userOptions/validateOptions.lr
+  # Called by Polarity to validate user-provided configuration
+  validateOptions: validateOptions
+}
