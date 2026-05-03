@@ -9,7 +9,7 @@
         font-size="48"
         text-anchor="middle"
         fill="#E76F51">
-    {_<_>}
+    {&lt;_&gt;}
   </text>
 
   <!-- Wordmark: left-right -->
