@@ -1,0 +1,10 @@
+# Original JavaScript
+# const MAX_PAGE_SIZE = 10;
+# module.exports = { MAX_PAGE_SIZE };
+
+# Left-Right Translation
+# Constants are just values - export them in a map
+
+{
+  MAX_PAGE_SIZE: 10
+}
