@@ -1,6 +1,6 @@
 # Collections and Paths — Maps, Lists, and Access
 
-Left-Right uses maps (hashmaps) as the primary data structure, with lists and operators providing powerful collection manipulation. This document covers collections, path access, collection operations, and ETL patterns.
+Left-Right uses maps as the primary data structure, with lists and operators providing powerful collection manipulation. This document covers collections, path access, collection operations, and ETL patterns.
 
 ## Maps — Primary Data Structure
 
@@ -83,13 +83,15 @@ The `@` operator provides path access for both maps and arrays:
 ```javascript
 // Map path access
 user@`name`              // Get `name` key
-user@[`profile`, `email`] // Nested path access
+user@[`profile`, `email`] // Nested path access (idiomatic)
 
 // List index access
 items@0                  // First element
 items@-1                 // Last element
 items@[2, 4]             // Slice from index 2 to 4
 ```
+
+**Array Path is Primary**: While chained `@` operators work (e.g., user@`profile`@`name`), the array path syntax user@[`profile`, `name`] is the idiomatic approach for nested access.
 
 ### Path Syntax Variants
 
@@ -154,7 +156,7 @@ Transform each element in a collection:
 // Result: [2, 4, 6]
 
 // Transform object field
-users ${ @'name' }
+users ${ @`name` }
 // Result: List of names
 ```
 
@@ -168,27 +170,27 @@ Transform and flatten one level:
 // Result: [1, 2, 3, 4]
 
 // Transform and flatten
-users $_{ @'tags' }
+users $_{ @`tags` }
 // Result: All tags from all users
 ```
 
 ### Filter Operations
 
-#### $? — Filter
+#### ?{ — Filter
 
 Select elements matching predicate:
 
 ```javascript
 // Filter numbers
-[1, 2, 3, 4, 5] $?{ _< > 3 }
+[1, 2, 3, 4, 5] ?{ _< > 3 }
 // Result: [4, 5]
 
 // Filter objects
-items $?{ @'active' }
+items ?{ @`active` }
 // Result: Active items only
 
 // Complex predicate
-data $?{
+data ?{
   @`age` > 18 &
   @`status` = `active`
 }
@@ -218,7 +220,7 @@ Check if all elements satisfy condition (reversed due to LTR evaluation):
 // Result: true
 
 // All text non-empty?
-[`a`, `b`, ``]?|{ _<!?=`text` }!
+[`a`, `b`, ``]?|{ _< ?= `text` }!
 // Result: false (empty text found)
 
 // Complex condition
@@ -279,7 +281,7 @@ Deduplicate elements:
 // Result: [1, 2, 3]
 
 // Unique objects by property
-items ~@'id'
+items ~@`id`
 // Result: Items with unique ids
 ```
 
@@ -293,7 +295,7 @@ Sort elements:
 // Result: [1, 2, 3, 4]
 
 // Sort by property
-items ~? @'age'
+items ~? @`age`
 // Result: Items sorted by age
 ```
 
@@ -303,7 +305,7 @@ Deduplicate by custom key:
 
 ```javascript
 // Unique by custom field
-items ~? @'name'
+items ~? @`name`
 // Result: First item with each unique name
 ```
 
@@ -406,7 +408,7 @@ Partition by key:
 
 ```javascript
 // Group by category
-items $>< @'category'
+items $>< @`category`
 // Result: { category1: [items...], category2: [items...] }
 ```
 
@@ -437,8 +439,8 @@ Apply transformations:
 ```javascript
 // Complex transformation pipeline
 rawData
-  $_{ @'result' }           // Extract nested results
-  ${ @'value' }             // Get value field
+  $_{ @`result` }           // Extract nested results
+  ${ @`value` }             // Get value field
   ${ _< ~~ capitalize }       // Clean and capitalize
   ~                          // Deduplicate
   @[0, 10]                  // Limit to 10
@@ -499,6 +501,20 @@ results
 
 ## Operator Behavior by Type
 
+### + Operator with Undefined
+
+The `+` operator has specific behavior with `undefined`:
+
+```javascript
+// List + undefined appends undefined
+[1, 2] + undefined // Result: [1, 2, undefined]
+
+// Other types + undefined return original
+`text` + undefined // Result: `text` (no change)
+42 + undefined // Result: 42 (no change)
+true + undefined // Result: true (no change)
+```
+
 ### Map-Specific Operations
 
 ```javascript
@@ -554,9 +570,9 @@ array~~
 | Operation | JavaScript | Left-Right |
 |-----------|------------|-------------|
 | Map | `arr.map(x => x * 2)` | `arr ${ _< * 2 }` |
-| Filter | `arr.filter(x => x > 5)` | `arr $?{ _< > 5 }` |
+| Filter | `arr.filter(x => x > 5)` | `arr ?{ _< > 5 }` |
 | Reduce | `arr.reduce((a, b) => a + b, 0)` | `arr $+ |` |
-| Find | `arr.find(x => x.id === 42)` | `arr $?.{ @'id' = 42 }` |
+| Find | `arr.find(x => x.id === 42)` | `arr $?.{ @`id` = 42 }` |
 | Unique | `[...new Set(arr)]` | `arr ~` |
 | Join | `arr.join(', ')` | `arr >< ', '` |
 
@@ -565,14 +581,14 @@ array~~
 | Operation | Lodash FP | Left-Right |
 |-----------|-----------|-------------|
 | Map | `map(x => x * 2)` | `${ _< * 2 }` |
-| Filter | `filter(x => x > 5)` | `$?{ _< > 5 }` |
+| Filter | `filter(x => x > 5)` | `?{ _< > 5 }` |
 | Reduce | `reduce(add, 0)` | `$+ |` |
 | Flow | `flow(f, g, h)` | Sequential chaining |
 | Compose | `compose(f, g)` | `<<` operator |
 
 ## Design Principles
 
-1. **Map as Primary** — Hashmaps are fundamental structure
+1. **Map as Primary** — Maps are the fundamental structure
 2. **Ordered Collections** — Predictable iteration order
 3. **Path Access** — Uniform @ operator for all paths
 4. **Graceful Degradation** — Missing keys return undefined
@@ -582,7 +598,7 @@ array~~
 
 ## Related Concepts
 
-- **Hashmap** — Key-value data structure
+- **Map** — Key-value data structure
 - **List** — Ordered collection
 - **Path Access** — Nested structure navigation
 - **Collection Operations** — Map, filter, reduce patterns

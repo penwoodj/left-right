@@ -125,7 +125,7 @@ Based on naming documents and brainstorming, these alternatives have been consid
 
 ### Option 8: .hmap
 
-**Description:** Hashmap (primary data structure)
+**Description:** Map (primary data structure)
 
 **Pros:**
 - **Descriptive** — Describes core data structure

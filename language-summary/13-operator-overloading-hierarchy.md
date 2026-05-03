@@ -632,11 +632,11 @@ Returns `true` if ALL elements satisfy predicate. **No condition reversal needed
 
 ---
 
-## 5. `!?` Operator Deep Dive
+## 5. `?` Operator Deep Dive
 
 ### Overview
 
-The `!?` operator serves two purposes:
+The `?` operator serves two purposes:
 1. **Type checking**: Returns the type of a value
 2. **Conditional**: Ternary-like behavior with equality check
 
@@ -645,16 +645,16 @@ The `!?` operator serves two purposes:
 ```penroscript
 {
   // Check types of values
-  t1: `hello` !?,           // 'text' (default JS-style typeof)
-  t2: 42 !?,               // 'number'
-  t3: true !?,              // (truthy value, no Boolean type)
-  t4: undefined !?,          // 'undefined'
-  t5: [1, 2] !?,           // 'list'
-  t6: {a: 1} !?,          // 'map'
+  t1: `hello` ?,           // 'text' (default JS-style typeof)
+  t2: 42 ?,               // 'number'
+  t3: true ?,              // 'boolean' (Boolean is a type)
+  t4: undefined ?,          // 'undefined'
+  t5: [1, 2] ?,           // 'list'
+  t6: {a: 1} ?,          // 'map'
 
   // Nested values
   nested: { x: { y: `test` } },
-  typeOfY: nested @['x', 'y'] !?,
+  typeOfY: nested @['x', 'y'] ?,
   // 'text'
 }
 ```
@@ -664,42 +664,42 @@ The `!?` operator serves two purposes:
 ```penroscript
 {
   // Check if value equals specific type
-  // Format: value !?= expectedType
+  // Format: value ?= expectedType
 
-  isText1: `hello` !?= 'text',      // true
-  isText2: 42 !?= 'text',           // false
+  isText1: `hello` ?= 'text',      // true
+  isText2: 42 ?= 'text',           // false
 
-  isNumber: 42 !?= 'number',            // true
+  isNumber: 42 ?= 'number',            // true
 
-  isList: [1, 2] !?= 'list',          // true
-  isNotList: 42 !?= 'list',          // false
+  isList: [1, 2] ?= 'list',          // true
+  isNotList: 42 ?= 'list',          // false
 
-  isMap: {a: 1} !?= 'map',            // true
+  isMap: {a: 1} ?= 'map',            // true
 
-  isUndefined: undefined !?= 'undefined', // true
+  isUndefined: undefined ?= 'undefined', // true
 }
 ```
 
-**Note**: The equality check uses the `=` operator (unordered, loose equality), so:
+**Note**: The equality check uses the `=` operator (unordered equality, type-coercing), so:
 ```penroscript
 {
   // These are equivalent
-  check1: `hello` !?= 'text',
-  check2: `hello` !? = 'text',
+  check1: `hello` ?= 'text',
+  check2: `hello` ? = 'text',
 
-  // Both evaluate as: `hello` !? → 'text', then 'text' = 'text' → true
+  // Both evaluate as: `hello` ? → 'text', then 'text' = 'text' → true
 }
 ```
 
 ### Evaluation Order Walkthrough
 
-Let's trace `` `hello` !?= 'text' `` step-by-step:
+Let's trace `` `hello` ?= 'text' `` step-by-step:
 
 ```
 1. Evaluate left operand: `hello`
     → Value: `hello`
 
-2. Apply !? to `hello`
+2. Apply ? to `hello`
     → Operation: Get type of `hello`
     → Result: 'text'
 
@@ -720,24 +720,24 @@ Final result: true
   value: 42,
 
   // Complex nested expression
-  result: (value + 1) !? > 40,
+  result: (value + 1) ? > 40,
 
   // Evaluation order:
   // 1. (value + 1) → 43
-  // 2. 43 !? → 'number'
+  // 2. 43 ? → 'number'
   // 3. Pull '40'
   // 4. 'number' > 40 → ???
 
   // This is likely a type error - comparing 'number' text to number
   // Better to check type first, then compare:
-  result2: (value !?= 'number') & (value > 40),
+  result2: (value ?= 'number') & (value > 40),
   // true AND true → true
 }
 ```
 
 ### Configurable Type Names
 
-The `!?` operator is **configurable** at multiple levels:
+The `?` operator is **configurable** at multiple levels:
 
 ```penroscript
 // Global/project/file-level configuration
@@ -753,13 +753,13 @@ The `!?` operator is **configurable** at multiple levels:
   },
 
   // After configuration
-  nameType: `hello` !?,          // 'str' (instead of 'text')
-  ageType: 42 !?,                // 'num' (instead of 'number')
+  nameType: `hello` ?,          // 'str' (instead of 'text')
+  ageType: 42 ?,                // 'num' (instead of 'number')
 
   // Equality checks adapt to configured names
-  isText: `hello` !?= 'text',    // true
-  isNum: 42 !?= 'num',          // true
-  isTextOld: `hello` !?= 'text',  // false (name changed)
+  isText: `hello` ?= 'text',    // true
+  isNum: 42 ?= 'num',          // true
+  isTextOld: `hello` ?= 'text',  // false (name changed)
 }
 ```
 
@@ -782,7 +782,7 @@ The `!?` operator is **configurable** at multiple levels:
 
 {
   // This file uses 'STRING'
-  myType: 'hello' !?,           // 'STRING'
+  myType: 'hello' ?,           // 'STRING'
 
   // Other files in folder use 'text'
   // Other projects use 'str'
@@ -794,12 +794,12 @@ The `!?` operator is **configurable** at multiple levels:
 
 | Left-Right | JavaScript | Difference |
 |-----------|------------|-------------|
-| `[] !?` → `'list'` | `typeof []` → `'object'` | Better type discrimination |
-| `{a:1} !?` → `'map'` | `typeof {a:1}` → `'object'` | Maps distinguished |
-| `undefined !?` → `'undefined'` | `typeof undefined` → `'undefined'` | Same |
-| `null !?` → `'undefined'` | `typeof null` → `'object'` | null coerces to undefined |
-| `` `hello` `` !? → `'text'` | `typeof 'hello'` → `'string'` | Text instead of String |
-| `42 !?` → `'number'` | `typeof 42` → `'number'` | Same |
+| `[] ?` → `'list'` | `typeof []` → `'object'` | Better type discrimination |
+| `{a:1} ?` → `'map'` | `typeof {a:1}` → `'object'` | Maps distinguished |
+| `undefined ?` → `'undefined'` | `typeof undefined` → `'undefined'` | Same |
+| `null ?` → `'undefined'` | `typeof null` → `'object'` | null coerces to undefined |
+| `` `hello` `` ? → `'text'` | `typeof 'hello'` → `'string'` | Text instead of String |
+| `42 ?` → `'number'` | `typeof 42` → `'number'` | Same |
 
 ### Practical Use Cases
 
@@ -809,11 +809,11 @@ The `!?` operator is **configurable** at multiple levels:
   data: [1, `hello`, 42, `world`, true],
 
   // Process only text
-  text: data $? { _< !?= 'text' },
+  text: data $? { _< ?= 'text' },
   // [`hello`, `world`]
 
   // Process only numbers
-  numbers: data $? { _< !?= 'number' },
+  numbers: data $? { _< ?= 'number' },
   // [1, 42]
 }
 
@@ -822,7 +822,7 @@ The `!?` operator is **configurable** at multiple levels:
   value: getUserInput(),  // Could be anything
 
   // Safe addition (only if number)
-  safeAdd: value !?= 'number' ? value + 10 : undefined,
+  safeAdd: value ?= 'number' ? value + 10 : undefined,
   // If value is `hello`, returns undefined instead of error
 }
 
@@ -830,8 +830,8 @@ The `!?` operator is **configurable** at multiple levels:
 {
   validateUser: { user: _<,
     // Check required fields
-    hasName: user @['name'] !?= 'text',
-    hasAge: user @['age'] !?= 'number',
+    hasName: user @['name'] ?= 'text',
+    hasAge: user @['age'] ?= 'number',
 
     // Return validation result
     result: hasName & hasAge
@@ -845,7 +845,7 @@ The `!?` operator is **configurable** at multiple levels:
 
 ### Overview
 
-Left-Right allows **full operator overriding** at multiple scope levels. Override behavior is top-down dominant in map/object/hashmap contexts.
+Left-Right allows **full operator overriding** at multiple scope levels. Override behavior is top-down dominant in map/object/map contexts.
 
 ### Override Levels
 
@@ -871,14 +871,14 @@ Override Priority (highest → lowest):
 
 ### Partial Overrides with Type Checks
 
-You can override operators for specific type combinations using `!?` type check in override pattern:
+You can override operators for specific type combinations using `?` type check in override pattern:
 
 ```penroscript
 {
   // Example from specification
   +: {
     // When both sides are text type
-    _<!?=`text`|_>!?=`text`:
+    _<?=`text`|_>?=`text`:
       `adding text fun`,
 
     // Default behavior for all other types
@@ -904,19 +904,19 @@ The override syntax uses a control-flow-like pattern:
     // Pattern: condition: result
 
     // Condition 1: both are text
-    _<!?=`text`|_>!?=`text`:
+    _<?=`text`|_>?=`text`:
       `concatenating: {_<} and {_>}`,
 
     // Condition 2: both are lists
-    _<!?=`list`|_>!?=`list`:
+    _<?=`list`|_>?=`list`:
       _< $_> + _>,  // Flatten then concat
 
     // Condition 3: left is undefined (disappears)
-    _<!?=`undefined`:
+    _<?=`undefined`:
       _>,
 
     // Condition 4: right is undefined (disappears)
-    _>!?=`undefined`:
+    _>?=`undefined`:
       _<,
 
     // Default: normal behavior
@@ -958,16 +958,16 @@ operator: {
 ```penroscript
 {
   // Single type check
-  _<!?=`string`: result,
+  _<?=`string`: result,
 
   // Multiple type checks (OR)
-  _<!?=`string`|_>!?=`number`: result,
+  _<?=`string`|_>?=`number`: result,
 
   // Multiple type checks (AND)
-  _<!?=`string`&_>!?=`string`: result,
+  _<?=`string`&_>?=`string`: result,
 
   // Negated type check
-  _<!?!=`undefined`: result,
+  _<?!=`undefined`: result,
 }
 ```
 
@@ -979,7 +979,7 @@ operator: {
 // File: override.lr
 {
   +: {
-    _<!?=`text`|_>!?=`text`:
+    _<?=`text`|_>?=`text`:
       `custom concat: {_<} + {_>}`,
     _<_>+_>
   },
@@ -999,7 +999,7 @@ operator: {
 {
   // All .lr files in this directory inherit this
   +: {
-    _<!?=`list`|_>!?=`list`:
+    _<?=`list`|_>?=`list`:
       ~(_< $_> + _>),  // Unique concat
     _<_>+_>
   }
@@ -1020,7 +1020,7 @@ operator: {
 {
   // All files in project use this
   -: {
-    _<!?=`number`&_>!?=`number`:
+    _<?=`number`&_>?=`number`:
       Math.abs(_< - _>),  // Always return positive difference
     _<_>-_>
   }
@@ -1040,9 +1040,9 @@ operator: {
 // ~/.config/left-right/overrides.lr
 {
   +: {
-    _<!?=`undefined`:
+    _<?=`undefined`:
       0,  // Treat undefined as 0 for addition
-    _<!?=`undefined`|_>!?=`undefined`:
+    _<?=`undefined`|_>?=`undefined`:
       _< + _>,  // Handle right-side undefined
     _<_>+_>
   }
@@ -1063,7 +1063,7 @@ Overrides can be nested for complex behavior:
 {
   +: {
     // Override for text
-    _<!?=`text`|_>!?=`text`:
+    _<?=`text`|_>?=`text`:
       {
         // Nested override for text length > 5
         #_< > 5 | #_> > 5:
@@ -1074,7 +1074,7 @@ Overrides can be nested for complex behavior:
       },
 
     // Override for lists
-    _<!?=`list`|_>!?=`list`:
+    _<?=`list`|_>?=`list`:
       _< ~_>,  // Concat with deduplication
 
     // Default behavior
@@ -1236,7 +1236,7 @@ collection ?|! { predicate }
   required: [`name`, `email`, `age`],
 
   allPresent: required ?|! { field: _<,
-    formData @field !?= 'undefined'
+    formData @field ?= 'undefined'
   },
   // true (all required fields present)
 }
@@ -1338,7 +1338,7 @@ const noneNegative = numbers ?|! { _< >= 0 };    // true
   // Mixed types in predicate
   mixed2: [1, 2, `hello`, 3],
   // All elements are either numbers or text?
-  allValidTypes: mixed2 ?|! { _<!?=`number`|_<!?=`text` },
+  allValidTypes: mixed2 ?|! { _<?=`number`|_<?=`text` },
   // true
 }
 ```

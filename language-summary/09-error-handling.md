@@ -44,18 +44,18 @@ result: obj@[`nested`, `missing`, `key`] + 10
 // Result: undefined + 10 = undefined
 ```
 
-## Type Checking with !? Operator
+## Type Checking with ? Operator
 
-### !? — Type Check
+### ?= — Type Check
 
-The `!?` operator performs type checking and conditional branching:
+The `?=` operator performs type checking and conditional branching:
 
 ```javascript
 // Type checking
-value!?.number // True if value is number
+value ?= 'number' // True if value is number
 
 // Conditional branching
-value!?.text ? 'Is text' : 'Not text'
+value ?= 'text' ? 'Is text' : 'Not text'
 ```
 
 ### Type Check Predicates
@@ -64,25 +64,25 @@ Check for specific types:
 
 ```javascript
 // Number check
-value!?.number
+value ?= 'number'
 
 // Text check
-value!?.text
+value ?= 'text'
 
 // Map check
-value!?.map
+value ?= 'map'
 
 // List check
-value!?.list
+value ?= 'list'
 
 // Operator check
-value!?.operator
+value ?= 'operator'
 
 // Undefined check
-value!?.undefined
+value ?= 'undefined'
 ```
 
-**Note:** The `!?` operator returns lowercase type names: `text`, `number`, `list`, `map`, `operator`, `undefined`.
+**Note:** The `?=` operator returns lowercase type names: `text`, `number`, `list`, `map`, `operator`, `undefined`.
 
 ### Conditional Type Handling
 
@@ -93,8 +93,8 @@ Branch based on type:
 {
   input: _<@0,
   return: {
-    input!?.text ? 'Text value' :
-    input!?.number ? 'Number value' :
+    input ?= 'text' ? 'Text value' :
+    input ?= 'number' ? 'Number value' :
     'Unknown type'
   }
 }
@@ -112,7 +112,7 @@ undefinedValue >> process >> transform
 // Result: undefined (process never called)
 
 // Later stage missing data
-data $?{ @'missingField' } ${ _< * 2 }
+data ?{ @'missingField' } ${ _< * 2 }
 // Result: [] (undefined fails predicate)
 ```
 
@@ -246,7 +246,7 @@ obj@[`path`, `to`, `value`] || `default`
 
 ## Error Patterns
 
-### Validation with !?
+### Validation with ?
 
 Validate data before processing:
 
@@ -257,8 +257,8 @@ Validate data before processing:
   age: user@`age`,
 
   return: {
-    name!?.text & name.length > 0 &
-    age!?.number & age > 0 ?
+    name ?= 'text' & name.length > 0 &
+    age ?= 'number' & age > 0 ?
       'Valid input' :
       'Invalid input'
   }
@@ -301,7 +301,7 @@ Handle errors in pipeline stages:
 // Filter out undefined
 data
   $_{ @`value` }           // Extract nested values
-  $?{ _< || 0 }           // Filter out undefined
+  ?{ _< || 0 }           // Filter out undefined
   ${ _< * 2 }              // Transform valid values
 ```
 
@@ -331,7 +331,7 @@ undefined >"< `a`, `b` // Result: undefined
 // Undefined in collections
 undefined #           // Result: 0
 undefined ~           // Result: []
-undefined $?{ _< }  // Result: []
+undefined ?{ _< }  // Result: []
 undefined ${ _< * 2 } // Result: []
 ```
 
@@ -370,7 +370,7 @@ The `+` operator has type-specific identity elements that affect error handling:
 - Values from different sets simply disappear
 
 **Note on JSON Null Handling:**
-When parsing JSON, null values are converted to `undefined` by default. This behavior can be configured globally to convert null to the hardcoded text string `null` instead.
+When parsing JSON, null values are converted to `undefined` by default. This behavior can be configured globally to convert null to the text string `null` instead.
 
 ## Design Rationale
 
@@ -419,7 +419,7 @@ Chain validation checks:
   input: _<@0,
 
   return: {
-    input!?.text ?
+    input ?= 'text' ?
       input.length > 0 ?
         input.length < 100 ?
           'Valid' :
@@ -440,9 +440,9 @@ Collect errors without failing:
   data: _<@0,
 
   errors: {
-    nameMissing: data!?.text || data@`name` = undefined,
-    ageInvalid: data@`age` !?.number || data@`age` < 0,
-    emailInvalid: data@`email` !?.text || !data@`email`.includes(`@`)
+    nameMissing: data ?= 'text' || data@`name` = undefined,
+    ageInvalid: data@`age` ?= 'number' || data@`age` < 0,
+    emailInvalid: data@`email` ?= 'text' || !data@`email`.includes(`@`)
   },
 
   return: {
@@ -456,7 +456,7 @@ Collect errors without failing:
 
 1. **Undefined Default** — Errors return undefined
 2. **No Exceptions** — No throw/catch mechanism
-3. **Explicit Checking** — Use `!?` for type validation
+3. **Explicit Checking** — Use `?` for type validation
 4. **Graceful Degradation** — Operations continue on error
 5. **Pipeline-Safe** — Undefined propagates through stages
 6. **Loosely Typed** — Type errors become undefined

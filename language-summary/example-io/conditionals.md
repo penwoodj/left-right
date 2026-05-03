@@ -2,15 +2,15 @@
 
 Type checking, conditional filtering, truthy/falsy expressions, equality comparisons, and guard patterns in Left-Right.
 
-## Type Checking (!?)
+## Type Checking (?)
 
 ### Basic Type Check
 
 **Left-Right:**
 ```left-right
-`hello`!?
-42!?
-true!?
+`hello`?
+42?
+true?
 ```
 
 **JavaScript:**
@@ -27,14 +27,14 @@ matches!(42, i32)
 matches!(true, bool)
 ```
 
-**Explanation:** The `!?` operator returns type name as text. Used for runtime type inspection. Returns: `text`, `number`, `list`, `map`, `operator`, `undefined`.
+**Explanation:** The `?` operator returns type name as text. Used for runtime type inspection. Returns: `text`, `number`, `list`, `map`, `operator`, `undefined`.
 
 ### Type Guard in Pipeline
 
 **Left-Right:**
 ```left-right
 [1, `hello`, 42, `world`, true]
-  $?{ _< !? = `number` }
+  ?{ _< ?= `number` }
 ```
 
 **JavaScript:**
@@ -58,7 +58,7 @@ matches!(true, bool)
 **Left-Right:**
 ```left-right
 value: `test`
-result: value!? = `text` & value.length > 3 | value!? = `number` & value > 10 | false
+result: value?= `text` & value.length > 3 | value?= `number` & value > 10 | false
 ```
 
 **JavaScript:**
@@ -88,7 +88,7 @@ let result = match value {
 **Left-Right:**
 ```left-right
 data: [1, 2, 3]
-isList: data!? = `list`
+isList: data?= `list`
 
 isList & `Valid list` | `Not a list`
 ```
@@ -121,7 +121,7 @@ if is_list {
 
 **Left-Right:**
 ```left-right
-[1, 2, 3, 4, 5]$?{ _< > 3 }
+[1, 2, 3, 4, 5]?{ _< > 3 }
 ```
 
 **JavaScript:**
@@ -137,13 +137,13 @@ if is_list {
   .collect::<Vec<_>>()
 ```
 
-**Explanation:** `$?{ predicate }` filters collection where predicate is true. Basic conditional selection.
+**Explanation:** `?{ predicate }` filters collection where predicate is true. Basic conditional selection.
 
 ### Multi-Condition Filter
 
 **Left-Right:**
 ```left-right
-[1, 2, 3, 4, 5, 6]$?{ _< % 2 == 0 & _< > 2 }
+[1, 2, 3, 4, 5, 6]?{ _< % 2 == 0 & _< > 2 }
 ```
 
 **JavaScript:**
@@ -165,7 +165,7 @@ if is_list {
 
 **Left-Right:**
 ```left-right
-[1, 2, 3, 4, 5]$?{ _< < 2 | _< > 4 }
+[1, 2, 3, 4, 5]?{ _< < 2 | _< > 4 }
 ```
 
 **JavaScript:**
@@ -191,7 +191,7 @@ if is_list {
   {name: `Alice`, age: 30},
   {name: `Bob`, age: 25},
   {name: `Charlie`, age: 35}
-]$?{ _<@`age` > 28 & _<@`name`^ = `ALICE` }
+]?{ _<@`age` > 28 & _<@`name`^ = `ALICE` }
 ```
 
 **JavaScript:**
@@ -514,7 +514,7 @@ let status = if age < 18 {
 process: {
   input: _<,
   !input & undefined |
-  input!? = `text` & input^ |
+  input? = `text` & input^ |
   `Error: invalid input`
 }
 
@@ -563,7 +563,7 @@ users: [
   {name: `Bob`},
   {name: `Charlie`, age: 35}
 ]
-users$?{ _<@`age` | 0 }
+users?{ _<@`age` | 0 }
 ```
 
 **JavaScript:**

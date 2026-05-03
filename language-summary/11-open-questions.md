@@ -501,13 +501,13 @@ async {
 // Runtime contracts
 {
   input: _<@0,
-  assert: input!?.number,
+  assert: input?.number,
   output: input * 2
 }
 ```
 
 **Pros:**
-- Leverages existing `!?` operator
+- Leverages existing `?` operator
 - No new syntax
 - Runtime validation
 
@@ -877,7 +877,7 @@ obj@[`nested`] + 1
   script: {
     // Intra-script partial override
     +: {
-      _<!?=`text`: a + b * 10,
+      _<?=`text`: a + b * 10,
       a + b * 3
     },
 

@@ -72,7 +72,7 @@ Left-Right is optimized as a general-purpose scripting language for:
 {
   threats: [...]  // Input data
   result: threats
-    $?{ @['confidence'] = 'high' }  // Filter
+    ?{ @['confidence'] = 'high' }  // Filter
     ${ @['classification'] "^_ }          // Transform
     ~                                      // Unique
     >< ', '                              // Join

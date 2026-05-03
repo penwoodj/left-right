@@ -30,13 +30,35 @@ Left-Right (`lr`) is a novel programming language designed for clarity and expre
 - **Auto-currying**: Partial application happens automatically
 - **JSON-like structure**: Both data and programs use the same syntax
 
+### Core Operators
+
+Left-Right provides powerful operators for data transformation:
+
+- **Filter**: `list ?{ condition }` — keep elements matching condition
+- **Map**: `list ${ operation }` — transform each element
+- **Some/Any**: `list ?|{ condition }` — test if any element matches
+- **Includes**: `list >< item` — check if item exists in list
+- **Join**: `list >< separator` — join list elements with separator
+- **Unique**: `~list` — remove duplicates
+- **Count**: `list ?{ condition } #,` — count filtered elements
+- **Type Check**: `value ?= 'type': trueCase, falseCase` — ternary type check
+- **Path Access**: `data @['key']` — access nested properties (array path idiomatic)
+- **String Ops**: `text "^` (uppercase), `text "^_` (capitalize)
+- **Conditional Append**: `value & 'template {var}'` — append if truthy
+- **Curry Reversal**: `_` suffix on operator (e.g., `text "^_` vs `text "^`)
+- **List Concat**: `[] + item1 + item2` — concatenate lists
+
+**Types**: Operator, Map, List, Text, Number, Boolean, Undefined
+
+**Right Notation**: `{` opens operator context, `_<` left input (first element), `_>` right input (second element), `}` closes
+
 ### The Logo
 
 The logo `{_<_>}` reads as "left right" in Left-Right notation:
 
 - `{` — opens the left context
-- `_<` — the "left" input operator (takes element before operator execution)
-- `_>` — the "right" input operator (takes element after operator execution)
+- `_<` — the "left" input operator (takes first element)
+- `_>` — the "right" input operator (takes second element)
 - `}` — closes the right context
 
 So this is an operator that literally reads Left Right. This simple pattern captures the essence of the language: directional flow through operators.

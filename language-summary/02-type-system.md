@@ -62,18 +62,52 @@ quotient: 100 % 4
 remainder: 17 %% 5
 ```
 
+### Boolean
+
+Boolean values representing truth and falsehood.
+
+**Syntax:**
+```penroscript
+true
+false
+```
+
+**Features:**
+- Two values: `true` and `false`
+- Used in conditional logic and predicate operators
+- Results of comparison operators (`<`, `<=`, `>`, `>=`, `=`)
+- Logical operators: `!` (not), `&` (and), `|` (or)
+
+**Examples:**
+```penroscript
+// Boolean literals
+isValid: true,
+isDisabled: false,
+
+// Comparison returns boolean
+isGreater: 10 > 5,     // true
+isEqual: 3 = 3,       // true
+
+// Logical operations
+combined: true & false,   // false
+either: true | false,     // true
+negated: !true,           // false
+```
+
 ### Truthy/Falsy Values
 
-Left-Right has no Boolean type. Values are truthy or falsy based on context.
+Values are truthy or falsy based on context.
 
 **Falsy Values:**
 - `undefined`
+- `false` (boolean false)
 - `0` (zero)
 - `` `` (empty text)
 - `[]` (empty list)
 - `{}` (empty map)
 
 **Truthy Values:**
+- `true` (boolean true)
 - Non-zero numbers
 - Non-empty text
 - Non-empty lists
@@ -141,7 +175,7 @@ Ordered, heterogeneous collections of values.
 - Ordered (preserves insertion order)
 - Heterogeneous (mixed types allowed)
 - Zero-based indexing with `@` operator
-- Rich collection operators: `$` (map), `$?` (filter), `$+` (reduce)
+- Rich collection operators: `${` (map), `?{` (filter), `$+` (reduce)
 
 **Examples:**
 ```penroscript
@@ -157,7 +191,7 @@ last: numbers @[-1]       // 5
 slice: numbers @[1:3]     // [2, 3, 4]
 ```
 
-### Map (Hashmap)
+### Map
 
 Text-keyed collections of key-value pairs.
 
@@ -172,6 +206,7 @@ Text-keyed collections of key-value pairs.
 - JSON-like syntax
 - Path access with `@` operator
 - Equality operators: `=` (unordered) and `==` (ordered)
+- Stringifies to minified JSON-like text when interpolated
 
 **Examples:**
 ```penroscript
@@ -183,12 +218,17 @@ config: {
 }
 
 // Path access
-host: config @['host']
-nestedValue: data @['user', 'profile', 'email']
+host: config @`host`
+nestedValue: data@[`user`, `profile`, `email`]
 
 // Map operators
 keys: config @<    // [`host`, `port`, `debug`]
 values: config @>   // [`localhost`, 8080, true]
+
+// Map-to-text stringification (interpolation)
+data: {a:1, b:2},
+result: `Values: {data}`,        // `Values: {a:1,b:2}` (minified)
+nested: {data:{a:1,b:2}, `Result: {data}`}  // `Result: {a:1,b:2}`
 ```
 
 ---
@@ -252,7 +292,7 @@ flag: true,
 // Type inferred from operator behavior
 sum: number + number,      // + operates on numbers → returns number
 combined: text + text,      // + operates on text → returns text
-filtered: data $?{ ... }    // $? operates on lists → returns list
+filtered: data ?{ ... }    // $? operates on lists → returns list
 ```
 
 ---
@@ -272,8 +312,9 @@ The same operator changes meaning based on input types, enabling polymorphic beh
 
 **Identity Elements for +:**
 - `undefined` is identity for numbers: `1 + undefined` → `1`
-- `` `` `` (empty text) is identity for text: `1 + `` `` → `` `1` `` (type coercion)
-- `[]` is identity for lists: `[] + 0` → `[0]`
+- `undefined` is identity for text: `` `hello` + undefined `` → `` `hello` ``
+- `undefined` is identity for maps: `{a:1} + undefined` → `{a:1}`
+- `undefined` APPENDS to lists: `[1,2] + undefined` → `[1,2,undefined]`
 - Non-identity from different set: value disappears
 - Text concat when either side is text
 - List concat/append when either side is list
@@ -317,27 +358,29 @@ The same operator changes meaning based on input types, enabling polymorphic beh
 
 ---
 
-## !? Type Checking Operator
+## ? Type Checking Operator
 
-The `!?` operator returns the type of a value, similar to JavaScript's `typeof` operator.
+The `?` operator returns the type of a value, similar to JavaScript's `typeof` operator.
 
 **Default Output:**
-`` `hello` !? `` → `text`
-42 !? → `number`
-true !? → `undefined` (truthy/falsy values are not types)
-undefined !? → `undefined`
-[1,2,3] !? → `list`
-{a:1} !? → `map`
+`` `hello` ? `` → `text`
+42 ? → `number`
+true ? → `boolean`
+false ? → `boolean`
+undefined ? → `undefined`
+[1,2,3] ? → `list`
+{a:1} ? → `map`
+{ _< + _> } ? → `operator`
 ```
 
 **Configurability:**
-The `!?` operator output is configurable:
+The `?` operator output is configurable:
 - **Global:** Default output matches JS `typeof`
 - **Per-project:** Override type names for specific projects
 - **Per-file:** Configure type names for individual files
 
 **LTR Evaluation:**
-`` `hello` !? = `text` `` - Full LTR: `` `hello` `` evaluates first, `!?` outputs `text`, `=` compares
+`` `hello` ? = `text` `` - Full LTR: `` `hello` `` evaluates first, `?` outputs `text`, `=` compares
 
 ---
 
@@ -372,7 +415,7 @@ missing: arr @[10]  // undefined
 result: 10 % 0  // undefined
 
 // Optional chaining handles errors gracefully
-email: user @['profile'] @['email']  // undefined if profile or email missing
+email: user@[`profile`, `email`]  // undefined if profile or email missing
 ```
 
 **Comparison to Exception-Based Error Handling:**
@@ -426,7 +469,7 @@ email: user @['profile'] @['email']  // undefined if profile or email missing
 // Left-Right
 {
   result: data
-    $?{ @active = true }
+    ?{ @active = true }
     ${ @value * 2 }
     ~
 }
@@ -463,7 +506,7 @@ const result = pipe(
 // Left-Right
 {
   result: data
-    $?{ @active = true }
+    ?{ @active = true }
     ${ @value * 2 }
     ~
 }
@@ -495,7 +538,7 @@ flag: true,
 // Type inferred from operator behavior
 sum: number + number,      // + operates on numbers → returns number
 combined: text + text,      // + operates on text → returns text
-filtered: data $?{ ... }    // $? operates on lists → returns list
+filtered: data ?{ ... }    // $? operates on lists → returns list
 ```
 
 ### Collection Type Inference
@@ -512,7 +555,7 @@ Collection operators infer element types from input:
 // Filter preserves type
 {
   data: [1, 2, 3, 4, 5],
-  evens: data $?{ _< / 2 = 0 }  // [2, 4]
+  evens: data ?{ _< / 2 = 0 }  // [2, 4]
 }
 ```
 

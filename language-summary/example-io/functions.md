@@ -160,15 +160,15 @@ export default getEntityTypes;
 ```left-right
 { typesToGet: _<@0, entities: _<@1,
   lowerTypesToGet: {
-    typesToGet !? = `text`: [typesToGet],
-    typesToGet `
+    typesToGet !?= `text`: [typesToGet],
+    typesToGet ${'_}
   },
 
-  entityTypesToGet: entities ? {
-    lowerEntityTypes: entities@`types` `,
-    entityTypesAreInTypesToGet: lowerTypesToGet ?| {
+  entityTypesToGet: entities ?{
+    lowerEntityTypes: entities@`types` ${'_},
+    entityTypesAreInTypesToGet: lowerTypesToGet ?|{
       typeToGet: _<@0,
-      lowerEntityTypes ?|>< typeToGet
+      lowerEntityTypes ?>< typeToGet
     },
     entityTypesAreInTypesToGet
   },
@@ -239,18 +239,18 @@ fn get_entity_types(types_to_get: serde_json::Value, entities: serde_json::Value
 ```
 
 **Explanation:** Complex filtering function from ServiceNow integration. Demonstrates:
-- Type checking: `!? = `text``
-- Conditional expression: `condition: trueValue | falseValue`
+- Type checking: `!?= `text`` (if not type, then...)
+- Conditional expression: `condition: trueValue, elseValue`
 - List indexing: `_<@0`, `_<@1`
-- String transformation: `" `_` (lowercase)
+- String transformation: `" '_` (lowercase)
 - Path access: `entities@`types``
-- List method chaining: `?|><` (some/includes)
+- List method chaining: `><` (includes)
 - Nested conditional blocks: `? { ... }`
 
 Key patterns:
-- `typesToGet !? = 'text'` — runtime type check
-- `typesToGet " '_` — lowercase operator
-- `lowerTypesToGet ?| { typeToGet: _<@0, lowerEntityTypes ?|>< typeToGet }` — some() with lambda
+- `typesToGet !?= 'text'` — runtime type check with ternary-like syntax
+- `typesToGet ${'_}` — lowercase operator (map case)
+- `lowerTypesToGet ?| { typeToGet: _<@0, lowerEntityTypes >< typeToGet }` — some() with lambda
 
 ## Point-Free Function Chains
 
@@ -694,8 +694,8 @@ aboveFive: greaterThan 5
 aboveTen: greaterThan 10
 
 [1, 3, 5, 7, 9, 11]
-  $?{ aboveFive }
-  $?{ aboveTen }
+  ?{ aboveFive }
+  ?{ aboveTen }
 ```
 
 **JavaScript:**

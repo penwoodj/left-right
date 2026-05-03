@@ -32,7 +32,7 @@ Each example shows:
 | `_< _>` | Lambda boundaries (left/right args) | `{ _< + 1 }` |
 | `@` | Path access | `obj@`key``, `arr@0` |
 | `$` | Apply/map | `arr${ _< * 2 }` |
-| `$?` | Conditional filter | `arr$?{ _< > 5 }` |
+| `?{` | Filter | `arr?{ _< > 5 }` |
 | `$#` | Size/length | `arr$#` |
 | `#` | Count | `arr#` |
 | `~` | Unique | `arr~` |
@@ -42,7 +42,7 @@ Each example shows:
 | `^` | Uppercase | `` `hello`^ `` |
 | `^_` | Capitalize | `` `hello`^_ `` |
 | `"` | Lowercase | `` `HELLO`" `` |
-| `!?` | Type check | `value!?` |
+| `?` | Type check | `value?` |
 | `=` | Unordered equality | `[1,2] = [2,1]` |
 | `==` | Ordered equality | `[1,2] == [1,2]` |
 | `+` | Concatenation | `[] + [1]` |

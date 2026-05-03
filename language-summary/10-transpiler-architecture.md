@@ -134,7 +134,7 @@ fn get_cached_expansion(
 **Example Lowering:**
 ```javascript
 // High-level
-data $?{ _< > 5 } ${ _< * 2 }
+data ?{ _< > 5 } ${ _< * 2 }
 
 // Lowered
 {

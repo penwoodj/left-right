@@ -73,36 +73,64 @@ The language uses familiar JSON-like syntax for both data and program expression
 - **Lists:** `[ value1, value2, value3 ]`
 - **Text:** `` `text` `` (backticks ONLY — single/double quotes reserved for operator names)
 - **Numbers:** `42` or `3.14`
-- **Undefined:** `undefined` (truthy/falsy values like 0, empty list, empty map are falsy)
+- **Boolean:** `true`/`false` (truthy/falsy values like 0, empty list, empty map are falsy)
+- **Undefined:** `undefined` (default for missing keys, failed operations)
 
 ### Operators as Maps
 
 Functions/operators have the same syntax as maps but are distinguished by:
-1. Last item is an expression (unexecuted operator returning result)
-2. Presence of `_</_>` directional placeholders (unexecuted operator with arguments)
 
-**Example:**
+**Map as Operator**: `{}` becomes operator when EITHER:
+- (a) Last expression after final `,` has no `:` assignment, OR
+- (b) `{}` contains `_<` or `_>`
+- Otherwise `{}` evaluates at runtime as Map
+
+**String as Operator**: Interpolated string becomes operator when any `{ }` contains `_<` or `_>`. Otherwise evaluates as Text.
+
+**Examples:**
 ```penroscript
-// Map data structure
+// Map data structure (evaluates at runtime as Map)
 { a: 1, b: 2 }
 
-// Unexecuted operator (last item is expression)
+// Unexecuted operator (last item has no `:` assignment)
 { a: 1, b: 2, a+b }
 
 // Unexecuted operator with directional placeholders
 { _<, b: a+1 }
+
+// String with interpolation - evaluates as Text (no _</_>)
+`Hello {name}`
+
+// String becomes operator (contains _<)
+`Result: {_< + 1}`
 ```
 
 ### Text Interpolation
 
 Text supports interpolation using curly braces:
 ```penroscript
-// Text with variable
+// Text with variable - executes at runtime as Text
 `Hello {name}`
 
-// Text becomes operator when _</_> used
+// String becomes operator when contains _< or _>
 `Thanks {_<}`
+// This creates an unexecuted operator for later application
 ```
+
+### Map to Text Conversion
+
+Maps stringify as minified JSON-like text when used in string interpolation or when coerced to text:
+
+```penroscript
+{data:{a:1,b:2}, `Result: {data}`}
+// Output: `Result: {a:1,b:2}`
+```
+
+This enables seamless embedding of structured data into text templates.
+
+### Whitespace Independence
+
+The language is whitespace independent with SDK operators. Only exception: chaining 2 custom text-named operators needs ≥1 space between them.
 
 ---
 
@@ -210,9 +238,9 @@ While having power and brevity of languages inspired by array-oriented languages
 
 ---
 
-## The "Hashmap-Array of Intent" Concept
+## The "Map-Array of Intent" Concept
 
-A core philosophical insight: programs are structured as hashmaps (maps) where keys represent operations and values represent data flow, creating an "array of intent."
+A core philosophical insight: programs are structured as maps (maps) where keys represent operations and values represent data flow, creating an "array of intent."
 
 ### Intent Flow
 
@@ -235,7 +263,7 @@ When an operator is defined, it captures computational intent as a map structure
 ```penroscript
 // Operator to count malicious threats
 countMalicious: { threats: _<,
-  threats $?{ @['AI Confidence Level', 'value'] = 'malicious' } #
+  threats ?{ @['AI Confidence Level', 'value'] = 'malicious' } #
 }
 ```
 
@@ -309,7 +337,7 @@ The language specification is comprehensive with:
 {
   data: [1, 2, 3, 4, 5],
   result: data
-    $?{ _< > 2 }        // Filter: greater than 2
+    ?{ _< > 2 }        // Filter: greater than 2
     ${ _< * 2 }          // Map: multiply by 2
     #                    // Count
 }

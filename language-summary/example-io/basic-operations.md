@@ -270,7 +270,7 @@ undefined ?? 'default'
 None.unwrap_or("default")
 ```
 
-**Explanation:** The `|` operator provides fallback values when left operand is undefined. Similar to nullish coalescing.
+**Explanation:** The `|` operator provides fallback values when left operand is undefined. Similar to null coalescing.
 
 ### Type Coercion
 
@@ -564,9 +564,9 @@ format!("User: {}", user["profile"]["name"])
 
 **Left-Right:**
 ```left-right
-`hello`!?
-42!?
-true!?
+`hello`?
+42?
+true?
 ```
 
 **JavaScript:**
@@ -583,13 +583,13 @@ matches!(42, i32)
 matches!(true, bool)
 ```
 
-**Explanation:** The `!?` operator returns type name as text. Used for runtime type inspection. Returns: `text`, `number`, `list`, `map`, `operator`, `undefined`.
+**Explanation:** The `?` operator returns type name as text. Used for runtime type inspection. Returns: `text`, `number`, `list`, `map`, `operator`, `undefined`.
 
 ### Type Guard
 
 **Left-Right:**
 ```left-right
-value!? = `text` & value.length > 0 | value!? = `number` & value > 0 | false
+value?= `text` & value.length > 0 | value?= `number` & value > 0 | false
 ```
 
 **JavaScript:**
@@ -612,7 +612,7 @@ match value {
 
 **Left-Right:**
 ```left-right
-[1,2,3]!?
+[1,2,3]?
 ```
 
 **JavaScript:**
@@ -625,13 +625,13 @@ Array.isArray([1,2,3])
 matches!([1,2,3], Vec<_>)
 ```
 
-**Explanation:** `!?` on lists returns `list`.
+**Explanation:** `?` on lists returns `list`.
 
 ### Map Type Check
 
 **Left-Right:**
 ```left-right
-{key: `value`}!?
+{key: `value`}?
 ```
 
 **JavaScript:**
@@ -644,4 +644,4 @@ typeof {key: 'value'} === 'object' && {key: 'value'} !== null
 matches!({key: "value"}, serde_json::Map<String, serde_json::Value>)
 ```
 
-**Explanation:** Maps check for object/hashmap type. Distinguishes from other object types.
+**Explanation:** Maps check for object/map type. Distinguishes from other object types.
