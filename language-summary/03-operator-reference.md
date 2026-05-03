@@ -91,7 +91,7 @@ Access nested properties in maps and indices in arrays. Supports path-based acce
 
 **Syntax:**
 ```penroscript
-value @['path', 'to', 'key']    // Array path (PRIMARY - idiomatic)
+value @[, , ]    // Array path (PRIMARY - idiomatic)
 value @[index]                     // Index access
 value @property                    // Single property access
 ```
@@ -100,8 +100,8 @@ value @property                    // Single property access
 
 | Input Type | Behavior | Example |
 |------------|----------|----------|
-| Map + Text | Property access | `obj @['name']` → `obj.name` |
-| Map + List | Nested path access (PRIMARY) | `data @['user', 'profile', 'email']` → `data.user.profile.email` |
+| Map + Text | Property access | `obj @[]` → `obj.name` |
+| Map + List | Nested path access (PRIMARY) | `data @[, , ]` → `data.user.profile.email` |
 | List + Number | Index access | `arr @[0]` → `arr[0]` |
 | List + List | Multiple indices | `arr @[0, 2, 4]` → `[arr[0], arr[2], arr[4]]` |
 | List + Text | Invalid → returns `undefined` |  |
@@ -116,17 +116,17 @@ value @property                    // Single property access
 // Property access
 {
   user: { name: `Alice`, email: `alice@example.com` },
-  name: user @['name'],           // `Alice`
-  email: user @['email']          // `alice@example.com`
+  name: user @[],           // `Alice`
+  email: user @[]          // `alice@example.com`
 }
 
 // Nested path access (PRIMARY/idiomatic - use array path)
 {
   data: { user: { profile: { email: `alice@example.com` } } },
-  email: data @['user', 'profile', 'email']  // `alice@example.com`
+  email: data @[, , ]  // `alice@example.com`
 
   // Non-idiomatic alternative (chained @):
-  // email: data @['user'] @['profile'] @['email']  // Same result but less idiomatic
+  // email: data @[] @[] @[]  // Same result but less idiomatic
 }
 
 // List indexing
@@ -139,7 +139,7 @@ value @property                    // Single property access
 // Optional chaining with undefined
 {
   user: { name: `Alice` },
-  email: user @['profile'] @['email']  // undefined (profile missing)
+  email: user @[] @[]  // undefined (profile missing)
 }
 ```
 
@@ -446,7 +446,7 @@ list ?{ condition } #,     // Filter with count suffix
     { level: `suspicious` },
     { level: `malicious` }
   ],
-  maliciousCount: threats ?{ _< @['level'] = `malicious` } #,  // 2
+  maliciousCount: threats ?{ _< @[] = `malicious` } #,  // 2
 }
 ```
 
@@ -509,7 +509,7 @@ collection $_{ operation }
     { name: `Alice`, emails: [`alice@work.com`, `alice@home.com`] },
     { name: `Bob`, emails: [`bob@work.com`] }
   ],
-  allEmails: users $_{ @['emails'] }
+  allEmails: users $_{ @[] }
   // [`alice@work.com`, `alice@home.com`, `bob@work.com`]
 }
 ```
@@ -537,7 +537,7 @@ collection $><{ keyFunction }
     { name: `Charlie`, type: `admin` },
     { name: `Diana`, type: `user` }
   ],
-  grouped: data $><{ @['type'] }
+  grouped: data $><{ @[] }
 
   // Result:
   // {
@@ -808,7 +808,7 @@ text "^_
     { classification: `suspicious` }
   ],
   threatClassifications: threats
-    ${ _< @['classification'] "^_}
+    ${ _< @[] "^_}
     ~
     >< `, `
   // `Malicious, Suspicious`

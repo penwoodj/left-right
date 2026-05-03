@@ -41,8 +41,8 @@ Left-Right provides powerful operators for data transformation:
 - **Join**: `list >< separator` — join list elements with separator
 - **Unique**: `~list` — remove duplicates
 - **Count**: `list ?{ condition } #,` — count filtered elements
-- **Type Check**: `value ?= 'type': trueCase, falseCase` — ternary type check
-- **Path Access**: `data @['key']` — access nested properties (array path idiomatic)
+- **Type Check**: `value ?= \`type\`: trueCase, falseCase` — ternary type check
+- **Path Access**: `data @\`key\`` or `data@[\`key1\`, \`key2\`]` — access nested properties (array path idiomatic)
 - **String Ops**: `text "^` (uppercase), `text "^_` (capitalize)
 - **Conditional Append**: `value & 'template {var}'` — append if truthy
 - **Curry Reversal**: `_` suffix on operator (e.g., `text "^_` vs `text "^`)

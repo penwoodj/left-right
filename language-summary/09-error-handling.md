@@ -52,10 +52,10 @@ The `?=` operator performs type checking and conditional branching:
 
 ```javascript
 // Type checking
-value ?= 'number' // True if value is number
+value ?= `number` // True if value is number
 
 // Conditional branching
-value ?= 'text' ? 'Is text' : 'Not text'
+value ?= `text` ? 'Is text' : 'Not text'
 ```
 
 ### Type Check Predicates
@@ -64,22 +64,22 @@ Check for specific types:
 
 ```javascript
 // Number check
-value ?= 'number'
+value ?= `number`
 
 // Text check
-value ?= 'text'
+value ?= `text`
 
 // Map check
-value ?= 'map'
+value ?= `map`
 
 // List check
-value ?= 'list'
+value ?= `list`
 
 // Operator check
-value ?= 'operator'
+value ?= `operator`
 
 // Undefined check
-value ?= 'undefined'
+value ?= `undefined`
 ```
 
 **Note:** The `?=` operator returns lowercase type names: `text`, `number`, `list`, `map`, `operator`, `undefined`.
@@ -93,8 +93,8 @@ Branch based on type:
 {
   input: _<@0,
   return: {
-    input ?= 'text' ? 'Text value' :
-    input ?= 'number' ? 'Number value' :
+    input ?= `text` ? 'Text value' :
+    input ?= `number` ? 'Number value' :
     'Unknown type'
   }
 }
@@ -144,7 +144,7 @@ value || fallback
 }
 
 // Nested default
-obj@['path', 'to', 'value'] || 'default'
+obj@[, , ] || 'default'
 ```
 
 ## Comparison with Other Error Handling
@@ -228,7 +228,7 @@ case riskyOperation of
 
 **TypeScript:**
 ```typescript
-// Optional chaining and nullish coalescing
+// Optional chaining and null coalescing
 const result = obj?.nested?.field ?? 'default';
 ```
 
@@ -257,8 +257,8 @@ Validate data before processing:
   age: user@`age`,
 
   return: {
-    name ?= 'text' & name.length > 0 &
-    age ?= 'number' & age > 0 ?
+    name ?= `text` & name.length > 0 &
+    age ?= `number` & age > 0 ?
       'Valid input' :
       'Invalid input'
   }
@@ -419,7 +419,7 @@ Chain validation checks:
   input: _<@0,
 
   return: {
-    input ?= 'text' ?
+    input ?= `text` ?
       input.length > 0 ?
         input.length < 100 ?
           'Valid' :
@@ -440,9 +440,9 @@ Collect errors without failing:
   data: _<@0,
 
   errors: {
-    nameMissing: data ?= 'text' || data@`name` = undefined,
-    ageInvalid: data@`age` ?= 'number' || data@`age` < 0,
-    emailInvalid: data@`email` ?= 'text' || !data@`email`.includes(`@`)
+    nameMissing: data ?= `text` || data@`name` = undefined,
+    ageInvalid: data@`age` ?= `number` || data@`age` < 0,
+    emailInvalid: data@`email` ?= `text` || !data@`email`.includes(`@`)
   },
 
   return: {
