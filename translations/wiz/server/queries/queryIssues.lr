@@ -1,124 +1,65 @@
-# Original JavaScript
-# const { MAX_PAGE_SIZE } = require('../constants');
-# const queryEntitiesWithQueryStringBuilder = require('./queryEntitiesWithQueryStringBuilder');
-#
-# const queryIssues = async (cveEntities, options) =>
-#   await queryEntitiesWithQueryStringBuilder(cveEntities, options, buildIssuesQueryString);
-#
-# const buildIssuesQueryString = (entity) => `
-#   ${entity.id}: issuesV2(
-#     first: ${MAX_PAGE_SIZE},
-#     filterBy: { search: "${entity.value}" }
-#   ) {
-#     nodes {
-#       id
-#       description
-#       type
-#       status
-#       severity
-#       evidenceQuery
-#       openReason
-#       createdAt
-#       updatedAt
-#       dueAt
-#       resolvedAt
-#       statusChangedAt
-#       rejectionExpiredAt
-#       entity {
-#         id
-#         type
-#         name
-#         properties
-#         firstSeen
-#         lastSeen
-#       }
-#       entitySnapshot {
-#         id
-#         name
-#         type
-#         status
-#       }
-#       projects {
-#         id
-#         name
-#         description
-#         businessUnit
-#         riskProfile {
-#           businessImpact
-#           hasExposedAPI
-#         }
-#       }
-#     }
-#   }`;
-#
-# module.exports = queryIssues;
-
-# Left-Right Translation
-
+``` Left-Right Translation
 {
-  MAX_PAGE_SIZE: 10,
+  +: files@`../constants'@&[`MAX_PAGE_SIZE`],
+  +: files@`./queryEntitiesWithQueryStringBuilder'@&[`queryEntitiesWithQueryStringBuilder`],
 
-  # buildIssuesQueryString - build GraphQL query string for Issues API
-  # Each query is named by entity.id and searches for that CVE in issues
-  buildIssuesQueryString: { entity: _<@0, options: _<@1,
-    # Use template string with entity.id and entity.value (CVE)
-    # LR supports multi-line template strings directly
-    graphqlFragment: `
-      ${entity@`id`}: issuesV2(
-        first: ${MAX_PAGE_SIZE},
-        filterBy: { search: "${entity@`value`}" }
-      ) {
-        nodes {
-          id
-          description
-          type
-          status
-          severity
-          evidenceQuery
-          openReason
+  queryIssues: {
+    cveEntities: _<@0,
+    _options: _<@1,
 
-          createdAt
-          updatedAt
-          dueAt
-          resolvedAt
-          statusChangedAt
-          rejectionExpiredAt
-
-          entity {
-            id
-            type
-            name
-            properties
-            firstSeen
-            lastSeen
-          }
-
-          entitySnapshot {
-            id
-            name
-            type
-            status
-          }
-
-          projects {
-            id
-            name
-            description
-            businessUnit
-            riskProfile {
-              businessImpact
-              hasExposedAPI
-            }
-          }
-        }
-      }
-    `,
-    graphqlFragment
+    [cveEntities, _options, buildIssuesQueryString] queryEntitiesWithQueryStringBuilder await
   },
 
-  # queryIssues - query Wiz API for issues related to CVE entities
-  # Uses queryEntitiesWithQueryStringBuilder for batching and parallel execution
-  queryIssues: { cveEntities: _<@0, options: _<@1,
-    queryEntitiesWithQueryStringBuilder(cveEntities, options, buildIssuesQueryString)
+  buildIssuesQueryString: { entity: _<@0,
+    `` `
+  ${entity.id}: issuesV2(
+    first: ${MAX_PAGE_SIZE},
+    filterBy: { search: "${entity.value}" }
+  ) {
+    nodes {
+      id
+      description
+      type
+      status
+      severity
+      evidenceQuery
+      openReason
+
+      createdAt
+      updatedAt
+      dueAt
+      resolvedAt
+      statusChangedAt
+      rejectionExpiredAt
+
+      entity {
+        id
+        type
+        name
+        properties
+        firstSeen
+        lastSeen
+      }
+
+      entitySnapshot {
+        id
+        name
+        type
+        status
+      }
+
+      projects {
+        id
+        name
+        description
+        businessUnit
+        riskProfile {
+          businessImpact
+          hasExposedAPI
+        }
+      }
+    }
+  }`
+  `
   }
-}
+}@&[`queryIssues`]
