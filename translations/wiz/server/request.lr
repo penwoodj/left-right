@@ -1,263 +1,146 @@
-# Original JavaScript
-# const { map, get, getOr, filter, flow, negate, isEmpty, size } = require('lodash/fp');
-# const { parallelLimit } = require('async');
-# const { requests: { createRequestWithDefaults } } = require('polarity-integration-utils');
-# const config = require('../config/config');
-#
-# # Workaround required because v1 of utils library is expecting a request object on config
-# config.request = {
-#   cert: '', key: '', passphrase: '', ca: '', proxy: ''
-# };
-#
-# const NodeCache = require('node-cache');
-# const tokenCache = new NodeCache({ stdTTL: 23 * 60 * 60 });
-#
-# const requestForAuth = createRequestWithDefaults({
-#   config,
-#   roundedSuccessStatusCodes: [200],
-#   requestOptionsToOmitFromLogsKeyPaths: ['form.client_secret']
-# });
-#
-# const requestWithDefaults = createRequestWithDefaults({
-#   config,
-#   roundedSuccessStatusCodes: [200],
-#   useLimiter: true,
-#   requestOptionsToOmitFromLogsKeyPaths: ['authorization', 'query'],
-#   preprocessRequestOptions: async ({ options, query }) => {
-#     const token = await getToken(options);
-#
-#     return {
-#       method: 'POST',
-#       url: `https://api.${options.apiRegion}.app.wiz.io/graphql`,
-#       headers: {
-#         accept: 'application/json',
-#         authorization: `Bearer ${token}`,
-#         'content-type': 'application/json'
-#       },
-#       body: JSON.stringify({ query })
-#     };
-#   },
-#   postprocessRequestResponse: async (response) => {
-#     const bodyErrors = flow(get('body'), JSON.parse, get('errors'))(response);
-#     if (size(bodyErrors)) {
-#       const bodyError = new Error(get('0.message', bodyErrors));
-#       bodyError.status = response.status;
-#       throw bodyError;
-#     }
-#
-#     return {
-#       ...response,
-#       body: JSON.parse(response.body)
-#     };
-#   },
-#   postprocessRequestFailure: (error) => {
-#     error.message = `${error.message} - (${error.status}) | ${error.description}`;
-#     throw error;
-#   }
-# });
-#
-# const getToken = async (options) => {
-#   const tokenCacheKey = options.clientId + options.clientSecret;
-#   const cachedToken = tokenCache.get(tokenCacheKey);
-#   if (cachedToken) return cachedToken;
-#
-#   const token = get(
-#     'body.access_token',
-#     await requestForAuth({
-#       method: 'POST',
-#       url: `https://${options.authTokenDomain}/oauth/token`,
-#       headers: {
-#         accept: 'application/json',
-#         'content-type': 'application/x-www-form-urlencoded'
-#       },
-#       form: {
-#         grant_type: 'client_credentials',
-#         audience: 'wiz-api',
-#         client_id: options.clientId,
-#         client_secret: options.clientSecret
-#       },
-#       json: true
-#     })
-#   );
-#
-#   tokenCache.set(tokenCacheKey, token);
-#
-#   return token;
-# };
-#
-# const createRequestsInParallel =
-#   (requestWithDefaults) =>
-#   async (
-#     requestsOptions,
-#     responseGetPath,
-#     limit = 10,
-#     onlyReturnPopulatedResults = true
-#   ) => {
-#     const unexecutedRequestFunctions = map(
-#       ({ entity, ...requestOptions }) =>
-#         async () => {
-#           const response = await requestWithDefaults(requestOptions);
-#           const result = responseGetPath ? get(responseGetPath, response) : response;
-#           return entity ? { entity, result } : result;
-#         },
-#       requestsOptions
-#     );
-#
-#     const results = await parallelLimit(unexecutedRequestFunctions, limit);
-#
-#     return onlyReturnPopulatedResults
-#       ? filter(
-#           flow((result) => getOr(result, 'result', result), negate(isEmpty)),
-#           results
-#         )
-#       : results;
-#   };
-#
-# const requestsInParallel = createRequestsInParallel(requestWithDefaults);
-#
-# module.exports = {
-#   requestWithDefaults,
-#   requestsInParallel
-# };
-
-# Left-Right Translation
-
+``` Left-Right Translation
 {
-  # Token cache configuration
-  TOKEN_TTL_SECONDS: 23 * 60 * 60,  # 23 hours
-
-  # requestForAuth - HTTP client for authentication requests
-  # Uses OAuth client credentials flow to get access token
-  requestForAuth: { options: _<@0,
-    # Build auth request options
-    authRequestOptions: {
-      method: `POST`,
-      url: { `https://` & options@`authTokenDomain` & `/oauth/token` },
-      headers: {
-        accept: `application/json`,
-        'content-type': `application/x-www-form-urlencoded`
-      },
-      form: {
-        grant_type: `client_credentials`,
-        audience: `wiz-api`,
-        client_id: options@`clientId`,
-        client_secret: options@`clientSecret`
-      }
-    },
-
-    # Execute auth request and extract access_token from response
-    authResponse: httpRequest(authRequestOptions),
-    accessToken: authResponse@`body`@`access_token`,
-
-    accessToken
+  +: imports@`lodash/fp`@&{
+    _: [`map`, `get`, `getOr`, `filter`, `flow`, `negate`, `isEmpty`, `size`]
   },
-
-  # getToken - get OAuth token, cached for 23 hours
-  # Token cache key combines clientId + clientSecret
-  getToken: { options: _<@0,
-    tokenCacheKey: options@`clientId` & options@`clientSecret`,
-    cachedToken: tokenCache@tokenCacheKey,
-
-    # Return cached token if available
-    cachedToken ?= `undefined` ? {
-      cachedToken
-    } : {
-      # Otherwise fetch new token and cache it
-      newToken: requestForAuth(options),
-      tokenCache@tokenCacheKey: newToken,
-      newToken
+  
+  +: imports@`async`@&{
+    _: [`parallelLimit`]
+  },
+  
+  +: imports@`polarity-integration-utils`@&{
+    requests: [`createRequestWithDefaults`]
+  },
+  
+  +: imports@`node-cache`@&{
+    _: [`NodeCache`]
+  },
+  
+  config: files@`../config/config`,
+  
+  config@`request`: {
+    cert: ``
+    key: ``
+    passphrase: ``
+    ca: ``
+    proxy: ``
+  },
+  
+  tokenCache: NodeCache@{ _<: { stdTTL: 82800 } },
+  
+  requestForAuth: {
+    _: createRequestWithDefaults,
+    args: {
+      _: config,
+      roundedSuccessStatusCodes: [200],
+      requestOptionsToOmitFromLogsKeyPaths: [`form.client_secret`]
     }
-  },
-
-  # requestWithDefaults - HTTP client for Wiz GraphQL API queries
-  # Automatically adds Bearer token to requests, handles errors
-  requestWithDefaults: { options: _<@0, query: _<@1,
-    # Get auth token
-    token: getToken(options),
-
-    # Build GraphQL API request
-    requestOptions: {
-      method: `POST`,
-      url: { `https://api.` & options@`apiRegion` & `.app.wiz.io/graphql` },
-      headers: {
-        accept: `application/json`,
-        authorization: { `Bearer ` & token },
-        'content-type': `application/json`
-      },
-      body: jsonStringify({ query: query })
-    },
-
-    # Execute request
-    response: httpRequest(requestOptions),
-
-    # Check for errors in response body
-    bodyErrors: response@`body`@`errors`,
-    hasErrors: bodyErrors # > 0,
-
-    # Throw error if response contains errors
-    hasErrors ? {
-      errorMessage: bodyErrors@0@`message`,
-      error: newError(errorMessage),
-      error@`status`: response@`status`,
-      error: throw(error)
-    } : {
-      # Otherwise return parsed response body
-      {
-        ...response,
-        body: jsonStringify(response@`body`)
-      }
-    }
-  },
-
-  # createRequestsInParallel - execute multiple requests in parallel with rate limiting
-  # Returns only non-empty results if onlyReturnPopulatedResults is true
-  createRequestsInParallel: { requestFn: _<@0,
-    { requestsOptions: _<@1, responseGetPath: _<@2, limit: _<@3, onlyReturnPopulatedResults: _<@4,
-      # Default limit to 10 requests
-      actualLimit: limit ?= `undefined` ? 10,
-      limit: actualLimit,
-
-      # Default to filtering empty results
-      actualOnlyReturnPopulated: onlyReturnPopulatedResults ?= `undefined` ? true,
-      onlyReturnPopulatedResults: actualOnlyReturnPopulated,
-
-      # Build request functions for each query
-      requestFunctions: requestsOptions ${ requestOptions: _<@0,
-        entity: requestOptions@`entity`,
-
-        # Async function that executes the request
-        { async: _<@0,
-          response: requestFn(requestOptions),
-
-          # Extract nested result if responseGetPath is provided
-          result: responseGetPath ?= `undefined` ? {
-            response@responseGetPath
-          } : response,
-
-          # Attach entity to result if entity exists in original request
-          entity ?= `undefined` ? {
-            { entity: entity, result: result }
-          } : result
+  } data,
+  
+  requestWithDefaults: {
+    _: createRequestWithDefaults,
+    args: {
+      _: config,
+      roundedSuccessStatusCodes: [200],
+      useLimiter: true,
+      requestOptionsToOmitFromLogsKeyPaths: [`authorization`, `query`],
+      preprocessRequestOptions: { options: _<@0, query: _<@1,
+        try: {
+          token: [options] getToken,
+          
+          {
+            method: `POST`,
+            url: `https://api.${options@`apiRegion`}.app.wiz.io/graphql`,
+            headers: {
+              accept: `application/json`,
+              authorization: `Bearer ${token}`,
+              content-type: `application/json`
+            },
+            body: JSON.stringify({ query })
+          }
         }
       },
-
-      # Execute all requests in parallel with rate limiting
-      results: parallelExec(requestFunctions, limit),
-
-      # Filter out empty results if requested
-      onlyReturnPopulatedResults ? results ?{ result: _<@0,
-        resultValue: result@`result`,
-        hasResult: resultValue ?= `undefined` ? true,
-        resultValue # = 0 ? false : true,
-
-        hasResult
-      } : results
+      postprocessRequestResponse: { response: _<,
+        try: {
+          bodyErrors: response get [`body`] JSON.parse get [`errors`],
+          _: {
+            _<@`bodyErrors` size!: 0,
+            bodyError: { _: Error@new, args: [bodyErrors get [`0.message`]] },
+            bodyError@`status`: response@`status`,
+          } { _<: bodyError }
+          
+          +: response,
+          body: response@`body` JSON.parse
+        }
+      },
+      postprocessRequestFailure: { error: _<,
+        error@`message`: `${error@`message`} - (${error@`status`}) | ${error@`description`}`,
+        { _<: error }
+      }
+    }
+  } data,
+  
+  getToken: { options: _<,
+    try: {
+      tokenCacheKey: `${options@`clientId`}${options@`clientSecret`}`,
+      cachedToken: tokenCache get [tokenCacheKey],
+      
+      { _<@`cachedToken`!: null, cachedToken }
+      
+      token: {
+        _: requestForAuth,
+        args: {
+          method: `POST`,
+          url: `https://${options@`authTokenDomain`}/oauth/token`,
+          headers: {
+            accept: `application/json`,
+            content-type: `application/x-www-form-urlencoded`
+          },
+          form: {
+            grant_type: `client_credentials`,
+            audience: `wiz-api`,
+            client_id: options@`clientId`,
+            client_secret: options@`clientSecret`
+          },
+          json: true
+        }
+      } data get [`body.access_token`],
+      
+      tokenCache set [tokenCacheKey, token],
+      
+      token
     }
   },
-
-  # requestsInParallel - pre-configured parallel request executor
-  # Uses requestWithDefaults with 10 concurrent requests by default
-  requestsInParallel: { requestsOptions: _<@0, responseGetPath: _<@1, limit: _<@2, onlyReturnPopulatedResults: _<@3,
-    createRequestsInParallel(requestWithDefaults)(requestsOptions, responseGetPath, limit, onlyReturnPopulatedResults)
-  }
-}
+  
+  createRequestsInParallel: { requestWithDefaults: _<,
+    { requestOptions: _<@0, responseGetPath: _<@1, limit: _<@2, onlyReturnPopulatedResults: _<@3,
+      unexecutedRequestFunctions: requestOptions $@ {
+        _: { entity: _<@`entity`, requestOptions: _< { entity: _, _: requestOptions } },
+        _: {
+          try: {
+            response: [requestOptions] requestWithDefaults data,
+            result: {
+              _<@`responseGetPath`!: null,
+              response get responseGetPath,
+              response
+            },
+            _: { _<@`entity`!: null, { entity, result }, result }
+          }
+        }
+      },
+      
+      results: [unexecutedRequestFunctions, limit] parallelLimit,
+      
+      { _<@`onlyReturnPopulatedResults`!: false,
+        results $| {
+          _: [get [`result`], negate, isEmpty] flow,
+          _< filter
+        },
+        results
+      }
+    }
+  },
+  
+  requestsInParallel: [requestWithDefaults] createRequestsInParallel
+}@&[`requestWithDefaults`, `requestsInParallel`]
+```

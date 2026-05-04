@@ -1,157 +1,79 @@
-# Original JavaScript
-# const { MAX_PAGE_SIZE } = require('../constants');
-# const queryEntitiesWithQueryStringBuilder = require('./queryEntitiesWithQueryStringBuilder');
-#
-# const queryVulnerabilities = async (cveEntities, options) =>
-#   await queryEntitiesWithQueryStringBuilder(cveEntities, options, buildVulnerabilitiesQueryString);
-#
-# const buildVulnerabilitiesQueryString = (entity) => `
-#   ${entity.id}: vulnerabilityFindings(
-#     first: ${MAX_PAGE_SIZE},
-#     filterBy: { vulnerabilityExternalId: ["${entity.value}"] }
-#   ) {
-#     nodes {
-#       id
-#       portalUrl
-#       name
-#       CVEDescription
-#       CVSSSeverity
-#       score
-#       exploitabilityScore
-#       impactScore
-#       dataSourceName
-#       hasExploit
-#       hasCisaKevExploit
-#       status
-#       vendorSeverity
-#       firstDetectedAt
-#       lastDetectedAt
-#       resolvedAt
-#       description
-#       remediation
-#       detailedName
-#       version
-#       fixedVersion
-#       detectionMethod
-#       link
-#       locationPath
-#       resolutionReason
-#       epssSeverity
-#       epssPercentile
-#       epssProbability
-#       projects {
-#         id
-#         name
-#         description
-#         businessUnit
-#         riskProfile {
-#           businessImpact
-#           hasExposedAPI
-#         }
-#       }
-#       vulnerableAsset {
-#         ... on VulnerableAssetBase {
-#           id
-#           type
-#           name
-#           region
-#           cloudProviderURL
-#           cloudPlatform
-#           status
-#           subscriptionName
-#           subscriptionExternalId
-#           subscriptionId
-#         }
-#         ... on VulnerableAssetVirtualMachine {
-#           ipAddresses
-#         }
-#       }
-#     }
-#   }`;
-#
-# module.exports = queryVulnerabilities;
-
-# Left-Right Translation
-
+``` Left-Right Translation
 {
-  MAX_PAGE_SIZE: 10,
+  +: files@`../constants'@&[`MAX_PAGE_SIZE`],
+  +: files@`./queryEntitiesWithQueryStringBuilder'@&[`queryEntitiesWithQueryStringBuilder`],
 
-  # buildVulnerabilitiesQueryString - build GraphQL query string for Vulnerabilities API
-  # Each query is named by entity.id and searches for that CVE in vulnerability findings
-  buildVulnerabilitiesQueryString: { entity: _<@0, options: _<@1,
-    # Use template string with entity.id and entity.value (CVE)
-    graphqlFragment: `
-      ${entity@`id`}: vulnerabilityFindings(
-        first: ${MAX_PAGE_SIZE},
-        filterBy: { vulnerabilityExternalId: ["${entity@`value`}"] }
-      ) {
-        nodes {
-          id
-          portalUrl
-          name
-          CVEDescription
-          CVSSSeverity
-          score
-          exploitabilityScore
-          impactScore
-          dataSourceName
-          hasExploit
-          hasCisaKevExploit
-          status
-          vendorSeverity
-          firstDetectedAt
-          lastDetectedAt
-          resolvedAt
-          description
-          remediation
-          detailedName
-          version
-          fixedVersion
-          detectionMethod
-          link
-          locationPath
-          resolutionReason
-          epssSeverity
-          epssPercentile
-          epssProbability
+  queryVulnerabilities: {
+    cveEntities: _<@0,
+    _options: _<@1,
 
-          projects {
-            id
-            name
-            description
-            businessUnit
-            riskProfile {
-              businessImpact
-              hasExposedAPI
-            }
-          }
-
-          vulnerableAsset {
-            ... on VulnerableAssetBase {
-              id
-              type
-              name
-              region
-              cloudProviderURL
-              cloudPlatform
-              status
-              subscriptionName
-              subscriptionExternalId
-              subscriptionId
-            }
-            ... on VulnerableAssetVirtualMachine {
-              ipAddresses
-            }
-          }
-        }
-      }
-    `,
-    graphqlFragment
+    [cveEntities, _options, buildVulnerabilitiesQueryString] queryEntitiesWithQueryStringBuilder await
   },
 
-  # queryVulnerabilities - query Wiz API for vulnerability findings related to CVE entities
-  # Uses queryEntitiesWithQueryStringBuilder for batching and parallel execution
-  queryVulnerabilities: { cveEntities: _<@0, options: _<@1,
-    queryEntitiesWithQueryStringBuilder(cveEntities, options, buildVulnerabilitiesQueryString)
+  buildVulnerabilitiesQueryString: { entity: _<@0,
+    `` `
+  ${entity.id}: vulnerabilityFindings(
+    first: ${MAX_PAGE_SIZE},
+    filterBy: { vulnerabilityExternalId: ["${entity.value}"] }
+  ) {
+    nodes {
+      id
+      portalUrl
+      name
+      CVEDescription
+      CVSSSeverity
+      score
+      exploitabilityScore
+      impactScore
+      dataSourceName
+      hasExploit
+      hasCisaKevExploit
+      status
+      vendorSeverity
+      firstDetectedAt
+      lastDetectedAt
+      resolvedAt
+      description
+      remediation
+      detailedName
+      version
+      fixedVersion
+      detectionMethod
+      link
+      locationPath
+      resolutionReason
+      epssSeverity
+      epssPercentile
+      epssProbability
+      projects {
+        id
+        name
+        description
+        businessUnit
+        riskProfile {
+          businessImpact
+          hasExposedAPI
+        }
+      }
+      vulnerableAsset {
+        ... on VulnerableAssetBase {
+          id
+          type
+          name
+          region
+          cloudProviderURL
+          cloudPlatform
+          status
+          subscriptionName
+          subscriptionExternalId
+          subscriptionId
+        }
+        ... on VulnerableAssetVirtualMachine {
+          ipAddresses
+        }
+      }
+    }
+  }`
+  `
   }
-}
+}@&[`queryVulnerabilities`]

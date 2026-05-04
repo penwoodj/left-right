@@ -1,153 +1,72 @@
-# Original JavaScript
-# const { flow, chunk, map, join, mergeAll, get } = require('lodash/fp');
-# const reduce = require('lodash/fp/reduce').convert({ cap: false });
-# const { requestsInParallel } = require('../request');
-#
-# const queryEntitiesWithQueryStringBuilder = async (
-#   entitiesWithIds,
-#   options,
-#   buildQueryStringWithOneEntity,
-#   numberOfQueriesToRunInOneRequest = 15
-# ) => {
-#   const queries = buildAggregateQueries(
-#     entitiesWithIds,
-#     buildQueryStringWithOneEntity,
-#     numberOfQueriesToRunInOneRequest,
-#     options
-#   );
-#
-#   const queryResults = await runQueries(queries, options);
-#
-#   const formattedQueryResults = formatQueryResults(queryResults);
-#
-#   const entityAssociatedQueryResults = associateEntitiesWithQueryResults(
-#     entitiesWithIds,
-#     formattedQueryResults
-#   );
-#
-#   return entityAssociatedQueryResults;
-# };
-#
-# const buildAggregateQueries = (
-#   entitiesWithIds,
-#   buildQueryStringWithOneEntity,
-#   numberOfQueriesToRunInOneRequest,
-#   options
-# ) =>
-#   flow(
-#     chunk(numberOfQueriesToRunInOneRequest),
-#     map((entities) =>
-#       flow(
-#         map((entity) => buildQueryStringWithOneEntity(entity, options)),
-#         join(''),
-#         (queriesWithIds) => `query {${queriesWithIds}
-# }`
-#       )(entities)
-#     )
-#   )(entitiesWithIds);
-#
-# const runQueries = async (queries, options) =>
-#   flow(
-#     map((query) => ({ query, options })),
-#     async (queryRequests) => await requestsInParallel(queryRequests, 'body.data')
-#   )(queries);
-#
-# const formatQueryResults = flow(
-#   mergeAll,
-#   reduce((agg, result, entityId) => ({ ...agg, [entityId]: get('nodes', result) }), {})
-# );
-#
-# const associateEntitiesWithQueryResults = (entitiesWithIds, queryResults) =>
-#   map(
-#     (entity) => ({ resultId: entity.value, result: get(entity.id, queryResults) }),
-#     entitiesWithIds
-#   );
-#
-# module.exports = queryEntitiesWithQueryStringBuilder;
-
-# Left-Right Translation
-
+``` Left-Right Translation
 {
-  # associateEntitiesWithQueryResults - map entities to their query results
-  # Each entity gets a { resultId, result } object where result is the matched data
-  associateEntitiesWithQueryResults: { entitiesWithIds: _<@0, queryResults: _<@1,
-    entitiesWithIds ${ entity: _<@0,
-      {
-        resultId: entity@`value`,
-        result: queryResults@entity@`id`
-      }
-    }
-  },
+  +: imports@`lodash/fp`@&[`flow`,`chunk`,`map`,`join`,`mergeAll`,`get`,`reduce`],
+  +: files@`./request'@&[`requestsInParallel`],
 
-  # formatQueryResults - merge all query results and extract 'nodes' from each
-  # Results come as multiple maps that need merging, then we extract the nested 'nodes'
-  formatQueryResults: { queryResults: _<@0,
-    # Merge all result maps into one
-    mergedResults: queryResults ?{ result: _<@0, result } +,
+  queryEntitiesWithQueryStringBuilder: {
+    entitiesWithIds: _<@0,
+    _options: _<@1,
+    buildQueryStringWithOneEntity: _<@2,
+    numberOfQueriesToRunInOneRequest: _<@3,
 
-    # For each entity ID in merged results, extract the 'nodes' field
-    mergedResults ${ resultPair: _<@0,
-      entityId: resultPair@0,
-      result: resultPair@1,
-      { entityId: result@`nodes` }
-    }
-  },
-
-  # runQueries - execute all queries in parallel
-  # Maps query strings to request objects and runs them via requestsInParallel
-  runQueries: { queries: _<@0, options: _<@1,
-    # Build request objects for each query
-    queryRequests: queries ${ query: _<@0,
-      { query: query, options: options }
-    },
-
-    # Run all queries in parallel and extract body.data from responses
-    # requestsInParallel returns [{ query, result }] pairs
-    # We extract just the 'result' part (which is body.data)
-    requestsInParallel(queryRequests, `body.data`) ${ responsePair: _<@0,
-      responsePair@`result`
-    }
-  },
-
-  # buildAggregateQueries - build GraphQL query strings with multiple entity queries
-  # Chunks entities into groups, builds query for each group, wraps in 'query { }'
-  buildAggregateQueries: { entitiesWithIds: _<@0, buildQueryStringWithOneEntity: _<@1, numberOfQueriesToRunInOneRequest: _<@2, options: _<@3,
-    # Chunk entities into batches
-    entityChunks: entitiesWithIds ~,, numberOfQueriesToRunInOneRequest,
-
-    # For each chunk, build individual queries and combine
-    entityChunks ${ entityChunk: _<@0,
-      # Build query string for each entity
-      individualQueries: entityChunk ${ entity: _<@0,
-        buildQueryStringWithOneEntity(entity, options)
-      },
-
-      # Combine all queries with join, wrap in 'query { }'
-      combinedQueries: individualQueries >< ``,
-
-      graphqlQuery: { `query {` & combinedQueries & `}` }
-    }
-  },
-
-  # queryEntitiesWithQueryStringBuilder - main function: build queries, run them, format results
-  # Takes entities, options, a query string builder function, and optional batch size
-  queryEntitiesWithQueryStringBuilder: { entitiesWithIds: _<@0, options: _<@1, buildQueryStringWithOneEntity: _<@2, numberOfQueriesToRunInOneRequest: _<@3,
-    # Default to 15 queries per request if not specified
-    batchSize: numberOfQueriesToRunInOneRequest ?= `undefined` ? 15,
-    batchSize: numberOfQueriesToRunInOneRequest,
-
-    # Step 1: Build aggregate GraphQL queries
-    queries: buildAggregateQueries(entitiesWithIds, buildQueryStringWithOneEntity, batchSize, options),
-
-    # Step 2: Execute queries and get raw results
-    queryResults: runQueries(queries, options),
-
-    # Step 3: Format results (merge and extract nodes)
-    formattedQueryResults: formatQueryResults(queryResults),
-
-    # Step 4: Associate each entity with its query results
-    entityAssociatedQueryResults: associateEntitiesWithQueryResults(entitiesWithIds, formattedQueryResults),
+    queries: [entitiesWithIds, buildQueryStringWithOneEntity, numberOfQueriesToRunInOneRequest, _options] buildAggregateQueries,
+    queryResults: [queries, _options] runQueries,
+    formattedQueryResults: queryResults formatQueryResults,
+    entityAssociatedQueryResults: [entitiesWithIds, formattedQueryResults] associateEntitiesWithQueryResults,
 
     entityAssociatedQueryResults
+  },
+
+  buildAggregateQueries: {
+    entitiesWithIds: _<@0,
+    buildQueryStringWithOneEntity: _<@1,
+    numberOfQueriesToRunInOneRequest: _<@2,
+    _options: _<@3,
+
+    flow([
+      numberOfQueriesToRunInOneRequest chunk,
+      map { entities: _<@0,
+        flow([
+          map { entity: _<@0,
+            [entity, _options@1] buildQueryStringWithOneEntity
+          },
+          '' join,
+          { queriesWithIds: _<@0,
+            `` `query {${queriesWithIds}}
+}`
+          }
+        ]) entities
+      }
+    ]) entitiesWithIds
+  },
+
+  runQueries: {
+    queries: _<@0,
+    _options: _<@1,
+
+    flow([
+      map { query: _<@0,
+      { query: query, options: _options@1 }
+      },
+      async { queryRequests: _<@0,
+      [queryRequests, 'body.data'] requestsInParallel await
+      }
+    ]) queries
+  },
+
+  formatQueryResults: flow([
+    mergeAll,
+    reduce { agg: _<@0, result: _<@1, entityId: _<@2,
+      { ...agg, [entityId]: result @ `nodes` get }
+    } {}
+  ]),
+
+  associateEntitiesWithQueryResults: {
+    entitiesWithIds: _<@0,
+    queryResults: _<@1,
+
+    map { entity: _<@0,
+      { resultId: entity @ `value`, result: queryResults @ entity.id }
+    } entitiesWithIds
   }
-}
+}@&[`queryEntitiesWithQueryStringBuilder`]

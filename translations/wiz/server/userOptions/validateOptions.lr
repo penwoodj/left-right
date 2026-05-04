@@ -1,71 +1,7 @@
-# Original JavaScript
-# const { validateStringOptions } = require('./utils');
-# const { logging: { getLogger } } = require('polarity-integration-utils');
-#
-# const validateOptions = async (options, callback) => {
-#   const stringOptionsErrorMessages = {
-#     authTokenDomain: '* Required',
-#     apiRegion: '* Required',
-#     clientId: '* Required',
-#     clientSecret: '* Required'
-#   };
-#
-#   const stringValidationErrors = validateStringOptions(
-#     stringOptionsErrorMessages,
-#     options
-#   );
-#
-#   if (stringValidationErrors.length) return callback(null, stringValidationErrors);
-#
-#   const oneQuerySelectedErrors = !(
-#     options.queryIssues.value ||
-#     options.queryVulnerabilities.value ||
-#     options.queryAssets.value
-#   )
-#     ? [
-#         { key: 'queryIssues', message: 'At least one of these Query options must be checked' },
-#         { key: 'queryVulnerabilities', message: 'At least one of these Query options must be checked' },
-#         { key: 'queryAssets', message: 'At least one of these Query options must be checked' }
-#       ]
-#     : [];
-#
-#   if (oneQuerySelectedErrors.length) return callback(null, oneQuerySelectedErrors);
-#
-#   const endingSlashError = options.authTokenDomain.value.endsWith('/')
-#     ? [{ key: 'authTokenDomain', message: 'Only Domain allowed, no trailing slash / allowed' }]
-#     : [];
-#   const protocolError = options.authTokenDomain.value.startsWith('http')
-#     ? [{ key: 'authTokenDomain', message: 'Only Domain allowed, http(s) not allowed' }]
-#     : [];
-#
-#   const errors = endingSlashError.concat(protocolError);
-#
-#   callback(null, errors);
-# };
-#
-# module.exports = validateOptions;
-
-# Left-Right Translation
-
 {
-  # validateStringOptions - helper from utils.lr
-  # Validates required string options
-  validateStringOptions: { stringOptionsErrorMessages: _<@0, options: _<@1,
-    stringOptionsErrorMessages ?{ optionName: _<@0,
-      optionValue: options@optionName@`value`,
-      isString: optionValue ?= `string`,
-      isEmpty: optionValue # = 0,
-      hasError: !isString || isEmpty,
-      errorObj: { key: optionName, message: stringOptionsErrorMessages@optionName },
-      hasError ? errorObj : []
-    }
-  },
+  +: files@`./utils`@&[`validateStringOptions`],
 
-  # validateOptions - validate all user-provided options
-  # Checks: required string fields, at least one query selected, no trailing slash, no protocol
-  validateOptions: { options: _<@0,
-
-    # 1. Validate required string options
+  validateOptions: { options: _<@0, callback: _<@1,
     stringOptionsErrorMessages: {
       authTokenDomain: `* Required`,
       apiRegion: `* Required`,
@@ -73,49 +9,37 @@
       clientSecret: `* Required`
     },
 
-    stringValidationErrors: validateStringOptions(stringOptionsErrorMessages, options),
+    stringValidationErrors: [stringOptionsErrorMessages, options] validateStringOptions,
 
-    # Return early if string validation failed
-    hasStringErrors: stringValidationErrors # > 0,
-    hasStringErrors ? stringValidationErrors : {
+    stringValidationErrors []!: {
+      [null, stringValidationErrors] callback,
+      {
+        oneQuerySelectedErrors: options@`queryIssues`@`value` || options@`queryVulnerabilities`@`value` || options@`queryAssets`@`value`!: {
+          [
+            { key: `queryIssues`, message: `At least one of these Query options must be checked` },
+            { key: `queryVulnerabilities`, message: `At least one of these Query options must be checked` },
+            { key: `queryAssets`, message: `At least one of these Query options must be checked` }
+          ],
+          []
+        },
 
-      # 2. Check that at least one query option is selected
-      queryIssuesSelected: options@`queryIssues`@`value`,
-      queryVulnerabilitiesSelected: options@`queryVulnerabilities`@`value`,
-      queryAssetsSelected: options@`queryAssets`@`value`,
+        oneQuerySelectedErrors []!: {
+          [null, oneQuerySelectedErrors] callback,
+          {
+            endingSlashError: options@`authTokenDomain`@`value` = `\`/\``: {
+              [{ key: `authTokenDomain`, message: `Only Domain allowed, no trailing slash / allowed` }],
+              []
+            },
+            protocolError: options@`authTokenDomain`@`value` = `\`http\``: {
+              [{ key: `authTokenDomain`, message: `Only Domain allowed, http(s) not allowed` }],
+              []
+            },
 
-      oneQuerySelected: queryIssuesSelected || queryVulnerabilitiesSelected || queryAssetsSelected,
-      hasQueryErrors: !oneQuerySelected,
-
-      oneQuerySelectedErrors: hasQueryErrors ? [
-        { key: `queryIssues`, message: `At least one of these Query options must be checked` },
-        { key: `queryVulnerabilities`, message: `At least one of these Query options must be checked` },
-        { key: `queryAssets`, message: `At least one of these Query options must be checked` }
-      ],
-
-      # Return early if query validation failed
-      hasQueryErrors ? oneQuerySelectedErrors : {
-
-        # 3. Check authTokenDomain format
-        authTokenDomainValue: options@`authTokenDomain`@`value`,
-
-        # No trailing slash allowed
-        endsWithSlash: authTokenDomainValue `<`, `/`,,
-        endingSlashError: endsWithSlash ? [
-          { key: `authTokenDomain`, message: `Only Domain allowed, no trailing slash / allowed` }
-        ],
-
-        # No protocol prefix allowed
-        startsWithHttp: authTokenDomainValue `=`, `http`,, = 0,
-        protocolError: startsWithHttp ? [
-          { key: `authTokenDomain`, message: `Only Domain allowed, http(s) not allowed` }
-        ],
-
-        # Combine all domain format errors
-        domainErrors: endingSlashError + protocolError ~,
-
-        domainErrors
+            errors: endingSlashError [] + protocolError,
+            [null, errors] callback
+          }
+        }
       }
     }
   }
-}
+}@&[`validateOptions`]

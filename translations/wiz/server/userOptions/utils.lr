@@ -1,47 +1,16 @@
-# Original JavaScript
-# const { isEmpty } = require('lodash/fp');
-# const reduce = require('lodash/fp/reduce').convert({ cap: false });
-#
-# const validateStringOptions = (stringOptionsErrorMessages, options, otherErrors = []) =>
-#   reduce((agg, message, optionName) => {
-#     const isString = typeof options[optionName].value === 'string';
-#     const isEmptyString = isString && isEmpty(options[optionName].value);
-#
-#     return !isString || isEmptyString
-#       ? agg.concat({
-#           key: optionName,
-#           message
-#         })
-#       : agg;
-#   }, otherErrors)(stringOptionsErrorMessages);
-#
-# module.exports = {
-#   validateStringOptions
-# };
-
-# Left-Right Translation
-# validateStringOptions - validates string options in user configuration
-# stringOptionsErrorMessages: map of option names to error messages
-# options: user configuration map with .value fields
-# otherErrors: accumulated errors from previous validations
-
-# Note: This uses reduce operator to accumulate validation errors
-# _< = accumulated errors list (agg)
-# _> = current iteration value (optionName)
-# _<@0 = current iteration key (message)
-# options@optionName accesses nested value in options map
-
 {
-  validateStringOptions: { stringOptionsErrorMessages: _<@0, options: _<@1, otherErrors: _<@2,
-    # For each option name in stringOptionsErrorMessages:
-    # Check if it's a string and not empty, add error if so
-    stringOptionsErrorMessages ?{ optionName: _<@0,
-      optionValue: options@optionName@`value`,
-      isString: optionValue ?= `string`,
-      isEmpty: optionValue # = 0,
-      hasError: !isString || isEmpty,
-      errorObj: { key: optionName, message: stringOptionsErrorMessages@optionName },
-      hasError ? errorObj : []
-    }
+  +: imports@`lodash/fp`@&[`isEmpty`],
+  reduce: imports@`lodash/fp/reduce` { cap: false },
+
+  validateStringOptions: { stringOptionsErrorMessages: _<@0, options: _<@1, otherErrors: _<@2, [] _<@2,
+    stringOptionsErrorMessages reduce { agg: _<@0, message: _<@1, optionName: _<@2,
+      isString: options@`\`optionName\``@`value` ?= `\`string\``: true, false,
+      isEmptyString: isString && options@`\`optionName\``@`value` isEmpty,
+
+      isString!: {
+        agg [] + { key: optionName, message },
+        agg
+      }
+    }, otherErrors
   }
-}
+}@&[`validateStringOptions`]
