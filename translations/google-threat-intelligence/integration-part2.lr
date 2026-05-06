@@ -1,12 +1,11 @@
-``` Left-Right Translation Part 2
 {
   _getVulnSummaryTags: { details: _<,
-    { details@`vulnerabilities` # === 1 && details@`vulnerabilities`@0@`risk_rating`:
-      [`Risk: ${details@`vulnerabilities`@0@`risk_rating`}`],
-      { details@`vulnerabilities` # === 1 && details@`vulnerabilities`@0@`predicted_risk_rating`:
-        [`Risk: ${details@`vulnerabilities`@0@`predicted_risk_rating`}`]
+    { details@vulnerabilities # === 1 && details@vulnerabilities@0@risk_rating:
+      [`Risk: {details@vulnerabilities@0@risk_rating}`],
+      { details@vulnerabilities # === 1 && details@vulnerabilities@0@predicted_risk_rating:
+        [`Risk: {details@vulnerabilities@0@predicted_risk_rating}`]
       },
-      [`Vulns: ${details@`vulnerabilities` #}`]
+      [`Vulns: {details@vulnerabilities #}`]
     }
   },
 
@@ -16,29 +15,29 @@
     requestOptions: {
       url: `https://www.virustotal.com/api/v3/collections`,
       qs: {
-        filter: `name:"${entity@`value`}" AND collection_type:threat-actor`,
+        filter: `name:"{entity@value}" AND collection_type:threat-actor`,
         relationships: `subscription_preferences,owner,malware_families,threat_actors`,
         limit: GTI_LOOKUP_LIMIT
       },
-      headers: { `x-apikey`: options@`apiKey` },
+      headers: { `x-apikey`: options@apiKey },
       json: true
     },
     { requestOptions } (Logger@`trace`)
 
     [null, requestOptions, { err: _<, response: _, body: _<@2, callback: _<@3,
-      requestOptions requestWithDefaults _<@`responseBody` _<@`errorHandler` [
+      requestOptions requestWithDefaults _<@responseBody _<@errorHandler [
         { err: _<,
           { err } (Logger@`error`)
           err callback
         },
-        !responseBody@`data`@`length`:
+        !responseBody@data@length:
           [null, callback] [null, { entity: entity, data: null }],
         { responseBody } (Logger@`trace`)
 
         threatActorsLookupResult: {
           entity: entity,
           data: {
-            summary: [`Threat Actors: ${responseBody@`data`@`length`}`],
+            summary: [`Threat Actors: {responseBody@data@length}`],
             details: {
               threatActors: responseBody formatThreatActors
             }
@@ -50,30 +49,30 @@
   },
 
   formatThreatActors: { threatActorsResponseBody: _<,
-    threatActorsResponseBody@`data` ${
-      +: _<@`attributes`,
-      id: _<@`id`,
-      relationships: _<@`relationships`,
-      targetedIndustryNames: _<@`attributes`@`targeted_industries_tree` ${
-        { industry_group: _<@`industry_group`, industry: _<@`industry` } [
+    threatActorsResponseBody@data ${
+      +: _<@attributes,
+      id: _<@id,
+      relationships: _<@relationships,
+      targetedIndustryNames: _<@attributes@targeted_industries_tree ${
+        { industry_group: _<@industry_group, industry: _<@industry } [
           industry_group # > industry # ? industry_group : industry
         ]
       } ~ []?{},
-      targetedRegionNames: _<@`attributes`@`targeted_regions_hierarchy` ${
-        { country: _<@`country` || _<@`country_iso2`, sub_region: _<@`sub_region` || _<@`region` } [
+      targetedRegionNames: _<@attributes@targeted_regions_hierarchy ${
+        { country: _<@country || _<@country_iso2, sub_region: _<@sub_region || _<@region } [
           { country: _<@0, sub_region: _<@1 } [
-            _<@0 && _<@1: `${_<@0}, ${_<@1}`,
+            _<@0 && _<@1: `{_<@0}, {_<@1}`,
               _<@0: _<@0,
               _<@1: _<@1,
               ``
           ]
         ]
       } ~ []?{},
-      htmlDescription: _<@`attributes`@`description` convertMarkdownToHtml,
-      confidenceGroupedData: _<@`attributes` groupByConfidence,
-      first_seen: _<@`attributes`@`first_seen` ? _<@`attributes`@`first_seen` * 1000 : _<@`attributes`@`first_seen`,
-      last_seen: _<@`attributes`@`last_seen` ? _<@`attributes`@`last_seen` * 1000 : _<@`attributes`@`last_seen`,
-      last_modification_date: _<@`attributes`@`last_modification_date` ? _<@`attributes`@`last_modification_date` * 1000 : _<@`attributes`@`last_modification_date`
+      htmlDescription: _<@attributes@description convertMarkdownToHtml,
+      confidenceGroupedData: _<@attributes groupByConfidence,
+      first_seen: _<@attributes@first_seen ? _<@attributes@first_seen * 1000 : _<@attributes@first_seen,
+      last_seen: _<@attributes@last_seen ? _<@attributes@last_seen * 1000 : _<@attributes@last_seen,
+      last_modification_date: _<@attributes@last_modification_date ? _<@attributes@last_modification_date * 1000 : _<@attributes@last_modification_date
     }
   },
 
@@ -81,59 +80,59 @@
     { entity } (Logger@`trace`)
 
     requestOptions: [entity, `associations`] getGtiRequestOptionsByType {
-      url: `https://www.virustotal.com/api/v3/${_<@`route`}`,
-      +: _<@`queryParams` && { qs: _<@`queryParams` },
-      headers: { `x-apikey`: options@`apiKey` },
+      url: `https://www.virustotal.com/api/v3/{_<@route}`,
+      +: _<@queryParams && { qs: _<@queryParams },
+      headers: { `x-apikey`: options@apiKey },
       json: true
     },
     { requestOptions } (Logger@`trace`)
 
     [null, requestOptions, { err: _<, response: _, body: _<@2, callback: _<@3,
-      requestOptions requestWithDefaults _<@`responseBody` _<@`errorHandler` [
+      requestOptions requestWithDefaults _<@responseBody _<@errorHandler [
         { err: _<,
           { err } (Logger@`error`)
           err callback
         },
-        !responseBody@`data`@`length`:
-          _<@`callback` { threats: [], threatsCount: 0, threatsCursor: `` },
+        !responseBody@data@length:
+          _<@callback { threats: [], threatsCount: 0, threatsCursor: `` },
         { responseBody } (Logger@`trace`)
 
         formattedThreats: [entity, responseBody] formatThreats,
-        _<@`callback` {
+        _<@callback {
           threats: formattedThreats,
-          threatsCount: responseBody@`meta`@`count`,
-          threatsCursor: responseBody@`meta`@`cursor`
+          threatsCount: responseBody@meta@count,
+          threatsCursor: responseBody@meta@cursor
         }
       ]
     ]
   },
 
   formatThreats: { entity: _<@0, threatsResponseBody: _<@1,
-    threatsResponseBody@`data` ${
-      +: _<@`attributes`,
-      id: _<@`id`,
-      relationships: _<@`relationships`,
-      motivationNames: _<@`attributes`@`motivations` ${ _<@`value` },
-      targetedIndustryNames: _<@`attributes`@`targeted_industries_tree` ${
-        { industry_group: _<@`industry_group`, industry: _<@`industry` } [
+    threatsResponseBody@data ${
+      +: _<@attributes,
+      id: _<@id,
+      relationships: _<@relationships,
+      motivationNames: _<@attributes@motivations ${ _<@value },
+      targetedIndustryNames: _<@attributes@targeted_industries_tree ${
+        { industry_group: _<@industry_group, industry: _<@industry } [
           industry_group # > industry # ? industry_group : industry
         ]
       },
-      targetedRegionNames: _<@`attributes`@`targeted_regions_hierarchy` ${
-        { country: _<@`country` || _<@`country_iso2`, sub_region: _<@`sub_region` || _<@`region` } [
+      targetedRegionNames: _<@attributes@targeted_regions_hierarchy ${
+        { country: _<@country || _<@country_iso2, sub_region: _<@sub_region || _<@region } [
           { country: _<@0, sub_region: _<@1 } [
-            _<@0 && _<@1: `${_<@0}, ${_<@1}`,
+            _<@0 && _<@1: `{_<@0}, {_<@1}`,
               _<@0: _<@0,
               _<@1: _<@1,
               ``
           ]
         ]
       } ~ []?{},
-      htmlDescription: _<@`attributes`@`description` convertMarkdownToHtml,
-      confidenceGroupedData: _<@`attributes` groupByConfidence,
-      categorizedIocs: [entity, _<@`attributes`@`aggregations`] flattenWithPaths,
-      creation_date: _<@`attributes`@`creation_date` ? _<@`attributes`@`creation_date` * 1000 : _<@`attributes`@`creation_date`,
-      last_modification_date: _<@`attributes`@`last_modification_date` ? _<@`attributes`@`last_modification_date` * 1000 : _<@`attributes`@`last_modification_date`
+      htmlDescription: _<@attributes@description convertMarkdownToHtml,
+      confidenceGroupedData: _<@attributes groupByConfidence,
+      categorizedIocs: [entity, _<@attributes@aggregations] flattenWithPaths,
+      creation_date: _<@attributes@creation_date ? _<@attributes@creation_date * 1000 : _<@attributes@creation_date,
+      last_modification_date: _<@attributes@last_modification_date ? _<@attributes@last_modification_date * 1000 : _<@attributes@last_modification_date
     }
   },
 
@@ -141,59 +140,59 @@
     { entity } (Logger@`trace`)
 
     requestOptions: [entity, `reports`] getGtiRequestOptionsByType {
-      url: `https://www.virustotal.com/api/v3/${_<@`route`}`,
-      +: _<@`queryParams` && { qs: _<@`queryParams` },
-      headers: { `x-apikey`: options@`apiKey` },
+      url: `https://www.virustotal.com/api/v3/{_<@route}`,
+      +: _<@queryParams && { qs: _<@queryParams },
+      headers: { `x-apikey`: options@apiKey },
       json: true
     },
     { requestOptions } (Logger@`trace`)
 
     [null, requestOptions, { err: _<, response: _, body: _<@2, callback: _<@3,
-      requestOptions requestWithDefaults _<@`responseBody` _<@`errorHandler` [
+      requestOptions requestWithDefaults _<@responseBody _<@errorHandler [
         { err: _<,
           { err } (Logger@`error`)
           err callback
         },
-        !responseBody@`data`@`length`:
-          _<@`callback` { reports: [], reportsCount: 0, reportsCursor: `` },
+        !responseBody@data@length:
+          _<@callback { reports: [], reportsCount: 0, reportsCursor: `` },
         { responseBody } (Logger@`trace`)
 
         formattedReports: [entity, responseBody] formatReports,
-        _<@`callback` {
+        _<@callback {
           reports: formattedReports,
-          reportsCount: responseBody@`meta`@`count`,
-          reportsCursor: responseBody@`meta`@`cursor`
+          reportsCount: responseBody@meta@count,
+          reportsCursor: responseBody@meta@cursor
         }
       ]
     ]
   },
 
   formatReports: { entity: _<@0, reportsResponseBody: _<@1,
-    reportsResponseBody@`data` ${
+    reportsResponseBody@data ${
       formattedReport: {
-        +: _<@`attributes`,
-        id: _<@`id`,
-        relationships: _<@`relationships`,
-        htmlDescription: _<@`attributes`@`description` convertMarkdownToHtml,
-        targetedIndustryNames: _<@`attributes`@`targeted_industries_tree` ${
-          { industry_group: _<@`industry_group`, industry: _<@`industry` } [
+        +: _<@attributes,
+        id: _<@id,
+        relationships: _<@relationships,
+        htmlDescription: _<@attributes@description convertMarkdownToHtml,
+        targetedIndustryNames: _<@attributes@targeted_industries_tree ${
+          { industry_group: _<@industry_group, industry: _<@industry } [
             industry_group # > industry # ? industry_group : industry
           ]
         },
-        targetedRegionNames: _<@`attributes`@`targeted_regions_hierarchy` ${
-          { country: _<@`country` || _<@`country_iso2`, sub_region: _<@`sub_region` || _<@`region` } [
+        targetedRegionNames: _<@attributes@targeted_regions_hierarchy ${
+          { country: _<@country || _<@country_iso2, sub_region: _<@sub_region || _<@region } [
             { country: _<@0, sub_region: _<@1 } [
-              _<@0 && _<@1: `${_<@0}, ${_<@1}`,
+              _<@0 && _<@1: `{_<@0}, {_<@1}`,
                 _<@0: _<@0,
                 _<@1: _<@1,
                 ``
             ]
           ]
         } ~ []?{},
-        confidenceGroupedData: _<@`attributes` groupByConfidence,
-        categorizedIocs: [entity, _<@`attributes`@`aggregations`] flattenWithPaths,
-        creation_date: _<@`attributes`@`creation_date` ? _<@`attributes`@`creation_date` * 1000 : _<@`attributes`@`creation_date`,
-        last_modification_date: _<@`attributes`@`last_modification_date` ? _<@`attributes`@`last_modification_date` * 1000 : _<@`attributes`@`last_modification_date`
+        confidenceGroupedData: _<@attributes groupByConfidence,
+        categorizedIocs: [entity, _<@attributes@aggregations] flattenWithPaths,
+        creation_date: _<@attributes@creation_date ? _<@attributes@creation_date * 1000 : _<@attributes@creation_date,
+        last_modification_date: _<@attributes@last_modification_date ? _<@attributes@last_modification_date * 1000 : _<@attributes@last_modification_date
       }
       +: formattedReport { aggregations: null }
     }
@@ -205,15 +204,15 @@
   },
 
   getGtiRequestOptionsByType: { entity: _<@0, relationship: _<@1,
-    { entity@`isIP`:
-      { route: `ip_addresses/${entity@`value`}/${relationship}`, queryParams: queryParams },
-      { entity@`isDomain`:
-        { route: `domains/${entity@`value`}/${relationship}`, queryParams: queryParams },
-        { entity@`isURL`:
-          { route: `urls/${entity@`value`}/${relationship}`, queryParams: queryParams },
-          { entity@`isHash`:
-            { route: `files/${entity@`value`}/${relationship}`, queryParams: queryParams },
-            { route: `collection/${entity@`value`}/${relationship}`, queryParams: queryParams }
+    { entity@isIP:
+      { route: `ip_addresses/{entity@value}/{relationship}`, queryParams: queryParams },
+      { entity@isDomain:
+        { route: `domains/{entity@value}/{relationship}`, queryParams: queryParams },
+        { entity@isURL:
+          { route: `urls/{entity@value}/{relationship}`, queryParams: queryParams },
+          { entity@isHash:
+            { route: `files/{entity@value}/{relationship}`, queryParams: queryParams },
+            { route: `collection/{entity@value}/{relationship}`, queryParams: queryParams }
           }
         }
       }
@@ -221,12 +220,12 @@
   },
 
   getUiUrlByEntityType: { entity: _<,
-    { entity@`isIP`: `ip-address/${entity@`value`}/associations`,
-      { entity@`isDomain`: `domain/${entity@`value`}/associations`,
-        { entity@`isHash`: `file/${entity@`value` "^_}/associations`,
-          { entity@`isURL`: `url/${entity@`value`}/associations`,
-            { entity@`types` >< `cve`: `file/${entity@`value`}/associations`,
-              `collection/${entity@`value`}/associations`
+    { entity@isIP: `ip-address/{entity@value}/associations`,
+      { entity@isDomain: `domain/{entity@value}/associations`,
+        { entity@isHash: `file/{entity@value "^_}/associations`,
+          { entity@isURL: `url/{entity@value}/associations`,
+            { entity@types >< `cve`: `file/{entity@value}/associations`,
+              `collection/{entity@value}/associations`
             }
           }
         }
@@ -236,50 +235,50 @@
 
   groupByConfidence: { association: _<,
     hasConfidenceArray: { property: _<@1,
-      association@`property` ?= `list` && association@`property` # > 0 && association@`property`@0 ?= `map` && association@`property` ?|{ _<@`confidence` ?= `map` }
+      association@property ?= `list` && association@property # > 0 && association@property@0 ?= `map` && association@property ?|{ _<@confidence ?= `map` }
     },
 
     confidenceFields: [`motivations`, `tags_details`, `malware_roles`, `available_mitigation`, `vendor_fix_references`, `source_regions_hierarchy`, `targeted_regions_hierarchy`, `targeted_industries_tree`, `merged_actors`],
 
-    groupedConfidenceData: confidenceFields $@[
+    groupedConfidenceData: confidenceFields $@{
       { agg: _<@0, field: _<@1,
         +: agg,
-        [association, field] hasConfidenceArray && { field: association@`field` @&`confidence` }
+        [association, field] hasConfidenceArray && { field: association@field @&confidence }
       }
-    ] {},
+    } {},
 
-    uniqueConfidences: confidenceFields $@[
-      { agg: _<@0, field: _<@1, +: agg, groupedConfidenceData@`field` }
-    ] {} $@[
+    uniqueConfidences: confidenceFields $@{
+      { agg: _<@0, field: _<@1, +: agg, groupedConfidenceData@field }
+    } {} $@{
       { val: _<, +: val && val #!===0 ? val : undefined }
-    ] ~ {}?{},
+    } ~ {}?{},
 
     uniqueConfidences # === 0 && null,
 
-    threatsGroupedByConfidence: uniqueConfidences $@[
+    threatsGroupedByConfidence: uniqueConfidences $@{
       { agg: _<@0, confidence: _<@1,
-        getUniqueValuesInGroup: groupedConfidenceData@`confidence` ${
-          _<@`value`
+        getUniqueValuesInGroup: groupedConfidenceData@confidence ${
+          _<@value
         } ~ [`null`, null, `undefined`, undefined]?{},
 
-        formatRegion: groupedConfidenceData@`confidence` ?{
-          country: ![`null`, null, `undefined`, undefined] >< _<@`country`,
-          country_iso2: ![`null`, null, `undefined`, undefined] >< _<@`country_iso2`,
-          sub_region: ![`null`, null, `undefined`, undefined] >< _<@`sub_region`,
-          region: ![`null`, null, `undefined`, undefined] >< _<@`region`
+        formatRegion: groupedConfidenceData@confidence ?{
+          country: ![`null`, null, `undefined`, undefined] >< _<@country,
+          country_iso2: ![`null`, null, `undefined`, undefined] >< _<@country_iso2,
+          sub_region: ![`null`, null, `undefined`, undefined] >< _<@sub_region,
+          region: ![`null`, null, `undefined`, undefined] >< _<@region
         } ${
-          _<@`country` || _<@`country_iso2` || _<@`sub_region` || _<@`region` ? `${_<@`country` || _<@`country_iso2`}${_<@`country` || _<@`country_iso2` && (_<@`sub_region` || _<@`region`) ? `, ` : ``} ${_<@`sub_region` || _<@`region`}` : ``
+          _<@country || _<@country_iso2 || _<@sub_region || _<@region ? `{_<@country || _<@country_iso2}{_<@country || _<@country_iso2 && (_<@sub_region || _<@region) ? `, ` : ``} {_<@sub_region || _<@region}` : ``
         } ~ []?{},
 
-        motivations: groupedConfidenceData@`motivations` # && { motivations: [groupedConfidenceData@`motivations`] getUniqueValuesInGroup },
-        tags: groupedConfidenceData@`tags_details` # && { tags: [groupedConfidenceData@`tags_details`] getUniqueValuesInGroup },
-        malwareRoles: groupedConfidenceData@`malware_roles` # && { malwareRoles: [groupedConfidenceData@`malware_roles`] getUniqueValuesInGroup },
-        availableMitigation: groupedConfidenceData@`available_mitigation` # && { availableMitigation: [groupedConfidenceData@`available_mitigation`] getUniqueValuesInGroup },
-        vendorFixReferences: groupedConfidenceData@`vendor_fix_references` # && { vendorFixReferences: [groupedConfidenceData@`vendor_fix_references`] getUniqueValuesInGroup },
-        sourceRegions: groupedConfidenceData@`source_regions_hierarchy` # && { sourceRegions: [groupedConfidenceData@`source_regions_hierarchy`] formatRegion },
-        targetedRegions: groupedConfidenceData@`targeted_regions_hierarchy` # && { targetedRegions: [groupedConfidenceData@`targeted_regions_hierarchy`] formatRegion },
-        targetedIndustries: groupedConfidenceData@`targeted_industries_tree` # && { targetedIndustries: [groupedConfidenceData@`targeted_industries_tree`] getUniqueValuesInGroup },
-        mergedActors: groupedConfidenceData@`merged_actors` # && { mergedActors: [groupedConfidenceData@`merged_actors`] getUniqueValuesInGroup },
+        motivations: groupedConfidenceData@motivations # && { motivations: [groupedConfidenceData@motivations] getUniqueValuesInGroup },
+        tags: groupedConfidenceData@tags_details # && { tags: [groupedConfidenceData@tags_details] getUniqueValuesInGroup },
+        malwareRoles: groupedConfidenceData@malware_roles # && { malwareRoles: [groupedConfidenceData@malware_roles] getUniqueValuesInGroup },
+        availableMitigation: groupedConfidenceData@available_mitigation # && { availableMitigation: [groupedConfidenceData@available_mitigation] getUniqueValuesInGroup },
+        vendorFixReferences: groupedConfidenceData@vendor_fix_references # && { vendorFixReferences: [groupedConfidenceData@vendor_fix_references] getUniqueValuesInGroup },
+        sourceRegions: groupedConfidenceData@source_regions_hierarchy # && { sourceRegions: [groupedConfidenceData@source_regions_hierarchy] formatRegion },
+        targetedRegions: groupedConfidenceData@targeted_regions_hierarchy # && { targetedRegions: [groupedConfidenceData@targeted_regions_hierarchy] formatRegion },
+        targetedIndustries: groupedConfidenceData@targeted_industries_tree # && { targetedIndustries: [groupedConfidenceData@targeted_industries_tree] getUniqueValuesInGroup },
+        mergedActors: groupedConfidenceData@merged_actors # && { mergedActors: [groupedConfidenceData@merged_actors] getUniqueValuesInGroup },
 
         +: agg,
         { confidence: {
@@ -294,11 +293,11 @@
           +: mergedActors
         }}
       }
-    ] {}
+    } {}
   },
 
   flattenWithPaths: { entity: _<@0, obj: _<@1,
-    obj@`length` === 0 && null,
+    obj@length === 0 && null,
 
     traverse: { path: _<@0, val: _<@1,
       isPlainObjectWithNoNested: _< ?= `map` && !_< ?|{ _> ?= `map` || _> ?= `list` },

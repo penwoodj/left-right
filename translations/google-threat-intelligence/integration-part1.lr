@@ -48,7 +48,7 @@
     options@apiKey throttleCache@>?{
       options@warnOnThrottle & !throttleCache@(options@apiKey): {
         throttleCache: { options@apiKey: true },
-        [`Throttling lookups for ${options@lookupThrottleDuration} minute`] cb
+        [`Throttling lookups for {options@lookupThrottleDuration} minute`] cb
       },
       [null, []] cb
     },
@@ -253,9 +253,9 @@
       },
       options@warnOnLookupLimit ?{
         `API Lookup Limit Reached` cb
-      } : options@warnOnThrottle ?{
+      } :       options@warnOnThrottle ?{
         throttleCache: { options@apiKey: true },
-        [`Throttling lookups for ${options@lookupThrottleDuration} minute`] cb
+        [`Throttling lookups for {options@lookupThrottleDuration} minute`] cb
       } :{
         [null, { __keyLimitReached: true }] cb
       }
@@ -279,7 +279,7 @@
   _lookupHash: { hashesArray: _<@0, entityLookup: _<@1, options: _<@2, done: _<@3,
     mapLimit(hashesArray, 10, { hashValue: _<, next: _<,
       requestOptions: {
-        uri: `${LOOKUP_URI_BY_TYPE@hash}/${hashValue}`,
+        uri: `{LOOKUP_URI_BY_TYPE@hash}/{hashValue}`,
         method: `GET`,
         headers: { `x-apikey`: options@apiKey }
       },
@@ -305,7 +305,7 @@
   _lookupUrl: { entity: _<@0, options: _<@1, done: _<@2,
     urlAsBase64WithoutPadding: entity@value `Buffer.from` `base64` `replace`(`=+$`, ``),
     requestOptions: {
-      uri: `${LOOKUP_URI_BY_TYPE@url}/${urlAsBase64WithoutPadding}`,
+      uri: `{LOOKUP_URI_BY_TYPE@url}/{urlAsBase64WithoutPadding}`,
       method: `GET`,
       headers: { `x-apikey`: options@apiKey }
     },
@@ -331,7 +331,7 @@
     requestOptions: {
       url: `https://www.virustotal.com/api/v3/collections`,
       qs: {
-        filter: `name:"${entity@value}" AND collection_type:vulnerability`,
+        filter: `name:"{entity@value}" AND collection_type:vulnerability`,
         relationships: `subscription_preferences,owner,malware_families,threat_actors`,
         limit: GTI_LOOKUP_LIMIT
       },
@@ -365,7 +365,7 @@
 
   formatVulnerabilities: { vulnerabilitiesResponseBody: _<,
     vulnerabilitiesResponseBody@data ${ vulnerability: _<,
-      ...vulnerability@attributes,
+      +: vulnerability@attributes,
       id: vulnerability@id,
       relationships: vulnerability@relationships,
       htmlDescription: vulnerability@attributes@description convertMarkdownToHtml,
@@ -374,11 +374,11 @@
       confidenceGroupedData: vulnerability@attributes groupByConfidence,
       date_of_disclosure: vulnerability@attributes@date_of_disclosure ?{ vulnerability@attributes@date_of_disclosure * 1000 } : null,
       exploitation: {
-        ...vulnerability@attributes@exploitation,
+        +: vulnerability@attributes@exploitation,
         first_exploitation: vulnerability@attributes@exploitation@first_exploitation ?{ vulnerability@attributes@exploitation@first_exploitation * 1000 } : null
       },
       cisa_known_exploited: vulnerability@attributes@cisa_known_exploited ?{
-        ...vulnerability@attributes@cisa_known_exploited,
+        +: vulnerability@attributes@cisa_known_exploited,
         added_date: vulnerability@attributes@cisa_known_exploited@added_date ?{ vulnerability@attributes@cisa_known_exploited@added_date * 1000 } : null,
         due_date: vulnerability@attributes@cisa_known_exploited@due_date ?{ vulnerability@attributes@cisa_known_exploited@due_date * 1000 } : null
       } : null,
