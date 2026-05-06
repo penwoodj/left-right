@@ -1,12 +1,14 @@
 ``` Left-Right Translation
 {
-  +: files@`./server/dataTransformations`@&[`getResultForThisEntity`],
-  +: files@`./constants`@&[`MAX_PAGE_SIZE`],
+  +: imports@`lodash/fp`@&[`size`, `map`, `some`],
+
+  getResultForThisEntity: files@`./server/dataTransformations`@&[`getResultForThisEntity`],
+  MAX_PAGE_SIZE: files@`./constants`@&[`MAX_PAGE_SIZE`],
 
   assembleLookupResults: { entities: _<@0, issues: _<@1, vulnerabilities: _<@2, assets: _<@3, options: _<@4,
     entities ${ entity: _<
       resultsForThisEntity: [entity, issues, vulnerabilities, assets, options] getResultsForThisEntity,
-      resultsFound: resultsForThisEntity ?|#,
+      resultsFound: resultsForThisEntity ?|{ size },
 
       {
         entity: entity,
@@ -25,15 +27,13 @@
   },
 
   createSummaryTags: { resultsForThisEntity: _<@0, options: _<@1,
-    {
-      issues: resultsForThisEntity@`issues`,
-      vulnerabilities: resultsForThisEntity@`vulnerabilities`,
-      assets: resultsForThisEntity@`assets`
-    },
+    issues: resultsForThisEntity@`issues`,
+    vulnerabilities: resultsForThisEntity@`vulnerabilities`,
+    assets: resultsForThisEntity@`assets`,
 
     []
-      + (issues #:!: { `Issues: ` + issues # + (issues # = MAX_PAGE_SIZE!: `+`, ``) })
-      + (vulnerabilities #:!: { `Vulns: ` + vulnerabilities # + (vulnerabilities # = MAX_PAGE_SIZE!: `+`, ``) })
-      + (assets #:!: { `Assets: ` + assets # + (assets # = MAX_PAGE_SIZE!: `+`, ``) })
+      + (issues #:!: `Issues: {issues #}` + {issues # = MAX_PAGE_SIZE: `+`, ``})
+      + (vulnerabilities #:!: `Vulns: {vulnerabilities #}` + {vulnerabilities # = MAX_PAGE_SIZE: `+`, ``})
+      + (assets #:!: `Assets: {assets #}` + {assets # = MAX_PAGE_SIZE: `+`, ``})
   }
 }@&[`assembleLookupResults`]

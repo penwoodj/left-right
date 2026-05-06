@@ -1,4 +1,9 @@
+``` Left-Right Translation
 {
+  +: imports@`polarity-integration-utils`@&{
+    logging: [`getLogger`]
+  },
+
   +: files@`./utils`@&[`validateStringOptions`],
 
   validateOptions: { options: _<@0, callback: _<@1,
@@ -11,35 +16,33 @@
 
     stringValidationErrors: [stringOptionsErrorMessages, options] validateStringOptions,
 
-    stringValidationErrors []!: {
-      [null, stringValidationErrors] callback,
-      {
-        oneQuerySelectedErrors: options@`queryIssues`@`value` || options@`queryVulnerabilities`@`value` || options@`queryAssets`@`value`!: {
-          [
-            { key: `queryIssues`, message: `At least one of these Query options must be checked` },
-            { key: `queryVulnerabilities`, message: `At least one of these Query options must be checked` },
-            { key: `queryAssets`, message: `At least one of these Query options must be checked` }
-          ],
-          []
-        },
+    stringValidationErrors #!: { [null, stringValidationErrors] callback },
 
-        oneQuerySelectedErrors []!: {
-          [null, oneQuerySelectedErrors] callback,
-          {
-            endingSlashError: options@`authTokenDomain`@`value` = `\`/\``: {
-              [{ key: `authTokenDomain`, message: `Only Domain allowed, no trailing slash / allowed` }],
-              []
-            },
-            protocolError: options@`authTokenDomain`@`value` = `\`http\``: {
-              [{ key: `authTokenDomain`, message: `Only Domain allowed, http(s) not allowed` }],
-              []
-            },
+    oneQuerySelectedErrors: {
+      options@`queryIssues.value`!: false,
+      options@`queryVulnerabilities.value`!: false,
+      options@`queryAssets.value`!: false,
+      [
+        { key: `queryIssues`, message: `At least one of these Query options must be checked` },
+        { key: `queryVulnerabilities`, message: `At least one of these Query options must be checked` },
+        { key: `queryAssets`, message: `At least one of these Query options must be checked` }
+      ]
+    },
 
-            errors: endingSlashError [] + protocolError,
-            [null, errors] callback
-          }
-        }
-      }
-    }
-  }
-}@&[`validateOptions`]
+    oneQuerySelectedErrors #!: { [null, oneQuerySelectedErrors] callback },
+
+    endingSlashError: options@`authTokenDomain.value` `/` `/` `endsWith`: {
+      [{ key: `authTokenDomain`, message: `Only Domain allowed, no trailing slash / allowed` }],
+      []
+    },
+
+    protocolError: options@`authTokenDomain.value` `http` `startsWith`: {
+      [{ key: `authTokenDomain`, message: `Only Domain allowed, http(s) not allowed` }],
+      []
+    },
+
+    errors: endingSlashError + protocolError,
+
+    [null, errors] callback
+  }///
+}

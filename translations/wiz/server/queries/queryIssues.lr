@@ -1,20 +1,20 @@
 ``` Left-Right Translation
 {
-  +: files@`../constants'@&[`MAX_PAGE_SIZE`],
-  +: files@`./queryEntitiesWithQueryStringBuilder'@&[`queryEntitiesWithQueryStringBuilder`],
+  +: files@`../constants`@&[`MAX_PAGE_SIZE`],
+
+  +: files@`./queryEntitiesWithQueryStringBuilder`@&[`queryEntitiesWithQueryStringBuilder`],
 
   queryIssues: {
     cveEntities: _<@0,
-    _options: _<@1,
+    options: _<@1,
 
-    [cveEntities, _options, buildIssuesQueryString] queryEntitiesWithQueryStringBuilder await
-  },
+    [cveEntities, options, buildIssuesQueryString] queryEntitiesWithQueryStringBuilder \\\
+  }///,
 
-  buildIssuesQueryString: { entity: _<@0,
-    `` `
-  ${entity.id}: issuesV2(
-    first: ${MAX_PAGE_SIZE},
-    filterBy: { search: "${entity.value}" }
+  buildIssuesQueryString: { entity: _<
+    `{entity.id}: issuesV2(
+    first: {MAX_PAGE_SIZE},
+    filterBy: { search: \"{entity.value}\" }
   ) {
     nodes {
       id
@@ -60,6 +60,5 @@
       }
     }
   }`
-  `
   }
 }@&[`queryIssues`]
