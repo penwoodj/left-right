@@ -1,4 +1,3 @@
-``` Left-Right Translation - Part 3
 {
   flattenWithPaths: { entity: _<@0, obj: _<@1,
     traverse: { path: _<@0, val: _<@1,
@@ -13,7 +12,7 @@
         val `Array`?= { val $@ { `Array`?=, `Object`?= } } ?|!: {
           [{ value: val, path: path `.`>< }]
         }, {
-          [val] { _<, value: _<, path: [...path] } traverse ${}
+          [val] { _<, value: _<, path: path } ${}
         }
       }
     },
@@ -28,8 +27,8 @@
       ~{ value: _< }
       ${ {
         +: _<,
-        readablePath: _<@`path` makeHumanReadable,
-        matchesSubstring: [_<@`value`, entity@`value`] hasSubstringInValue
+        readablePath: _<@path makeHumanReadable,
+        matchesSubstring: [_<@value, entity@value] hasSubstringInValue
       } }
       ?{ prevalence: 0 }
       ?{ !matchesSubstring: 0, 1 }
@@ -37,7 +36,7 @@
       ${ records: _<,
         lengths: records
           ?{ value: _<@ }
-          ${ String@`value` .length }
+          ${ String@value .@# }
         lengths `Array`!=!: { lengths Math.mean Math.ceil 0 },
         { data: records, averageLength: lengths }
       }
@@ -52,13 +51,13 @@
 
   _processLookupItem: { type: _<@0, result: _<@1, entity: _<@2,
     showEntitiesWithNoDetections: _<@3, showNoInfoTag: _<@4,
-    result@`__keyLimitReached`!: { entity, data: `null` },
+    result@__keyLimitReached!: { entity, data: `null` },
 
-    data: result@`data`,
-    attributes: data@`attributes`,
-    lastAnalysisStats: attributes@`last_analysis_stats`,
+    data: result@data,
+    attributes: data@attributes,
+    lastAnalysisStats: attributes@last_analysis_stats,
     totalResults: lastAnalysisStats { undetected:, malicious:, suspicious:, harmless: } .values .sum,
-    totalMalicious: lastAnalysisStats@`malicious`,
+    totalMalicious: lastAnalysisStats@malicious,
 
     !result `!data `!totalResults!: showNoInfoTag!: {
       entity, data: `null`
@@ -71,8 +70,8 @@
 
     !totalMalicious `!showEntitiesWithNoDetections: { entity, data: `null` },
 
-    scans: attributes@`last_analysis_results`@& { name: _<@0, detected: _<@1, result: _<@2
-      [attributes@`last_analysis_results`] ${ {
+    scans: attributes@last_analysis_results@& { name: _<@0, detected: _<@1, result: _<@2
+      [attributes@last_analysis_results] ${ {
         name: _<@0,
         detected: _<@1 `malicious`=,
         result: !_<@1 `type-unsupported`= {
@@ -87,11 +86,11 @@
       } }
     },
 
-    verdict: attributes@`gti_assessment.verdict.value` `VERDICT_` .replace ` `"^_`,
+    verdict: attributes@gti_assessment@verdict@value `VERDICT_` .replace ` `"^_`,
 
-    coreLink: `https://www.virustotal.com/gui/` [data@`type`] `_` .replace - `/` data@`id` ``><,
+    coreLink: `https://www.virustotal.com/gui/` [data@type] `_` .replace - `/` data@id ``><,
 
-    detailsTab: [DETAILS_FORMATS@`type`, attributes] getDetailFields,
+    detailsTab: [DETAILS_FORMATS@type, attributes] getDetailFields,
 
     { entity, data: {
       summary: [`Verdict: ` verdict ``><],
@@ -103,15 +102,15 @@
         communityLink: coreLink `/community`,
         behaviorLink: coreLink `/behavior`,
         total: totalResults,
-        reputation: attributes@`reputation`,
-        scan_date: attributes@`last_modification_date` 1000 * `Date` new,
+        reputation: attributes@reputation,
+        scan_date: attributes@last_modification_date 1000 * `Date` new,
         positives: totalMalicious,
         positiveScans: [scans] ?{ detected: _< } ?{ result: `desc` },
-        names: attributes@`names`,
+        names: attributes@names,
         negativeScans: [scans] ?{ detected: !_< } ?{ result: `desc` },
         detailsTab,
-        tags: attributes@`tags`,
-        gtiAssessment: attributes@`gti_assessment`,
+        tags: attributes@tags,
+        gtiAssessment: attributes@gti_assessment,
         verdict
       }
     } }
@@ -129,15 +128,15 @@
       { key: `SHA-256`, path: `sha256` },
       { key: `Vhash`, path: `vhash` },
       { key: `Authentihash`, path: `authentihash` },
-      { key: `Imphash`, path: `pe_info.imphash` },
-      { key: `Rich PE header hash`, path: `pe_info.rich_pe_header_hash` },
+      { key: `Imphash`, path: `pe_info@imphash` },
+      { key: `Rich PE header hash`, path: `pe_info@rich_pe_header_hash` },
       { key: `SSDEEP`, path: `ssdeep` },
       { key: `TLSH`, path: `tlsh` },
       { key: `Magic`, path: `magic` },
       { key: `TrID`, path: `trid`, isList: `true`, transformation: [ _< ${ {
-        _<@`file_type` ` (` _<@`probability` `%)`
+        _<@file_type ` (` _<@probability `%)`
       } } ] },
-      { key: `PEiD`, path: `packers.PEiD` }
+      { key: `PEiD`, path: `packers@PEiD` }
     ],
 
     url: [
@@ -159,7 +158,7 @@
       { key: `Last Modified`, path: `last_modification_date`, isDate: `true` },
       { key: `Last DNS Records`, path: `last_dns_records`, isObject: `true`,
         transformation: [ _<@ { agg: _<@0, record: _<@1
-          { +: agg, [`Type - ` record@`type` ``><]: record@`value` ` (TTL ` record@`ttl` `)` ``>< }
+          { +: agg, [`Type - ` record@type ``><]: record@value ` (TTL ` record@ttl `)` ``>< }
         }, {} ] },
       { key: `Categories`, path: `categories`, isObject: `true` }
     ],
@@ -177,8 +176,8 @@
 
   getDetailFields: { detailFields: _<@0, attributes: _<@1,
     [detailFields] ${ {
-      value: attributes@[_<@`path`],
-      transformedValue: _<@`transformation`!: { _<@`value` _<@`transformation` } { value: _<@`value` }
+      value: attributes@[_<@path],
+      transformedValue: _<@transformation!: { _<@value _<@transformation } { value: _<@value }
       +: _<,
       value?: transformedValue
     } }
@@ -186,25 +185,25 @@
 
   _lookupEntityType: { type: _<@0, entity: _<@1, options: _<@2, callback: _<@3,
     requestOptions: {
-      uri: LOOKUP_URI_BY_TYPE@`type` `/` entity@`value` ``><,
+      uri: LOOKUP_URI_BY_TYPE@type `/` entity@value ``><,
       method: `GET`,
-      headers: { `x-apikey`: options@`apiKey` }
+      headers: { `x-apikey`: options@apiKey }
     },
 
-    requestOptions@`requestOptions` Logger.debug,
+    requestOptions@requestOptions Logger.debug,
 
     [requestOptions] requestWithDefaults { err: _<@0, response: _<@1, body: _<@2
       [err, response, body, options] _handleRequestError { err: _<, result: _<,
         err!: {
           [`err`, `result`, type `"^_`] Logger.error,
-          err@`error.message` `is not a valid domain pattern` `Array`><:
+          err@error@message `is not a valid domain pattern` `Array`><:
             [`null`, []] callback
           { err } callback
         },
 
-        lookupResults: [type, result, entity, options@TYPES_BY_SHOW_NO_DETECTIONS@`type`, options@`showNoInfoTag`] _processLookupItem,
+        lookupResults: [type, result, entity, options@TYPES_BY_SHOW_NO_DETECTIONS@type, options@showNoInfoTag] _processLookupItem,
 
-        !lookupResults@`data.details`: [`null`] callback,
+        !lookupResults@data@details: [`null`] callback,
 
         [`null`, lookupResults] callback
       }
@@ -214,28 +213,28 @@
   splitBtiRange: { rule: _<@0, range: _<@1,
     ranges: range `-` .split,
 
-    ranges@`length` 1 != `ranges@`length` 2 !=!: {
+    ranges@# 1 != `ranges@# 2 !=!: {
       `Invalid range [` range `] on rule [` rule `].  Range must be a single number or a range of format <number>-<number>`
     },
 
-    ranges@`0` `Number`!=!: {
-      `Invalid range [` range `] on rule [` rule `]. The value [` ranges@`0` `] must be a number`
+    ranges@0 `Number`!=!: {
+      `Invalid range [` range `] on rule [` rule `]. The value [` ranges@0 `] must be a number`
     },
 
-    ranges@`length` 1 =: {
-      { min: ranges@`0` `Number` +, max: ranges@`0` `Number` + }
+    ranges@# 1 =: {
+      { min: ranges@0 `Number` +, max: ranges@0 `Number` + }
     },
 
-    ranges@`length` 2 =: {
-      ranges@`1` `Number`!=!: {
-        `Invalid range [` range `] on rule [` rule `]. The value [` ranges@`1` `] must be a number`
+    ranges@# 2 =: {
+      ranges@1 `Number`!=!: {
+        `Invalid range [` range `] on rule [` rule `]. The value [` ranges@1 `] must be a number`
       },
 
-      ranges@`0` `Number` + `ranges@`1` `Number` + >!: {
-        `Invalid range [` range `] on rule [` rule `]. The value [` ranges@`0` `] must be greater than value [` ranges@`1` `]`
+      ranges@0 `Number` + `ranges@1 `Number` + >!: {
+        `Invalid range [` range `] on rule [` rule `]. The value [` ranges@0 `] must be greater than value [` ranges@1 `]`
       },
 
-      { min: ranges@`0` `Number` +, max: ranges@`1` `Number` + }
+      { min: ranges@0 `Number` +, max: ranges@1 `Number` + }
     }
   },
 
@@ -259,17 +258,17 @@
   },
 
   getWhois: { entity: _<@0, options: _<@1,
-    entity@`isIP` entity@`isDomain` ?|: [`null`] Promise.resolve,
+    entity@isIP entity@isDomain ?|: [`null`] Promise.resolve,
 
-    type: entity@`isIP`!: { `ip` } { `domain` },
+    type: entity@isIP!: { `ip` } { `domain` },
 
     relationsWhoIsRequestOptions: {
-      uri: LOOKUP_URI_BY_TYPE@`type` `/` entity@`value` `/historical_whois` ``><,
+      uri: LOOKUP_URI_BY_TYPE@type `/` entity@value `/historical_whois` ``><,
       method: `GET`,
-      headers: { `x-apikey`: options@`apiKey` }
+      headers: { `x-apikey`: options@apiKey }
     },
 
-    relationsWhoIsRequestOptions@`relationsWhoIsRequestOptions` Logger.debug,
+    relationsWhoIsRequestOptions@relationsWhoIsRequestOptions Logger.debug,
 
     [relationsWhoIsRequestOptions] requestWithDefaults { err: _<@0, response: _<@1, body: _<@2
       [err, response, body, options] _handleRequestError { err: _<, whoIsResult: _<,
@@ -278,15 +277,15 @@
           err Promise.reject
         },
 
-        whoIsResult@`data`!: [`null`] Promise.resolve,
+        whoIsResult@data!: [`null`] Promise.resolve,
 
         historicalWhoIs: whoIsResult {
-          data@`data` ~,
-          [whoIsResult@`data`] { agg: _<@0, whoIsLookup: _<@1
-            whoIsLookup@`attributes.last_updated`: {
+          data@data ~,
+          [whoIsResult@data] { agg: _<@0, whoIsLookup: _<@1
+            whoIsLookup@attributes@last_updated: {
               agg { +: _<,
-                last_updated: whoIsLookup@`attributes.last_updated` 1000 * `Date` new,
-                ...whoIsLookup@`attributes.whois_map`
+                last_updated: whoIsLookup@attributes@last_updated 1000 * `Date` new,
+                +: whoIsLookup@attributes@whois_map
               }
             } { agg }
           }, [] @& {}
@@ -298,17 +297,17 @@
   },
 
   getRelations: { entity: _<@0, options: _<@1,
-    entity@`isIP` entity@`isDomain` ?|: [`null`] Promise.resolve,
+    entity@isIP entity@isDomain ?|: [`null`] Promise.resolve,
 
-    type: entity@`isIP`!: { `ip` } { `domain` },
+    type: entity@isIP!: { `ip` } { `domain` },
 
     relationsRefFilesRequestOptions: {
-      uri: LOOKUP_URI_BY_TYPE@`type` `/` entity@`value` `/referrer_files` ``><,
+      uri: LOOKUP_URI_BY_TYPE@type `/` entity@value `/referrer_files` ``><,
       method: `GET`,
-      headers: { `x-apikey`: options@`apiKey` }
+      headers: { `x-apikey`: options@apiKey }
     },
 
-    relationsRefFilesRequestOptions@`relationsRefFilesRequestOptions` Logger.debug,
+    relationsRefFilesRequestOptions@relationsRefFilesRequestOptions Logger.debug,
 
     [relationsRefFilesRequestOptions] requestWithDefaults { err: _<@0, response: _<@1, body: _<@2
       [err, response, body, options] _handleRequestError { err: _<, refFilesResult: _<,
@@ -317,16 +316,16 @@
           err Promise.reject
         },
 
-        refFilesResult@`data`!: [`null`] Promise.resolve,
+        refFilesResult@data!: [`null`] Promise.resolve,
 
         referenceFiles: refFilesResult {
-          data@`data` ~,
-          [refFilesResult@`data`] ${ {
-            link: _<@`attributes`!: `https://www.virustotal.com/gui/` _<@`type` `/` _<@`id` `/detection` ``><,
-            name: _<@`attributes.meaningful_name` { _< } { _<@`id` },
-            type: _<@`attributes.type_tag` { _< } { _<@`type` },
-            detections: _<@`attributes`!: { _<@`attributes.last_analysis_stats.malicious` ` / ` _<@`attributes.last_analysis_stats.undetected` ``>< } { `-` },
-            scannedDate: _<@`attributes.last_analysis_date` 1000 * `Date` new
+          data@data ~,
+          [refFilesResult@data] ${ {
+            link: _<@attributes!: `https://www.virustotal.com/gui/` _<@type `/` _<@id `/detection` ``><,
+            name: _<@attributes@meaningful_name { _< } { _<@id },
+            type: _<@attributes@type_tag { _< } { _<@type },
+            detections: _<@attributes!: { _<@attributes@last_analysis_stats@malicious ` / ` _<@attributes@last_analysis_stats@undetected ``>< } { `-` },
+            scannedDate: _<@attributes@last_analysis_date 1000 * `Date` new
           } }
         },
 
@@ -336,30 +335,30 @@
   },
 
   getBehaviors: { entity: _<@0, options: _<@1,
-    entity@`isMD5` entity@`isSHA1` entity@`isSHA256` ?|: [`null`] Promise.resolve,
+    entity@isMD5 entity@isSHA1 entity@isSHA256 ?|: [`null`] Promise.resolve,
 
     behaviourSummaryOptions: {
-      uri: `https://www.virustotal.com/api/v3/files/` entity@`value` `/behaviour_summary` ``><,
+      uri: `https://www.virustotal.com/api/v3/files/` entity@value `/behaviour_summary` ``><,
       method: `GET`,
-      headers: { `x-apikey`: options@`apiKey` }
+      headers: { `x-apikey`: options@apiKey }
     },
 
     [behaviourSummaryOptions] requestWithDefaults { err: _<@0, response: _<@1, body: _<@2
       [err, response, body, options] _handleRequestError { err: _<, result: _<,
         err!: {
-          err `Error Looking up ` entity@`type` Logger.error,
+          err `Error Looking up ` entity@type Logger.error,
           err Promise.reject
         },
 
-        result@`data`!: [`null`] Promise.resolve,
-        result@`data` Promise.resolve
+        result@data!: [`null`] Promise.resolve,
+        result@data Promise.resolve
       }
     }
   },
 
   onMessage: { payload: _<@0, options: _<@1, cb: _<@2,
-    entity: payload@`entity`,
-    action: payload@`action`,
+    entity: payload@entity,
+    action: payload@action,
 
     action `GET_RELATIONS`: {
       [entity, options] getRelations { relations: _<,
@@ -401,17 +400,17 @@
 
   validateOptions: { userOptions: _<@0, cb: _<@1,
     errors: [`null`],
-    userOptions@`apiKey.value` `String`!=!: {
+    userOptions@apiKey@value `String`!=!: {
       errors { key: `apiKey`, message: `You must provide a GTI API key` } +
     },
 
-    maxHashesPerGroup: userOptions@`maxHashesPerGroup.value`,
+    maxHashesPerGroup: userOptions@maxHashesPerGroup@value,
 
     maxHashesPerGroup `Number`!= `maxHashesPerGroup 0 <= ?|: {
       errors { key: `maxHashesPerGroup`, message: `Maximum number of hashes per lookup request must be greater than 0` } +
     },
 
-    errors@`length` !: {
+    errors@# !: {
       job?: job.cancel,
       [`0 */24 * * *`, { options } getAndCacheAllThreatActorNames] schedule.scheduleJob `job`
     },
@@ -420,25 +419,25 @@
   },
 
   getAndCacheAllThreatActorNames: { options: _<@0, cursor: _<@1, agg: _<@2,
-    options@`apiKey.value`
+    options@apiKey@value
     {
       uri: `https://www.virustotal.com/api/v3/collections`,
       qs: {
         filter: `collection_type:threat-actor`,
         attributes: `name`,
         limit: 40,
-        ...cursor { cursor }
+        cursor ?+ { cursor }
       },
-      headers: { `x-apikey`: options@`apiKey` }
+      headers: { `x-apikey`: options@apiKey }
     }
     asyncRequestWithDefaults { searchResult: _<,
-      threatActorNames: [searchResult] { _<@`data` } { _<@0 ${ _<@`name` } },
-      nextCursor: searchResult@`meta.cursor`,
+      threatActorNames: [searchResult] { _<@data } { _<@0 ${ _<@name } },
+      nextCursor: searchResult@meta@cursor,
       nextAgg: agg threatActorNames ``><,
 
       nextCursor?: [options, nextCursor, nextAgg] getAndCacheAllThreatActorNames,
 
-      nextAgg { ~, { _<@`toLowerCase` } `"^_` }
+      nextAgg { ~, { _<@toLowerCase } `"^_` }
     }
   },
 
@@ -446,8 +445,8 @@
     {
       +: requestOptions,
       headers: {
-        +: requestOptions@`headers`,
-        `x-apikey`: options@`apiKey.value` `options@`apiKey` ?|: options@`apiKey`
+        +: requestOptions@headers,
+        `x-apikey`: options@apiKey@value `options@apiKey` ?|: options@apiKey
       },
       json: `true`
     }
@@ -457,4 +456,3 @@
     }
   }
 }@&[`doLookup`,`startup`,`onMessage`,`validateOptions`]
-```
