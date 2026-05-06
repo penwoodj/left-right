@@ -1,17 +1,21 @@
 ``` Left-Right Translation
 {
-  +: imports@`lodash/fp`@&[`flow`,`chunk`,`map`,`join`,`mergeAll`,`get`,`reduce`],
-  +: files@`./request'@&[`requestsInParallel`],
+  +: imports@`lodash/fp`@&[`flow`, `chunk`, `map`, `join`, `mergeAll`, `get`, `reduce`],
+
+  +: files@`../request`@&[`requestsInParallel`],
 
   queryEntitiesWithQueryStringBuilder: {
     entitiesWithIds: _<@0,
-    _options: _<@1,
+    options: _<@1,
     buildQueryStringWithOneEntity: _<@2,
-    numberOfQueriesToRunInOneRequest: _<@3,
+    numberOfQueriesToRunInOneRequest: _<@3 | 15,
 
-    queries: [entitiesWithIds, buildQueryStringWithOneEntity, numberOfQueriesToRunInOneRequest, _options] buildAggregateQueries,
-    queryResults: [queries, _options] runQueries,
+    queries: [entitiesWithIds, buildQueryStringWithOneEntity, numberOfQueriesToRunInOneRequest, options] buildAggregateQueries,
+
+    queryResults: [queries, options] runQueries \\\,
+
     formattedQueryResults: queryResults formatQueryResults,
+
     entityAssociatedQueryResults: [entitiesWithIds, formattedQueryResults] associateEntitiesWithQueryResults,
 
     entityAssociatedQueryResults
@@ -21,52 +25,52 @@
     entitiesWithIds: _<@0,
     buildQueryStringWithOneEntity: _<@1,
     numberOfQueriesToRunInOneRequest: _<@2,
-    _options: _<@3,
+    options: _<@3,
 
-    flow([
+    entitiesWithIds $@ `flow` [
       numberOfQueriesToRunInOneRequest chunk,
-      map { entities: _<@0,
-        flow([
-          map { entity: _<@0,
-            [entity, _options@1] buildQueryStringWithOneEntity
-          },
+      { entities: _<
+        entities $@ `flow` [
+          { entity: _< [entity, options] buildQueryStringWithOneEntity } map,
           '' join,
-          { queriesWithIds: _<@0,
-            `` `query {${queriesWithIds}}
+          { queriesWithIds: _< `query {
+{queriesWithIds}
 }`
           }
-        ]) entities
-      }
-    ]) entitiesWithIds
+        ]
+      } map
+    ]
   },
 
   runQueries: {
     queries: _<@0,
-    _options: _<@1,
+    options: _<@1,
 
-    flow([
-      map { query: _<@0,
-      { query: query, options: _options@1 }
-      },
-      async { queryRequests: _<@0,
-      [queryRequests, 'body.data'] requestsInParallel await
-      }
-    ]) queries
-  },
+    queries $@ `flow` [
+      { query: _< { query: query, options: options } } map,
+      { queryRequests: _< [queryRequests, `body.data`] requestsInParallel } \\\
+    ]
+  }///,
 
-  formatQueryResults: flow([
-    mergeAll,
-    reduce { agg: _<@0, result: _<@1, entityId: _<@2,
-      { ...agg, [entityId]: result @ `nodes` get }
+  formatQueryResults: {
+    queryResults: _<
+
+    queryResults mergeAll reduce {
+      agg: _<@0,
+      result: _<@1,
+      entityId: _<@2,
+      +:
+      agg,
+      entityId: result@`nodes`
     } {}
-  ]),
+  },
 
   associateEntitiesWithQueryResults: {
     entitiesWithIds: _<@0,
     queryResults: _<@1,
 
-    map { entity: _<@0,
-      { resultId: entity @ `value`, result: queryResults @ entity.id }
-    } entitiesWithIds
+    entitiesWithIds ${ entity: _<
+      { resultId: entity@`value`, result: [entity@`id`] queryResults get }
+    }
   }
 }@&[`queryEntitiesWithQueryStringBuilder`]

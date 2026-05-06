@@ -1,20 +1,20 @@
 ``` Left-Right Translation
 {
-  +: files@`../constants'@&[`MAX_PAGE_SIZE`],
-  +: files@`./queryEntitiesWithQueryStringBuilder'@&[`queryEntitiesWithQueryStringBuilder`],
+  +: files@`../constants`@&[`MAX_PAGE_SIZE`],
+
+  +: files@`./queryEntitiesWithQueryStringBuilder`@&[`queryEntitiesWithQueryStringBuilder`],
 
   queryVulnerabilities: {
     cveEntities: _<@0,
-    _options: _<@1,
+    options: _<@1,
 
-    [cveEntities, _options, buildVulnerabilitiesQueryString] queryEntitiesWithQueryStringBuilder await
-  },
+    [cveEntities, options, buildVulnerabilitiesQueryString] queryEntitiesWithQueryStringBuilder \\\
+  }///,
 
-  buildVulnerabilitiesQueryString: { entity: _<@0,
-    `` `
-  ${entity.id}: vulnerabilityFindings(
-    first: ${MAX_PAGE_SIZE},
-    filterBy: { vulnerabilityExternalId: ["${entity.value}"] }
+  buildVulnerabilitiesQueryString: { entity: _<
+    `{entity.id}: vulnerabilityFindings(
+    first: {MAX_PAGE_SIZE},
+    filterBy: { vulnerabilityExternalId: [\"{entity.value}\"] }
   ) {
     nodes {
       id
@@ -74,6 +74,5 @@
       }
     }
   }`
-  `
   }
 }@&[`queryVulnerabilities`]

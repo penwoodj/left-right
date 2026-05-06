@@ -1,26 +1,24 @@
 ``` Left-Right Translation
 {
-  +: files@`../constants'@&[`MAX_PAGE_SIZE`],
-  +: files@`./queryEntitiesWithQueryStringBuilder'@&[`queryEntitiesWithQueryStringBuilder`],
+  +: files@`../constants`@&[`MAX_PAGE_SIZE`],
+
+  +: files@`./queryEntitiesWithQueryStringBuilder`@&[`queryEntitiesWithQueryStringBuilder`],
 
   queryAssets: {
     entitiesWithIds: _<@0,
-    _options: _<@1,
+    options: _<@1,
 
-    [entitiesWithIds, _options, buildAssetQueryString] queryEntitiesWithQueryStringBuilder await
-  },
+    [entitiesWithIds, options, buildAssetQueryString] queryEntitiesWithQueryStringBuilder \\\
+  }///,
 
-  buildAssetQueryString: { entity: _<@0, _options: _<@1,
-    assetQueryTypeFilter: _options@`parsedAssetQueryTypes` length $ `value` ? {
-      `` `type: ${_options@`parsedAssetQueryTypes` JSON stringify}`
-    } : { '' },
+  buildAssetQueryString: { entity: _<, options: _<
+    assetQueryTypeFilter: options@`parsedAssetQueryTypes` # ?= `type: [options@`parsedAssetQueryTypes`] JSON stringify` '',
 
-    `` `
-  ${entity.id}: cloudResources(
-    first: ${MAX_PAGE_SIZE},
+    `{entity.id}: cloudResources(
+    first: {MAX_PAGE_SIZE},
     filterBy: {
-      search: "${entity.value}",
-      ${assetQueryTypeFilter}
+      search: \"{entity.value}\",
+      {assetQueryTypeFilter}
     }
   ) {
     nodes {
@@ -63,6 +61,5 @@
       }
     }
   }`
-  `
   }
 }@&[`queryAssets`]
