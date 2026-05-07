@@ -70,6 +70,8 @@ response@`body` /json
 
 ### Ticking and Hunger
 
+We evaluate with this ticking and hunger of operators **before expression**. The "tick" is the semantic moment when an operator's intermediate state executes with the right operand. Operators consume operands before the expression context determines final execution.
+
 Operators "tick" forward through expressions, consuming operands:
 - Unary operators consume left operand and execute
 - Dyadic operators consume left operand, return intermediate state, then tick to right operand
@@ -165,16 +167,16 @@ Both map operators and string operators remain unexecuted unless they are either
 |--------|---------|------|
 | `$` | iterate/loop/map | Prefix for iterable operators |
 | `@` | get/navigation | Prefix for get/navigation |
-| `?` | toBoolean | Prefix for boolean output methods |
-| `/` | divide (conversion/casting) | Type conversion/moving forward |
-| `\|` | OR | Postfix to sum type/stopping operators |
+| `?` | toBoolean (or !!) | Prefix for boolean output methods |
+| `/` | divide (conversion/casting) | Type conversion/moving forward and generating |
+| `` `|` `` | OR | Postfix to sum type/stopping operators |
 | `&` | AND | Prefix to product type operators |
-| `<` | less than | Left direction, separating |
-| `>` | greater than | Right direction, condensing, grouping |
+| `<` | less than | Multiple operators relating to left direction, separating |
+| `>` | greater than | Multiple operators relating to right direction, condensing and grouping |
 | `^` | exponent | Uppercase, wrapping |
-| `_` | flatten/floor | Execute without output, flattening |
-| `+` | add/concat/spread | Increasing |
-| `-` | subtract/omit/remove | Decreasing |
+| `_` | flatten/floor/lowercase | Execute without output; associated with lowercase or flattening |
+| `+` | addition/concatenation/spread (type-dependent) | Increasing |
+| `-` | subtract/omit/remove (type-dependent) | Decreasing |
 | `%` | modulus | Ratios, percentages, sorting |
 | `~` | unique | Randomness, entropy |
 | `"` | toString | String conversion |
@@ -189,14 +191,14 @@ Both map operators and string operators remain unexecuted unless they are either
 | `collection $` | Iterate, left arg = item as it loops | `items $ { _< * 2 }` |
 | `list $@` | Get string key from each item, returns list of values | `maps $@ `key`` |
 | `list of strings $@` | Get those keys, returns list of maps with only selected pairs | `maps $@ [`key1`, `key2`]` |
-| `$?` | Filter | `items $? { _< > 10 }` |
+| `$?` | Filter — with map expression: keeps items where expression is truthy. With string: filters out maps where that key name is not truthy. With list of strings: same but AND logic for all keys | `items $? { _< > 10 }` |
 | `$_` | Flatmap | `lists $_` |
 | `$~` | UniqueBy | `items $~` |
 | `$>` | GroupBy | `items $>` |
 | `$"` | EachToString | `items $"` |
 | `$&` | Every/All | `items $& { _< > 0 }` |
-| `$\|` | Some/Any | `items $\| { _< > 0 }` |
-| `$?\|` | Find | `items $?\| { _< > 10 }` |
+| `` `$|` `` | Some/Any | `items $| { _< > 0 }` |
+| `` `$?|` `` | Find | `items $?| { _< > 10 }` |
 | `$%` | Sort | `items $%` |
 | `$?!` | Compact | `items $?!` |
 
@@ -209,14 +211,18 @@ Both map operators and string operators remain unexecuted unless they are either
 | `"^` | Uppercase | `"hello" "^` | `"HELLO"` |
 | `"^_` | Capitalize | `"hello" "^_` | `"Hello"` |
 | `"~` | Replace | `"hello" "~ ["e","a"]` | `"hallo"` |
-| `<>` | Split (unless `_<>` without space) | `"a,b,c" <>,` | `["a","b","c"]` |
-| `><` | Join (unless `><` with space) | `["a","b"] >><,` | `"a,b"` |
+
+Note: `"~` replace is not directly observable in the SOT translation files. The syntax shown is inferred from the operator semantics specification.
+| `<>` | Split — as long as not immediately preceded without space by `_` | `"a,b,c" <>,` | `["a","b","c"]` |
+| `><` | Join — as long as not immediately preceded without space by `_` | `["a","b"] >><,` | `"a,b"` |
+
+**Spacing rules**: `<>` is split and `><` is join. When `_` immediately precedes without spaces (e.g., `_<>` or `_><`), the split/join does NOT apply — `_` becomes part of a different compound operator (e.g., the left/right argument operators `_<`/`_>` or other `_`-prefixed operators).
 
 ### Boolean Operators
 
 | Operator | Semantics | Example |
 |----------|-----------|---------|
-| `\|` | OR | `a \| b` |
+| `` `|` `` | OR | `` `a | b` `` |
 | `&` | AND | `a & b` |
 | `=` | Equals | `a = b` |
 | `?"` | IsString | `value ?"` |
@@ -239,11 +245,11 @@ Both map operators and string operators remain unexecuted unless they are either
 | `,` | Collection item separator |
 | `.` | Reverse arguments operator |
 | `'` | Reserved for later |
-| `()` | Precedence |
-| `[]` | Empty list, list encapsulation |
+| `()` | Precedence operators in expressions |
+| `[]` | An empty list collection and the list encapsulation operators |
 | `{}` | Empty map, operator and map encapsulation |
-| `_<` | Left argument operator (always parsed as left arg) |
-| `>` | Right argument operator (always parsed as right arg) |
+| `_<` | Left argument operator — no matter the context, always parsed as left argument and evaluates to the value of the item passed in on the left |
+| `_>` | Right argument operator — no matter the context, always parsed as right argument and evaluates to the value of the item passed in on the right |
 | `` | Empty string, string/operator encapsulation |
 
 ### Compound Operators
@@ -255,7 +261,7 @@ Operators can be combined to form compound operators:
 - `/json` - Parse JSON
 - `?"` - IsString
 - `?!` - Negate boolean (filter where falsey)
-- `!!:` - Check truthy and proceed (early return guard)
+- `?:` - Check truthy (toBoolean) and proceed (early return guard)
 - `!!!` - Throw error
 - `+:` - Spread into context
 
@@ -573,22 +579,29 @@ When first key is `_<@`property`` (get property from left arg), map acts as tern
 booleanExpression ? trueCase : falseCase
 ```
 
-Standard ternary syntax with `_<:` prefix.
+Standard ternary syntax. The `_<:` prefix reads as "left argument, then evaluate branches."
+
+**Full ternary with toString prefix**:
+```lr
+"booleanExpression {_<: `trueCase`, `falseCase`}
+```
+
+The `"` (toString) prefix before the boolean expression is the canonical ternary form. It converts the boolean expression to a value that the map operator can branch on. Ternaries are just control flow — the map acts as a conditional switch based on the truthiness of the expression to its left.
 
 ### Early Return
 
-**Early return with `!!:`**:
+**Early return with `?:`**:
 ```lr
-cachedToken!!: cachedToken
+cachedToken?: cachedToken
 ```
 → JS:
 ```js
 if (cachedToken) return cachedToken;
 ```
 
-**Pattern**: `value!!:` - Return value if truthy, else continue
+**Pattern**: `value?:` - Convert to boolean with `?`, then `:` triggers conditional return if truthy, else continue.
 
-The `!!:` operator checks truthiness of left value and returns early if true.
+The `?:` operator uses the toBoolean `?` to check truthiness of left value and returns early if true.
 
 **Ternary with early return**:
 ```lr
@@ -599,39 +612,41 @@ responseGetPath!! {_<: response@responseGetPath, response }
 return responseGetPath ? get(responseGetPath, response) : response;
 ```
 
-**Pattern**: `condition!! {_<: trueValue, falseValue }`
+**Pattern**: `condition? {_<: trueValue, falseValue }`
 
-Early return with ternary selection.
+Early return with ternary selection. Uses `?` toBoolean then map operator for branching.
 
 ## Map Operators
 
 ### Making Non-Operators into Operators
 
-There are 4 ways to make a non-operator construct into an operator:
+There are 4 ways to make a non-operator into an operator — 3 for Maps and 1 for Strings:
 
-1. **Map operators with left/right arg inside**:
+**Map Operators (`{}`) — 3 ways**:
+
+1. **Map has left or right arg operator inside**:
 ```lr
 options { _<@`searchPrivateIps`!: entities, entities removePrivateIps }
 ```
-Map contains `_<@` (left arg), becomes ternary operator.
+Map contains `_<` or `_<@` (left arg operator inside), becomes ternary operator.
 
-2. **Map operators ending in expression**:
+**2. Map operator ending in expression**:
 ```lr
 { _<@`queryIssues`: [cveEntities, _<] queryIssues, [] }
 ```
-Map ends in expression (function call), becomes ternary operator.
+Map's last item is an expression (not a key-value pair), becomes ternary operator.
 
-3. **Map operators with expression keys**:
+**3. Map operator with expression as a key**:
 ```lr
-_: { issues:issues, vulnerabilities:vulnerabilities, assets:assets } (Logger@`trace`)
+_<@`searchPrivateIps`!: entities
 ```
-Map has expression key (nested maps), becomes no-output operator.
+One or more of its keys is itself an expression (e.g., `_>@0` as a key, or a negated boolean check as a key), making the map an operator. When the key is an expression, the operator returns what is to the right or executes a map operator to the right, and the key does not become a variable binding.
 
-4. **String operators with interpolated left/right arg**:
+**String Operators — 1 way**:
 ```lr
 `Bearer {token}`
 ```
-String contains `{token}` (interpolated left arg), becomes string template operator.
+A string becomes a string operator if any of the interpolated elements inside `{}` contain a left or right argument (`_<`, `_>`).
 
 **Unexecuted unless**:
 - In expression with needed input
@@ -648,7 +663,15 @@ _: { issues:issues, vulnerabilities:vulnerabilities, assets:assets } (Logger@`tr
 Logger.trace({ issues, vulnerabilities, assets });
 ```
 
-The `_` key indicates execution without output (side effect only).
+The `_` key executes the expression to its right without producing variable output (side effect only). This applies when `_` appears by itself before `:`.
+
+**`_` has three conditions**:
+
+1. **By itself before `:`** — runs the expression without variable output (side effect only)
+2. **Immediately preceding `<` or `>` without spaces** — forms part of the reserved argument operators (`_<` and `_>`)
+3. **Immediately preceded (or inside of) another operator symbol without spaces** — forms part of that compound operator (e.g., `$_` flatmap, `$>` groupBy, `"~` replace)
+
+The `_` operator is semantically associated with lowercase and flattening.
 
 **Side-effect with value return**:
 ```lr
@@ -737,7 +760,7 @@ async ({ options, query }) => {
 
 **Named argument from left arg**:
 ```lr
-responseGetPath!! {_<: response@responseGetPath, response }
+responseGetPath? {_<: response@responseGetPath, response }
 ```
 → JS:
 ```js
@@ -918,13 +941,13 @@ Nested maps make parent map a no-output operator.
 
 ### Key Referencing
 
-Keys can be referenced as variables after `,` at end of value:
+Keys in maps and map operators can be referenced as variables after the `,` at the end of their value expression:
 
 ```lr
 options { _<@`searchPrivateIps`!: entities, entities removePrivateIps }
 ```
 
-Exception: If key is expression, operator returns what is to the right or executes map operator to right.
+**Exception**: If the key is itself an expression (not a simple identifier), the operator returns what is to the right or executes a map operator to the right. In that case, the key does not become a variable binding.
 
 ## General Semantics
 
@@ -932,6 +955,8 @@ Exception: If key is expression, operator returns what is to the right or execut
 - **Left-hungry curried**: Operators eagerly consume left operand
 - **Ticking**: Evaluation proceeds through expression, operators "tick" to next item
 - **Unexecuted operators**: Map/string operators remain unexecuted until in expression with needed input
+- **Input type based execution behavior**: Operators have invariant representation — the same operator symbol adapts its behavior based on input types (e.g., `+` adds numbers, concatenates strings, spreads maps; `-` subtracts numbers, omits map keys, removes list items; `/` divides numbers, casts types)
+- **Simple semantics, massive expressiveness**: The operator SDK combines a small set of symbols with semantic associations to create a fully expressive point-free functional system
 
 # Line-by-Line Translation Reference
 
@@ -1548,8 +1573,8 @@ const createRequestsInParallel =
 
 ### Line 96-97
 ```lr
-          result: responseGetPath!! {_<: response@responseGetPath, response },
-          entity!! {_<: { entity:entity, result:result }, result}
+          result: responseGetPath? {_<: response@responseGetPath, response },
+          entity? {_<: { entity:entity, result:result }, result}
         } ///
 ```
 **Translation**:
@@ -1559,7 +1584,7 @@ const createRequestsInParallel =
         },
 ```
 
-**Semantics**: Ternary with early return (`!!`). `{_<: trueValue, falseValue}` ternary syntax.
+**Semantics**: Ternary with early return (`?`). `{_<: trueValue, falseValue}` ternary syntax.
 
 ### Line 99-100
 ```lr
@@ -1579,7 +1604,7 @@ const createRequestsInParallel =
 
 ### Line 102-105
 ```lr
-      onlyReturnPopulatedResults!! {_<:
+      onlyReturnPopulatedResults? {_<:
         results $?{ _<@`result` | _< ?_ ! },
         results
       }
@@ -1760,9 +1785,9 @@ Variables interpolated with `{var}` inside backtick strings. Can contain Left-Ri
 
 ### Boolean Conversion
 
-`cachedToken!!: cachedToken` → `if (cachedToken) return cachedToken`
+`cachedToken?: cachedToken` → `if (cachedToken) return cachedToken`
 
-Double exclamation checks truthiness and returns early if true.
+The `?` toBoolean operator checks truthiness and `:` triggers conditional return if truthy.
 
 ### Callback Pattern
 
