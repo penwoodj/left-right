@@ -375,7 +375,7 @@ The `@&` followed by array of keys exports only those keys from the enclosing ma
 
 ### Async Function Definition
 
-Async functions are enclosed with `\\\` (open) and `///` (close):
+Async functions use `///` to declare async context and `\\\` to await:
 
 ```lr
 { options: _<@0, query: _<@1,
@@ -396,10 +396,12 @@ async ({ options, query }) => {
 }
 ```
 
+`///` marks the function boundary as async (the operator returned is resolved on a different thread or concurrently). `\\\` awaits the result within the async context.
+
 **Key patterns**:
-- `\\\` - Function is async, opens async context
-- `///` - Close async context (implicit return of last expression)
-- `[arg] func \\\` - Async call to function `func` with `arg`
+- `\\\` - Await (like JS `await` / promise await). Resolves the async operator on the left and returns the result.
+- `///` - Takes an operator on the left and makes it either resolved on a different thread (multi-threading) or async (concurrency). It still returns an unexecuted operator. Whether multi-threading or concurrency, it operates like a promise.
+- `[arg] func \\\` - Await the result of calling function `func` with `arg`
 
 ### Async Function Calls
 
@@ -421,7 +423,7 @@ requestForAuth \\\ @[`body`,`access_token`]
 get('body.access_token', await requestForAuth(...))
 ```
 
-The `\\\` after function name makes the call async. The result can then be operated on with `@` for path access.
+The `\\\` after function name awaits the async call. The result can then be operated on with `@` for path access.
 
 ### Promise.all Pattern
 
@@ -754,7 +756,7 @@ async ({ options, query }) => {
 }
 ```
 
-**Pattern**: `{ name: _<@N, ... }` followed by `///` closes async function.
+**Pattern**: `{ name: _<@N, ... }` followed by `///` marks the function as async.
 
 ### Named Arguments (Destructuring)
 
@@ -1367,7 +1369,7 @@ const requestWithDefaults = createRequestWithDefaults({
   },
 ```
 
-**Semantics**: `///` starts async function. `\\\` after function name makes async call. Template interpolation with `{var}`. `/"` converts to string (JSON.stringify).
+**Semantics**: `///` starts async context (operator resolved on different thread or concurrently). `\\\` awaits the result of an async call. Template interpolation with `{var}`. `/"` converts to string (JSON.stringify).
 
 ### Line 44-48
 ```lr
@@ -1537,7 +1539,7 @@ return token;
 };
 ```
 
-**Semantics**: Close async function (`///`).
+**Semantics**: `///` marks function boundary as async (operator resolved on different thread or concurrently).
 
 ### Line 82-95
 ```lr
@@ -1619,7 +1621,7 @@ const createRequestsInParallel =
       : results;
 ```
 
-**Semantics**: Ternary with early return (`!!`). `$?` filters list. `{ _<@`result` | _< ?_ ! }` ternary map: `?!` negates boolean (filters where falsey). `|` OR in ternary.
+**Semantics**: Ternary with early return (`?`). `$?` filters list. `{ _<@`result` | _< ?_ ! }` ternary map: `?!` negates boolean (filters where falsey). `|` OR in ternary.
 
 ### Line 107
 ```lr
@@ -1723,16 +1725,16 @@ Expressions can span multiple lines. Map entries can be on separate lines.
 - `? !` - Negate boolean result
 - `?!` - Negate boolean (compound operator)
 
-### Undersred Execution
+### Underscore Execution
 
 `_: expression (Logger@`method`)` - Execute expression without output, then call Logger method
 
 ### Async Patterns
 
-- `\\\` - Open async context
-- `///` - Close async context (implicit return)
-- `func \\\` - Async call to function
-- `[arg] func \\\` - Async call with argument
+- `///` - Takes an operator on the left and makes it async/concurrent (resolved on different thread or like a promise)
+- `\\\` - Await (resolves the async operator on the left and returns the result)
+- `func \\\` - Await call to function
+- `[arg] func \\\` - Await call with argument
 
 ### Array Bracket Access
 
@@ -1745,7 +1747,7 @@ Expressions can span multiple lines. Map entries can be on separate lines.
 1. **Map as ternary**: `{ condition: valueIfTruthy, valueIfFalsy }`
 2. **Negated ternary**: `{ condition!: valueIfTrue, valueIfFalse }`
 3. **Explicit ternary**: `{_<: trueValue, falseValue}`
-4. **Early return ternary**: `condition!! {_<: trueValue, falseValue }`
+4. **Early return ternary**: `condition? {_<: trueValue, falseValue }`
 
 ### Operator Composition
 
