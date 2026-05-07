@@ -90,7 +90,7 @@ Left-Right tokens include:
 - **Identifiers**: alphanumeric sequences (e.g., `logging`, `removePrivateIps`, `entities`)
 - **Operators**: symbolic sequences (e.g., `+`, `@`, `$`, `/`, `|`, `&`, `<`, `>`, `^`, `_`, `-`, `%`, `~`, `!`, `=`, `#`)
 - **Literals**: Numbers, Booleans, Strings (backtick-enclosed)
-- **Punctuation**: `:`, `,`, `.`, `(`, `)`, `[`, `]`, `{`, `}`, ``, `\'`, `/`, `?`
+- **Punctuation**: `:`, `,`, `.`, `(`, `)`, `[`, `]`, `{`, `}`, `` ` `'`, `/`, `?`
 - **Keywords**: `try`, `catch` (as map keys only)
 
 ### Whitespace
@@ -1191,7 +1191,7 @@ const doLookup = async (entities, _options, cb) => {
     cb({ detail: error.message || 'Lookup Failed', err });
 ```
 
-**Semantics**: Catch block. `error: _<` binds error to left arg. Undersred operator for logging. Callback with error object.
+**Semantics**: Catch block. `error: _<` binds error to left arg. Underscore operator for logging. Callback with error object.
 
 ### Line 36-38
 ```lr
