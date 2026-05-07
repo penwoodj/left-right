@@ -10,6 +10,12 @@ These 3 files are the user's original language design documents. They must NEVER
 
 **Enforcement**: Do not use Edit, Write, or any other tool to modify these files. Only Read is permitted.
 
+## DO NOT EDIT Files (NEVER EDIT)
+
+Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its content must NEVER be modified by any agent, tool, or automated process. This applies across the entire workspace, not just to specific directories.
+
+**Enforcement**: Before any edit, grep the target file for `DO NOT EDIT`. If found, abort the edit immediately. Only Read is permitted on such files.
+
 ## Project Structure
 
 - `/language-summary/` — Generated report suite (safe to create/edit)
