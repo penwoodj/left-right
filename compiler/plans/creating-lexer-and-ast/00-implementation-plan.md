@@ -4,9 +4,9 @@
 
 **Goal:** Build a complete lexer and parser for the Left-Right language that produces a verified AST with full error recovery and live testing coverage.
 
-**Architecture:** Hand-written lexer with checkpoint-based backtracking (SWC pattern), recursive descent parser with zero-precedence left-to-right curried evaluation, bogus-node error recovery (Biome pattern), ariadne diagnostics rendering.
+**Architecture:** Hybrid lexer (logos for normal tokens, hand-written fallback for operator identifiers), recursive descent parser with zero-precedence left-to-right curried evaluation, bogus-node error recovery (Biome pattern), ariadne diagnostics rendering.
 
-**Tech Stack:** Rust, chars.peekable() for lexer, insta/proptest for testing, ariadne for diagnostics.
+**Tech Stack:** Rust, logos 0.16.1 + hand-written fallback for lexer, insta/proptest for testing, ariadne for diagnostics.
 
 ---
 
@@ -65,6 +65,9 @@ ariadne = "0.4.0"
 insta = "1.34.0"
 proptest = "1.4.0"
 thiserror = "1.0.56"
+logos = "0.16.1"
+
+# Design decision: Hybrid lexer chosen over pure hand-written for performance (logos generates compile-time FSM, 2-10x faster for normal tokens). Hand-written fallback retained for Left-Right's unusual operator identifier rules (maximal munch, no keywords, operators-as-identifiers) which don't map cleanly to logos regex patterns.
 
 # Local crates
 lr-common = { path = "crates/lr-common" }
@@ -100,6 +103,7 @@ edition.workspace = true
 [dependencies]
 lr-common = { workspace = true }
 thiserror = { workspace = true }
+logos = { workspace = true }
 
 [dev-dependencies]
 insta = { workspace = true, features = ["glob", "tokenstream"] }
@@ -168,12 +172,68 @@ insta = { workspace = true, features = ["glob", "tokenstream"] }
 
 **File:** `crates/lr-lexer/src/token.rs`
 
-Complete token type enum with spans:
+Hybrid token approach: `RawToken` from logos + `Token` wrapper with spans:
 
 ```rust
 use lr_common::Span;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// Raw token types produced by logos (compile-time FSM)
+/// Logos handles all straightforward tokens via regex patterns
+#[derive(Logos, Debug, Clone, PartialEq, Eq)]
+#[logos(skip r"[ \t\r\n]+")] // Skip whitespace
+pub enum RawToken {
+    // Structural delimiters (single tokens)
+    #[token("(")]
+    LParen,
+    #[token(")")]
+    RParen,
+    #[token("[")]
+    LBracket,
+    #[token("]")]
+    RBracket,
+    #[token("{")]
+    LBrace,
+    #[token("}")]
+    RBrace,
+    #[token(",")]
+    Comma,
+    #[token(".")]
+    Dot,
+    #[token(":")]
+    Colon,
+    #[token("'")]
+    Quote,
+    #[token("`")]
+    Backtick,
+
+    // Number literal (decimal only, no hex/binary/scientific)
+    #[regex(r"[0-9]+(\.[0-9]+)?")]
+    Number,
+
+    // String literals (non-interpolated, single/double quoted)
+    // Note: Interpolation handled in second pass
+    #[regex(r#""([^"\\]|\\.)*""#)]
+    #[regex(r#"'([^'\\]|\\.)*'"#)]
+    String,
+
+    // Comments
+    #[regex(r"//[^\n]*")]
+    LineComment,
+    #[regex(r"/\*[\s\S]*?\*/")]
+    BlockComment,
+
+    // Everything else: operator identifiers (handled by hand-written fallback)
+    // This regex catches anything that's not whitespace, delimiters, or already matched
+    #[regex(r"[^\s()[\]{},.:\"'`/]+")]
+    OperatorIdent,
+
+    // Error token for unrecognized input
+    #[error]
+    Error,
+}
+
+/// Final token type with proper TokenKind and span tracking
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenKind {
     // Literals
     NumberLiteral,
@@ -184,7 +244,7 @@ pub enum TokenKind {
     // Identifiers (includes ALL operators)
     Identifier,
 
-    // Special 2-char tokens
+    // Special 2-char tokens (extracted by hand-written fallback)
     LeftArg,      // _<
     RightArg,     // _>
 
@@ -212,6 +272,7 @@ pub enum TokenKind {
     EOF,
 }
 
+/// Token with span information (produced by wrapper)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Token {
     pub kind: TokenKind,
@@ -266,493 +327,185 @@ impl From<Range<usize>> for Span {
 }
 ```
 
-### 2.2 Lexer State Machine
+### 2.2 Hybrid Lexer Architecture
 
 **File:** `crates/lr-lexer/src/lexer.rs`
 
-Hand-written lexer using `chars.peekable()` pattern from SWC [https://github.com/swc-project/swc/blob/main/crates/swc_es_parser/src/lexer.rs]:
+Hybrid lexer: logos Phase 1 → hand-written wrapper Phase 2:
 
 ```rust
-use std::iter::Peekable;
-use std::str::Chars;
+use logos::Logos;
 use lr_common::Span;
-use crate::token::{Token, TokenKind};
+use crate::token::{Token, TokenKind, RawToken};
 use crate::error::LexError;
 
 pub struct Lexer<'a> {
     source: &'a str,
-    chars: Peekable<Chars<'a>>,
-    checkpoint: usize,
     line: u32,
     column: u32,
     tokens: Vec<Token>,
     errors: Vec<LexError>,
-    state: LexerState,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum LexerState {
-    Normal,
-    InStringLiteral,
-    InStringInterpolation { depth: u32 },
-    InComment,
-}
-
-#[derive(Debug, Clone)]
-pub struct LexerCheckpoint {
-    byte_offset: usize,
-    line: u32,
-    column: u32,
 }
 
 impl<'a> Lexer<'a> {
     pub fn new(source: &'a str) -> Self {
-        let chars = source.chars().peekable();
         Self {
             source,
-            chars,
-            checkpoint: 0,
             line: 1,
             column: 1,
             tokens: Vec::new(),
             errors: Vec::new(),
-            state: LexerState::Normal,
         }
     }
 
-    /// Save current lexer position for backtracking [https://alic.dev/blog/fast-lexing]
-    pub fn checkpoint(&self) -> LexerCheckpoint {
-        LexerCheckpoint {
-            byte_offset: self.checkpoint,
-            line: self.line,
-            column: self.column,
-        }
-    }
-
-    /// Restore lexer to a previous checkpoint
-    pub fn rewind(&mut self, checkpoint: LexerCheckpoint) {
-        self.checkpoint = checkpoint.byte_offset;
-        self.line = checkpoint.line;
-        self.column = checkpoint.column;
-        self.chars = self.source[self.checkpoint..].chars().peekable();
-    }
-
-    /// Get current byte offset
-    pub fn byte_offset(&self) -> usize {
-        self.checkpoint
-    }
-
-    /// Emit a token
-    fn emit(&mut self, kind: TokenKind, value: String, start: u32) {
-        let end = self.byte_offset() as u32;
-        let span = Span::new(start, end);
-        self.tokens.push(Token::new(kind, value, span));
-    }
-
-    /// Peek next character
-    fn peek(&mut self) -> Option<&char> {
-        self.chars.peek()
-    }
-
-    /// Consume next character
-    fn next(&mut self) -> Option<char> {
-        let ch = self.chars.next()?;
-        self.checkpoint += ch.len_utf8();
-        if ch == '\n' {
-            self.line += 1;
-            self.column = 1;
-        } else {
-            self.column += 1;
-        }
-        Some(ch)
-    }
-
-    /// Advance without returning character
-    fn advance(&mut self) {
-        if let Some(ch) = self.next() {
-            // Discard
-        }
-    }
-
-    /// Check if next character matches
-    fn eat(&mut self, expected: char) -> bool {
-        if let Some(&ch) = self.peek() {
-            if ch == expected {
-                self.advance();
-                return true;
-            }
-        }
-        false
-    }
-
-    /// Report lex error
-    fn error(&mut self, message: String, span: Span) {
-        self.errors.push(LexError { message, span });
-    }
-}
-```
-
-### 2.3 Tokenization Logic
-
-**File:** `crates/lr-lexer/src/lexer.rs` (continued)
-
-Main lexing loop:
-
-```rust
-impl<'a> Lexer<'a> {
-    /// Tokenize entire source, returning tokens and errors
+    /// Tokenize entire source using hybrid approach
     pub fn tokenize(mut self) -> (Vec<Token>, Vec<LexError>) {
-        while let Some(&ch) = self.peek() {
-            match self.state {
-                LexerState::Normal => self.lex_normal(),
-                LexerState::InStringLiteral => self.lex_string_literal(),
-                LexerState::InStringInterpolation { depth } => self.lex_interpolation(depth),
-                LexerState::InComment => self.lex_comment(),
+        // Phase 1: Logos tokenization (compile-time FSM, 2-10x faster)
+        let mut lex = RawToken::lexer(self.source);
+
+        // Phase 2: Hand-written wrapper adds spans and handles operator identifiers
+        while let Some(raw_token) = lex.next() {
+            let span = Span::from(lex.span());
+
+            match raw_token {
+                // Simple tokens: direct mapping
+                RawToken::LParen => self.tokens.push(Token::new(TokenKind::OpenParen, "(".to_string(), span)),
+                RawToken::RParen => self.tokens.push(Token::new(TokenKind::CloseParen, ")".to_string(), span)),
+                RawToken::LBracket => self.tokens.push(Token::new(TokenKind::OpenBracket, "[".to_string(), span)),
+                RawToken::RBracket => self.tokens.push(Token::new(TokenKind::CloseBracket, "]".to_string(), span)),
+                RawToken::LBrace => self.tokens.push(Token::new(TokenKind::OpenBrace, "{".to_string(), span)),
+                RawToken::RBrace => self.tokens.push(Token::new(TokenKind::CloseBrace, "}".to_string(), span)),
+                RawToken::Comma => self.tokens.push(Token::new(TokenKind::Comma, ",".to_string(), span)),
+                RawToken::Dot => self.tokens.push(Token::new(TokenKind::Dot, ".".to_string(), span)),
+                RawToken::Colon => self.tokens.push(Token::new(TokenKind::Colon, ":".to_string(), span)),
+                RawToken::Quote => self.tokens.push(Token::new(TokenKind::SingleQuote, "'".to_string(), span)),
+                RawToken::Backtick => self.process_backtick_token(span),
+
+                // Number literal (decimal only)
+                RawToken::Number => {
+                    let value = self.source[span.range()].to_string();
+                    self.tokens.push(Token::new(TokenKind::NumberLiteral, value, span));
+                }
+
+                // String literal (handle interpolation in second pass)
+                RawToken::String => {
+                    let raw_value = self.source[span.range()].to_string();
+                    // Strip quotes
+                    let value = if raw_value.len() >= 2 {
+                        raw_value[1..raw_value.len()-1].to_string()
+                    } else {
+                        raw_value.clone()
+                    };
+                    self.tokens.push(Token::new(TokenKind::StringLiteral, value, span));
+                }
+
+                // Comments
+                RawToken::LineComment => {
+                    let value = self.source[span.range()].to_string();
+                    // Strip "//"
+                    let comment = if value.starts_with("//") {
+                        value[2..].to_string()
+                    } else {
+                        value
+                    };
+                    self.tokens.push(Token::new(TokenKind::Comment, comment, span));
+                }
+                RawToken::BlockComment => {
+                    let value = self.source[span.range()].to_string();
+                    self.tokens.push(Token::new(TokenKind::Comment, value, span));
+                }
+
+                // Operator identifiers: hand-written fallback for maximal munch
+                RawToken::OperatorIdent => self.process_operator_ident(span),
+
+                // Error token
+                RawToken::Error => {
+                    let error_span = Span::new(span.start, (span.start + 1).min(span.end));
+                    self.errors.push(LexError {
+                        message: format!("Unrecognized character at position {}", span.start),
+                        span: error_span,
+                    });
+                }
             }
         }
 
         // Emit EOF token
-        let eof_offset = self.byte_offset() as u32;
-        self.emit(TokenKind::EOF, String::new(), eof_offset);
+        let eof_offset = self.source.len() as u32;
+        self.tokens.push(Token::new(TokenKind::EOF, String::new(), Span::new(eof_offset, eof_offset)));
 
         (self.tokens, self.errors)
     }
 
-    /// Lex in normal state
-    fn lex_normal(&mut self) {
-        let start_offset = self.byte_offset() as u32;
+    /// Process backtick token (string literal or line-start comment)
+    fn process_backtick_token(&mut self, span: Span) {
+        let value = self.source[span.range()].to_string();
 
-        if let Some(&ch) = self.peek() {
-            match ch {
-                // Whitespace: skip
-                ' ' | '\t' | '\n' | '\r' => {
-                    self.advance();
-                }
+        // Check if triple backtick at line start (comment)
+        if value == "```" && self.source[0..span.start as usize].ends_with('\n') || span.start == 0 {
+            // Line comment - consume to end of line
+            let line_start = span.start as usize;
+            let line_end = self.source[line_start..]
+                .find('\n')
+                .map(|pos| line_start + pos)
+                .unwrap_or(self.source.len());
 
-                // Triple backtick comment (line start only)
-                '`' if self.column == 1 => {
-                    if self.eat('`') && self.eat('`') {
-                        self.state = LexerState::InComment;
-                    } else {
-                        // Not triple backtick, fall through to string literal
-                        self.lex_backtick(start_offset);
-                    }
-                }
-
-                // Backtick string literal
-                '`' => {
-                    self.lex_backtick(start_offset);
-                }
-
-                // LeftArg and RightArg (2-char tokens)
-                '_' => {
-                    self.advance();
-                    if self.eat('<') {
-                        self.emit(TokenKind::LeftArg, "_<".to_string(), start_offset);
-                    } else if self.eat('>') {
-                        self.emit(TokenKind::RightArg, "_>".to_string(), start_offset);
-                    } else {
-                        // Single underscore is identifier
-                        self.emit(TokenKind::Identifier, "_".to_string(), start_offset);
-                    }
-                }
-
-                // Reserved symbols
-                ':' => {
-                    self.advance();
-                    self.emit(TokenKind::Colon, ":".to_string(), start_offset);
-                }
-                ',' => {
-                    self.advance();
-                    self.emit(TokenKind::Comma, ",".to_string(), start_offset);
-                }
-                '.' => {
-                    self.advance();
-                    self.emit(TokenKind::Dot, ".".to_string(), start_offset);
-                }
-                '\'' => {
-                    self.advance();
-                    self.emit(TokenKind::SingleQuote, "'".to_string(), start_offset);
-                }
-
-                // Structural delimiters
-                '{' => {
-                    self.advance();
-                    self.emit(TokenKind::OpenBrace, "{".to_string(), start_offset);
-                }
-                '}' => {
-                    self.advance();
-                    self.emit(TokenKind::CloseBrace, "}".to_string(), start_offset);
-                }
-                '[' => {
-                    self.advance();
-                    self.emit(TokenKind::OpenBracket, "[".to_string(), start_offset);
-                }
-                ']' => {
-                    self.advance();
-                    self.emit(TokenKind::CloseBracket, "]".to_string(), start_offset);
-                }
-                '(' => {
-                    self.advance();
-                    self.emit(TokenKind::OpenParen, "(".to_string(), start_offset);
-                }
-                ')' => {
-                    self.advance();
-                    self.emit(TokenKind::CloseParen, ")".to_string(), start_offset);
-                }
-
-                // Number literal
-                '0'..='9' => {
-                    self.lex_number(start_offset);
-                }
-
-                // Identifier (includes all operators)
-                _ => {
-                    self.lex_identifier(start_offset);
-                }
-            }
+            let comment_span = Span::new(span.start, line_end as u32);
+            let comment = self.source[span.end as usize..line_end].to_string();
+            self.tokens.push(Token::new(TokenKind::Comment, comment, comment_span));
+        } else {
+            // Backtick string literal (interpolation handled in parser)
+            self.tokens.push(Token::new(TokenKind::Backtick, "`".to_string(), span));
         }
     }
-}
-```
 
-### 2.4 Identifier Recognition (Maximal Munch)
+    /// Process operator identifier with maximal munch (hand-written fallback)
+    fn process_operator_ident(&mut self, span: Span) {
+        let raw_value = self.source[span.range()].to_string();
 
-**File:** `crates/lr-lexer/src/lexer.rs` (continued)
-
-Maximal munch for identifiers like `!!!?`, `///`, `\\\`, `$@`, `><` [https://github.com/swc-project/swc/blob/main/crates/swc_es_parser/src/lexer.rs]:
-
-```rust
-impl<'a> Lexer<'a> {
-    /// Lex identifier with maximal munch
-    fn lex_identifier(&mut self, start_offset: u32) {
-        let start_pos = self.byte_offset();
-        let mut value = String::new();
-
-        // Accumulate until we hit a reserved symbol, whitespace, or newline
-        while let Some(&ch) = self.peek() {
-            if Self::is_identifier_char(ch) {
-                value.push(self.next().unwrap());
-            } else {
-                break;
+        // Check for special 2-char tokens (_< and _>)
+        if raw_value.starts_with("_<") {
+            self.tokens.push(Token::new(TokenKind::LeftArg, "_<".to_string(),
+                Span::new(span.start, span.start + 2)));
+            // If longer, process remainder
+            if raw_value.len() > 2 {
+                let remainder = &raw_value[2..];
+                if !remainder.is_empty() {
+                    self.tokens.push(Token::new(TokenKind::Identifier, remainder.to_string(),
+                        Span::new(span.start + 2, span.end)));
+                }
             }
+            return;
+        }
+
+        if raw_value.starts_with("_>") {
+            self.tokens.push(Token::new(TokenKind::RightArg, "_>".to_string(),
+                Span::new(span.start, span.start + 2)));
+            if raw_value.len() > 2 {
+                let remainder = &raw_value[2..];
+                if !remainder.is_empty() {
+                    self.tokens.push(Token::new(TokenKind::Identifier, remainder.to_string(),
+                        Span::new(span.start + 2, span.end)));
+                }
+            }
+            return;
         }
 
         // Check for boolean/undefined literals
-        match value.as_str() {
+        match raw_value.as_str() {
             "true" => {
-                self.emit(TokenKind::BooleanLiteral, value, start_offset);
+                self.tokens.push(Token::new(TokenKind::BooleanLiteral, raw_value, span));
             }
             "false" => {
-                self.emit(TokenKind::BooleanLiteral, value, start_offset);
+                self.tokens.push(Token::new(TokenKind::BooleanLiteral, raw_value, span));
             }
             "undefined" => {
-                self.emit(TokenKind::UndefinedLiteral, value, start_offset);
+                self.tokens.push(Token::new(TokenKind::UndefinedLiteral, raw_value, span));
             }
             _ => {
-                self.emit(TokenKind::Identifier, value, start_offset);
+                // Regular identifier (includes operators like +, @, !!!, etc.)
+                self.tokens.push(Token::new(TokenKind::Identifier, raw_value, span));
             }
         }
-    }
-
-    /// Check if character can appear in identifier
-    fn is_identifier_char(ch: char) -> bool {
-        // Not whitespace
-        if ch.is_whitespace() {
-            return false;
-        }
-
-        // Not reserved symbol
-        match ch {
-            ':' | ',' | '.' | '\'' | '(' | ')' | '[' | ']' | '{' | '}' | '`' => false,
-            _ => true,
-        }
-    }
-}
-```
-
-### 2.5 Number Literal Recognition
-
-**File:** `crates/lr-lexer/src/lexer.rs` (continued)
-
-Decimal only, must start with digit [https://docs.rs/prattle/latest/prattle/]:
-
-```rust
-impl<'a> Lexer<'a> {
-    /// Lex number literal (decimal only)
-    fn lex_number(&mut self, start_offset: u32) {
-        let mut value = String::new();
-
-        // Consume digits
-        while let Some(&ch) = self.peek() {
-            if ch.is_ascii_digit() {
-                value.push(self.next().unwrap());
-            } else {
-                break;
-            }
-        }
-
-        // Optional decimal point followed by digits
-        if let Some(&'.') = self.peek() {
-            let checkpoint = self.checkpoint();
-            self.advance(); // consume '.'
-
-            // Check if followed by digit
-            if let Some(&ch) = self.peek() {
-                if ch.is_ascii_digit() {
-                    value.push('.');
-                    while let Some(&ch) = self.peek() {
-                        if ch.is_ascii_digit() {
-                            value.push(self.next().unwrap());
-                        } else {
-                            break;
-                        }
-                    }
-                } else {
-                    // Not a decimal point in this context, rewind
-                    self.rewind(LexerCheckpoint {
-                        byte_offset: checkpoint,
-                        line: self.line,
-                        column: self.column,
-                    });
-                }
-            } else {
-                // End of file after '.', rewind
-                self.rewind(LexerCheckpoint {
-                    byte_offset: checkpoint,
-                    line: self.line,
-                    column: self.column,
-                });
-            }
-        }
-
-        self.emit(TokenKind::NumberLiteral, value, start_offset);
-    }
-}
-```
-
-### 2.6 String Literal Handling
-
-**File:** `crates/lr-lexer/src/lexer.rs` (continued)
-
-Backtick-delimited with interpolation and escape:
-
-```rust
-impl<'a> Lexer<'a> {
-    /// Lex backtick string literal
-    fn lex_backtick(&mut self, start_offset: u32) {
-        self.advance(); // consume opening backtick
-        self.state = LexerState::InStringLiteral;
-    }
-
-    /// Lex inside string literal
-    fn lex_string_literal(&mut self) {
-        let start_offset = self.byte_offset() as u32;
-        let mut value = String::new();
-
-        while let Some(&ch) = self.peek() {
-            match ch {
-                // Escaped backtick
-                '\\' => {
-                    self.advance();
-                    if let Some('`') = self.peek() {
-                        self.advance();
-                        value.push('`');
-                    } else {
-                        value.push('\\');
-                    }
-                }
-
-                // Unescaped backtick = end of string
-                '`' => {
-                    self.advance();
-                    self.emit(TokenKind::StringLiteral, value, start_offset);
-                    self.state = LexerState::Normal;
-                    return;
-                }
-
-                // Start of interpolation
-                '{' => {
-                    self.state = LexerState::InStringInterpolation { depth: 0 };
-                    return;
-                }
-
-                // Regular character
-                _ => {
-                    value.push(self.next().unwrap());
-                }
-            }
-        }
-
-        // Unclosed string
-        let span = Span::new(start_offset, self.byte_offset() as u32);
-        self.error("Unclosed string literal".to_string(), span);
-        self.emit(TokenKind::StringLiteral, value, start_offset);
-        self.state = LexerState::Normal;
-    }
-
-    /// Lex inside string interpolation
-    fn lex_interpolation(&mut self, depth: u32) {
-        while let Some(&ch) = self.peek() {
-            match ch {
-                '{' => {
-                    self.advance();
-                    self.state = LexerState::InStringInterpolation { depth: depth + 1 };
-                }
-
-                '}' => {
-                    self.advance();
-                    if depth == 0 {
-                        // End of interpolation, return to string literal
-                        self.state = LexerState::InStringLiteral;
-                        return;
-                    } else {
-                        self.state = LexerState::InStringInterpolation { depth: depth - 1 };
-                    }
-                }
-
-                '`' => {
-                    // Backtick inside interpolation starts new string literal
-                    self.lex_backtick(self.byte_offset() as u32);
-                }
-
-                // Continue normal tokenization
-                _ => {
-                    self.lex_normal();
-                }
-            }
-        }
-
-        // Unclosed interpolation
-        let span = Span::new(self.byte_offset() as u32, self.byte_offset() as u32);
-        self.error("Unclosed string interpolation".to_string(), span);
-        self.state = LexerState::Normal;
-    }
-}
-```
-
-### 2.7 Comment Handling
-
-**File:** `crates/lr-lexer/src/lexer.rs` (continued)
-
-Triple-backtick line comments:
-
-```rust
-impl<'a> Lexer<'a> {
-    /// Lex comment (after ```)
-    fn lex_comment(&mut self) {
-        let start_offset = self.byte_offset() as u32;
-        let mut value = String::new();
-
-        while let Some(&ch) = self.peek() {
-            if ch == '\n' {
-                break;
-            }
-            value.push(self.next().unwrap());
-        }
-
-        self.emit(TokenKind::Comment, value, start_offset);
-        self.state = LexerState::Normal;
     }
 }
 ```
@@ -772,6 +525,59 @@ pub struct LexError {
     pub span: Span,
 }
 ```
+
+### 2.3 String Interpolation Handling
+
+**File:** `crates/lr-lexer/src/lexer.rs` (continued)
+
+String interpolation is handled by re-lexing in the parser (logos can't handle nested `{expr}`):
+
+```rust
+impl<'a> Lexer<'a> {
+    /// Process string interpolation by marking locations for parser to re-lex
+    /// Logos cannot handle nested braces, so we let the parser handle interpolation
+    /// The lexer just marks string tokens that contain interpolation markers
+    pub fn mark_interpolation_locations(&self, token: &Token) -> Vec<(Span, String)> {
+        let mut locations = Vec::new();
+        let value = &token.value;
+
+        // Find all {expr} patterns in string
+        // This is a simple heuristic - parser will do actual re-lexing
+        let mut depth = 0;
+        let mut start = 0;
+
+        for (i, ch) in value.char_indices() {
+            if ch == '{' {
+                if depth == 0 {
+                    start = i;
+                }
+                depth += 1;
+            } else if ch == '}' && depth > 0 {
+                depth -= 1;
+                if depth == 0 {
+                    let expr_str = &value[start + 1..i];
+                    let span_start = token.span.start + 1 + start as u32;
+                    let span_end = token.span.start + 1 + i as u32;
+                    locations.push((Span::new(span_start, span_end), expr_str.to_string()));
+                }
+            }
+        }
+
+        locations
+    }
+}
+```
+
+**Note:** The parser will handle string interpolation by:
+1. Detecting `{` and `}` markers in string values
+2. Re-lexing the expression strings between markers
+3. Building `StringPart::Interpolation` nodes with proper AST expressions
+
+This two-pass approach is necessary because logos (and most tokenizers) cannot handle nested delimiters efficiently.
+
+### 2.4 Error Types
+
+**File:** `crates/lr-lexer/src/error.rs`
 
 ### 2.9 Lexer Module Exports
 
@@ -2247,382 +2053,390 @@ proptest! {
   git commit -m "feat: set up workspace structure and shared types"
   ```
 
-### Phase 2: Token Types and Lexer Core (2 hours)
+### Phase 2: Token Types and Hybrid Lexer Setup (2 hours)
 
-- [ ] **Step 2.1:** Write failing token type tests
+- [ ] **Step 2.1:** Add logos dependency
+  - File: `Cargo.toml` (workspace root)
+  - Add: `logos = "0.16.1"` to `[workspace.dependencies]`
+  - Add: `logos = { workspace = true }` to `crates/lr-lexer/Cargo.toml`
+
+- [ ] **Step 2.2:** Write failing token type tests
   - File: `crates/lr-lexer/tests/token_types.rs`
-  - Tests for all token kinds
+  - Tests for all token kinds, RawToken enum, Token wrapper
 
-- [ ] **Step 2.2:** Implement token type definitions
+- [ ] **Step 2.3:** Implement RawToken enum with Logos derive
   - File: `crates/lr-lexer/src/token.rs`
-  - `TokenKind` enum, `Token` struct
+  - `#[derive(Logos)]` on `RawToken`
+  - All simple tokens: delimiters, numbers, strings, comments
+  - `OperatorIdent` catch-all regex
 
-- [ ] **Step 2.3:** Run tests to verify token types work
+- [ ] **Step 2.4:** Implement Token wrapper with spans
+  - File: `crates/lr-lexer/src/token.rs`
+  - `TokenKind` enum, `Token` struct with `Span`
+  - Conversion from `RawToken` to `Token` with span tracking
+
+- [ ] **Step 2.5:** Run token type tests
   - Run: `cargo test -p lr-lexer token_types`
   - Expected: PASS
 
-- [ ] **Step 2.4:** Implement lexer state machine skeleton
-  - File: `crates/lr-lexer/src/lexer.rs`
-  - `Lexer` struct with `chars.peekable()`
-
-- [ ] **Step 2.5:** Implement lexer checkpoint system
-  - Method: `checkpoint()`, `rewind()`
-  - Pattern: SWC backtracking [https://github.com/swc-project/swc/blob/main/crates/swc_es_parser/src/lexer.rs]
-
 - [ ] **Step 2.6:** Commit
   ```bash
-  git add crates/lr-lexer/
-  git commit -m "feat: implement token types and lexer state machine"
+  git add Cargo.toml crates/lr-lexer/Cargo.toml crates/lr-lexer/src/token.rs
+  git commit -m "feat: add logos dependency and RawToken enum"
   ```
 
-### Phase 3: Identifier and Number Lexing (2 hours)
+### Phase 3: Logos Integration and Simple Tokens (1.5 hours)
 
-- [ ] **Step 3.1:** Write failing identifier tests
+- [ ] **Step 3.1:** Implement hybrid lexer skeleton
+  - File: `crates/lr-lexer/src/lexer.rs`
+  - `Lexer` struct with logos `RawToken::lexer()`
+  - `tokenize()` method with Phase 1 (logos) + Phase 2 (wrapper)
+
+- [ ] **Step 3.2:** Implement simple token mappings
+  - Direct mapping: delimiters, numbers, strings, comments
+  - Span extraction via `lex.span()`
+  - EOF token emission
+
+- [ ] **Step 3.3:** Run simple token tests
+  - Run: `cargo test -p lr-lexer simple_tokens`
+  - Expected: PASS
+
+- [ ] **Step 3.4:** Commit
+  ```bash
+  git add crates/lr-lexer/src/lexer.rs
+  git commit -m "feat: implement logos integration and simple token mappings"
+  ```
+
+### Phase 4: Hand-Written Operator Identifier Fallback (2 hours)
+
+- [ ] **Step 4.1:** Write failing identifier tests
   - File: `crates/lr-lexer/tests/identifier_tests.rs`
-  - Tests for maximal munch (`!!!?`, `///`, `\\\`, `$@`, `><`)
+  - Tests for maximal munch (`!!!?`, `///`, `\\\`, `$@`, `><`, `_<`, `_>`)
 
-- [ ] **Step 3.2:** Implement identifier recognition
-  - Method: `lex_identifier()`
-  - Maximal munch pattern from SWC
+- [ ] **Step 4.2:** Implement operator identifier resolution
+  - Method: `process_operator_ident(span)`
+  - Maximal munch for `_>` and `_<` (2-char tokens)
+  - Boolean/undefined literal detection
+  - All other operators → `Identifier`
 
-- [ ] **Step 3.3:** Run identifier tests
+- [ ] **Step 4.3:** Implement backtick handling
+  - Method: `process_backtick_token(span)`
+  - Triple backtick at line start → comment
+  - Single backtick → string literal
+
+- [ ] **Step 4.4:** Run identifier tests
   - Run: `cargo test -p lr-lexer identifier_tests`
   - Expected: PASS
 
-- [ ] **Step 3.4:** Write failing number tests
-  - File: `crates/lr-lexer/tests/number_tests.rs`
-  - Tests for decimal numbers, edge cases
-
-- [ ] **Step 3.5:** Implement number recognition
-  - Method: `lex_number()`
-  - Decimal only, no hex/binary/scientific
-
-- [ ] **Step 3.6:** Run number tests
-  - Run: `cargo test -p lr-lexer number_tests`
-  - Expected: PASS
-
-- [ ] **Step 3.7:** Commit
+- [ ] **Step 4.5:** Commit
   ```bash
-  git add crates/lr-lexer/
-  git commit -m "feat: implement identifier and number lexing with maximal munch"
+  git add crates/lr-lexer/src/lexer.rs
+  git commit -m "feat: implement hand-written operator identifier fallback with maximal munch"
   ```
 
-### Phase 4: String and Comment Lexing (2 hours)
+### Phase 5: String Interpolation Marking (1 hour)
 
-- [ ] **Step 4.1:** Write failing string tests
-  - File: `crates/lr-lexer/tests/string_tests.rs`
-  - Tests for backtick strings, interpolation, escape sequences
+- [ ] **Step 5.1:** Write failing interpolation tests
+  - File: `crates/lr-lexer/tests/interpolation_tests.rs`
+  - Tests for string tokens with `{expr}` markers
 
-- [ ] **Step 4.2:** Implement backtick string lexing
-  - Method: `lex_backtick()`, `lex_string_literal()`
-  - State: `InStringLiteral`
+- [ ] **Step 5.2:** Implement interpolation location marking
+  - Method: `mark_interpolation_locations()`
+  - Detect `{expr}` patterns in string values
+  - Return locations for parser to re-lex
 
-- [ ] **Step 4.3:** Implement string interpolation
-  - Method: `lex_interpolation()`
-  - Brace depth tracking for nesting
-
-- [ ] **Step 4.4:** Run string tests
-  - Run: `cargo test -p lr-lexer string_tests`
-  - Expected: PASS
-
-- [ ] **Step 4.5:** Write failing comment tests
-  - File: `crates/lr-lexer/tests/comment_tests.rs`
-  - Tests for line-start triple backtick comments
-
-- [ ] **Step 4.6:** Implement comment lexing
-  - Method: `lex_comment()`
-  - State: `InComment`
-
-- [ ] **Step 4.7:** Run comment tests
-  - Run: `cargo test -p lr-lexer comment_tests`
-  - Expected: PASS
-
-- [ ] **Step 4.8:** Commit
-  ```bash
-  git add crates/lr-lexer/
-  git commit -m "feat: implement string and comment lexing with interpolation"
-  ```
-
-### Phase 5: AST Node Types (1 hour)
-
-- [ ] **Step 5.1:** Write failing AST tests
-  - File: `crates/lr-ast/tests/node_tests.rs`
-  - Tests for all node types
-
-- [ ] **Step 5.2:** Implement AST node definitions
-  - File: `crates/lr-ast/src/lib.rs`
-  - `Program`, `Expression`, `StringPart`, `MapEntry`
-
-- [ ] **Step 5.3:** Run AST tests
-  - Run: `cargo test -p lr-ast node_tests`
+- [ ] **Step 5.3:** Run interpolation tests
+  - Run: `cargo test -p lr-lexer interpolation_tests`
   - Expected: PASS
 
 - [ ] **Step 5.4:** Commit
+  ```bash
+  git add crates/lr-lexer/src/lexer.rs
+  git commit -m "feat: implement string interpolation location marking"
+  ```
+
+### Phase 6: AST Node Types (1 hour)
+
+- [ ] **Step 6.1:** Write failing AST tests
+  - File: `crates/lr-ast/tests/node_tests.rs`
+  - Tests for all node types
+
+- [ ] **Step 6.2:** Implement AST node definitions
+  - File: `crates/lr-ast/src/lib.rs`
+  - `Program`, `Expression`, `StringPart`, `MapEntry`
+
+- [ ] **Step 6.3:** Run AST tests
+  - Run: `cargo test -p lr-ast node_tests`
+  - Expected: PASS
+
+- [ ] **Step 6.4:** Commit
   ```bash
   git add crates/lr-ast/
   git commit -m "feat: implement AST node types with span tracking"
   ```
 
-### Phase 6: Parser Core (2 hours)
+### Phase 7: Parser Core (2 hours)
 
-- [ ] **Step 6.1:** Write failing parser skeleton tests
+- [ ] **Step 7.1:** Write failing parser skeleton tests
   - File: `crates/lr-parser/tests/parser_skeleton.rs`
   - Tests for basic parser structure
 
-- [ ] **Step 6.2:** Implement parser skeleton
+- [ ] **Step 7.2:** Implement parser skeleton
   - File: `crates/lr-parser/src/parser.rs`
   - `Parser` struct, `peek()`, `next()`, `expect()`
 
-- [ ] **Step 6.3:** Run parser skeleton tests
+- [ ] **Step 7.3:** Run parser skeleton tests
   - Run: `cargo test -p lr-parser parser_skeleton`
   - Expected: PASS
 
-- [ ] **Step 6.4:** Implement zero-precedence expression parsing
+- [ ] **Step 7.4:** Implement zero-precedence expression parsing
   - Method: `parse_expression()`, `parse_primary()`
   - Pattern: All operators = binding power 0 [https://docs.rs/prattle/latest/prattle/]
 
-- [ ] **Step 6.5:** Write failing expression tests
+- [ ] **Step 7.5:** Write failing expression tests
   - File: `crates/lr-parser/tests/expression_tests.rs`
   - Tests for basic arithmetic, zero precedence
 
-- [ ] **Step 6.6:** Run expression tests
+- [ ] **Step 7.6:** Run expression tests
   - Run: `cargo test -p lr-parser expression_tests`
-  - Expected: PASS
-
-- [ ] **Step 6.7:** Commit
-  ```bash
-  git add crates/lr-parser/
-  git commit -m "feat: implement parser core with zero-precedence expression parsing"
-  ```
-
-### Phase 7: Collection Parsing (2 hours)
-
-- [ ] **Step 7.1:** Write failing list literal tests
-  - File: `crates/lr-parser/tests/list_tests.rs`
-  - Tests for `[]`, nested lists
-
-- [ ] **Step 7.2:** Implement list literal parsing
-  - Method: `parse_list_literal()`
-
-- [ ] **Step 7.3:** Run list tests
-  - Run: `cargo test -p lr-parser list_tests`
-  - Expected: PASS
-
-- [ ] **Step 7.4:** Write failing map literal tests
-  - File: `crates/lr-parser/tests/map_tests.rs`
-  - Tests for `{}`, assignment keys, expression keys
-
-- [ ] **Step 7.5:** Implement map literal parsing with colon disambiguation
-  - Method: `parse_map_literal()`
-  - Detect alpha-starting keys (assignment) vs expression keys
-
-- [ ] **Step 7.6:** Run map tests
-  - Run: `cargo test -p lr-parser map_tests`
   - Expected: PASS
 
 - [ ] **Step 7.7:** Commit
   ```bash
   git add crates/lr-parser/
-  git commit -m "feat: implement map and list literal parsing with colon disambiguation"
+  git commit -m "feat: implement parser core with zero-precedence expression parsing"
   ```
 
-### Phase 8: String Interpolation and Grouping (1 hour)
+### Phase 8: Collection Parsing (2 hours)
 
-- [ ] **Step 8.1:** Write failing string parsing tests
-  - File: `crates/lr-parser/tests/string_parsing_tests.rs`
-  - Tests for string literals with interpolation
+- [ ] **Step 8.1:** Write failing list literal tests
+  - File: `crates/lr-parser/tests/list_tests.rs`
+  - Tests for `[]`, nested lists
 
-- [ ] **Step 8.2:** Implement string interpolation parsing
-  - Method: `parse_string_parts()`
-  - Re-lex interpolation expressions
+- [ ] **Step 8.2:** Implement list literal parsing
+  - Method: `parse_list_literal()`
 
-- [ ] **Step 8.3:** Run string parsing tests
-  - Run: `cargo test -p lr-parser string_parsing_tests`
+- [ ] **Step 8.3:** Run list tests
+  - Run: `cargo test -p lr-parser list_tests`
   - Expected: PASS
 
-- [ ] **Step 8.4:** Write failing grouped expression tests
-  - File: `crates/lr-parser/tests/grouping_tests.rs`
-  - Tests for `(expr)`
+- [ ] **Step 8.4:** Write failing map literal tests
+  - File: `crates/lr-parser/tests/map_tests.rs`
+  - Tests for `{}`, assignment keys, expression keys
 
-- [ ] **Step 8.5:** Implement grouped expression parsing
-  - Method: `parse_grouped_expression()`
+- [ ] **Step 8.5:** Implement map literal parsing with colon disambiguation
+  - Method: `parse_map_literal()`
+  - Detect alpha-starting keys (assignment) vs expression keys
 
-- [ ] **Step 8.6:** Run grouping tests
-  - Run: `cargo test -p lr-parser grouping_tests`
+- [ ] **Step 8.6:** Run map tests
+  - Run: `cargo test -p lr-parser map_tests`
   - Expected: PASS
 
 - [ ] **Step 8.7:** Commit
   ```bash
   git add crates/lr-parser/
-  git commit -m "feat: implement string interpolation and grouped expression parsing"
+  git commit -m "feat: implement map and list literal parsing with colon disambiguation"
   ```
 
-### Phase 9: Special Expressions (1 hour)
+### Phase 9: String Interpolation and Grouping (1.5 hours)
 
-- [ ] **Step 9.1:** Write failing special expression tests
+- [ ] **Step 9.1:** Write failing string parsing tests
+  - File: `crates/lr-parser/tests/string_parsing_tests.rs`
+  - Tests for string literals with interpolation
+
+- [ ] **Step 9.2:** Implement string interpolation parsing with re-lexing
+  - Method: `parse_string_parts()`
+  - Use lexer's `mark_interpolation_locations()` to find expressions
+  - Re-lex expression strings with new lexer instance
+  - Parse re-lexed expressions into AST
+
+- [ ] **Step 9.3:** Run string parsing tests
+  - Run: `cargo test -p lr-parser string_parsing_tests`
+  - Expected: PASS
+
+- [ ] **Step 9.4:** Write failing grouped expression tests
+  - File: `crates/lr-parser/tests/grouping_tests.rs`
+  - Tests for `(expr)`
+
+- [ ] **Step 9.5:** Implement grouped expression parsing
+  - Method: `parse_grouped_expression()`
+
+- [ ] **Step 9.6:** Run grouping tests
+  - Run: `cargo test -p lr-parser grouping_tests`
+  - Expected: PASS
+
+- [ ] **Step 9.7:** Commit
+  ```bash
+  git add crates/lr-parser/
+  git commit -m "feat: implement string interpolation with re-lexing and grouped expression parsing"
+  ```
+
+### Phase 10: Special Expressions (1 hour)
+
+- [ ] **Step 10.1:** Write failing special expression tests
   - File: `crates/lr-parser/tests/special_tests.rs`
   - Tests for `!!!`, `!!!?`, `///`, `\\\`
 
-- [ ] **Step 9.2:** Implement throw/catch/async/await parsing
+- [ ] **Step 10.2:** Implement throw/catch/async/await parsing
   - Methods: `parse_throw_expression()`, `parse_catch_expression()`, etc.
 
-- [ ] **Step 9.3:** Run special expression tests
+- [ ] **Step 10.3:** Run special expression tests
   - Run: `cargo test -p lr-parser special_tests`
   - Expected: PASS
 
-- [ ] **Step 9.4:** Commit
+- [ ] **Step 10.4:** Commit
   ```bash
   git add crates/lr-parser/
   git commit -m "feat: implement throw/catch/async/await expression parsing"
   ```
 
-### Phase 10: Error Recovery (1.5 hours)
+### Phase 11: Error Recovery (1.5 hours)
 
-- [ ] **Step 10.1:** Write failing error recovery tests
+- [ ] **Step 11.1:** Write failing error recovery tests
   - File: `crates/lr-parser/tests/recovery_tests.rs`
   - Tests for malformed input recovery
 
-- [ ] **Step 10.2:** Implement bogus node error recovery
+- [ ] **Step 11.2:** Implement bogus node error recovery
   - File: `crates/lr-parser/src/recovery.rs`
   - Pattern: Biome `ParseRecoveryTokenSet` [https://github.com/biomejs/biome/blob/main/.claude/skills/parser-development/SKILL.md]
 
-- [ ] **Step 10.3:** Integrate recovery into parser
+- [ ] **Step 11.3:** Integrate recovery into parser
   - Methods: `recover()`, `try_parse()`
 
-- [ ] **Step 10.4:** Run error recovery tests
+- [ ] **Step 11.4:** Run error recovery tests
   - Run: `cargo test -p lr-parser recovery_tests`
   - Expected: PASS
 
-- [ ] **Step 10.5:** Commit
+- [ ] **Step 11.5:** Commit
   ```bash
   git add crates/lr-parser/
   git commit -m "feat: implement bogus node error recovery for robust parsing"
   ```
 
-### Phase 11: Diagnostics (1 hour)
+### Phase 12: Diagnostics (1 hour)
 
-- [ ] **Step 11.1:** Write failing diagnostics tests
+- [ ] **Step 12.1:** Write failing diagnostics tests
   - File: `crates/lr-diagnostics/tests/diagnostics_tests.rs`
   - Tests for error rendering
 
-- [ ] **Step 11.2:** Implement error rendering with ariadne
+- [ ] **Step 12.2:** Implement error rendering with ariadne
   - File: `crates/lr-diagnostics/src/lib.rs`
   - Multi-line spans, colors [https://docs.rs/ariadne/latest/ariadne/]
 
-- [ ] **Step 11.3:** Run diagnostics tests
+- [ ] **Step 12.3:** Run diagnostics tests
   - Run: `cargo test -p lr-diagnostics diagnostics_tests`
   - Expected: PASS
 
-- [ ] **Step 11.4:** Commit
+- [ ] **Step 12.4:** Commit
   ```bash
   git add crates/lr-diagnostics/
   git commit -m "feat: implement error rendering with ariadne diagnostics"
   ```
 
-### Phase 12: Live System Test Suite (3 hours)
+### Phase 13: Live System Test Suite (3 hours)
 
-- [ ] **Step 12.1:** Create test runner infrastructure
+- [ ] **Step 13.1:** Create test runner infrastructure
   - File: `compiler/tests/live_system_tests.rs`
   - Helper functions for testing
 
-- [ ] **Step 12.2:** Implement Flow 1-5 tests (basic flows)
+- [ ] **Step 13.2:** Implement Flow 1-5 tests (basic flows)
   - Basic arithmetic, zero precedence, operator as identifier, string interpolation, map operators
 
-- [ ] **Step 12.3:** Run Flow 1-5 tests
+- [ ] **Step 13.3:** Run Flow 1-5 tests
   - Run: `cargo test --test live_system_tests flow_0[1-5]`
   - Expected: PASS
 
-- [ ] **Step 12.4:** Implement Flow 6-10 tests (error and export flows)
+- [ ] **Step 13.4:** Implement Flow 6-10 tests (error and export flows)
   - Error handling, async, comments, export, nested maps/lists
 
-- [ ] **Step 12.5:** Run Flow 6-10 tests
+- [ ] **Step 13.5:** Run Flow 6-10 tests
   - Run: `cargo test --test live_system_tests flow_0[6-10]`
   - Expected: PASS
 
-- [ ] **Step 12.6:** Implement Flow 11-15 tests (advanced flows)
+- [ ] **Step 13.6:** Implement Flow 11-15 tests (advanced flows)
   - Curried chains, reverse args, silent execution, spread, multi-line strings
 
-- [ ] **Step 12.7:** Run Flow 11-15 tests
+- [ ] **Step 13.7:** Run Flow 11-15 tests
   - Run: `cargo test --test live_system_tests flow_1[1-5]`
   - Expected: PASS
 
-- [ ] **Step 12.8:** Implement Flow 16-20 tests (edge cases)
+- [ ] **Step 13.8:** Implement Flow 16-20 tests (edge cases)
   - Boolean operators, loop operators, error recovery, empty input, unicode
 
-- [ ] **Step 12.9:** Run Flow 16-20 tests
+- [ ] **Step 13.9:** Run Flow 16-20 tests
   - Run: `cargo test --test live_system_tests flow_1[6-20]`
   - Expected: PASS
 
-- [ ] **Step 12.10:** Run all live system tests
+- [ ] **Step 13.10:** Run all live system tests
   - Run: `cargo test --test live_system_tests`
   - Expected: ALL PASS
 
-- [ ] **Step 12.11:** Commit
+- [ ] **Step 13.11:** Commit
   ```bash
   git add compiler/tests/
   git commit -m "feat: implement live system test suite with 20 comprehensive flows"
   ```
 
-### Phase 13: Property-Based Testing (1 hour)
+### Phase 14: Property-Based Testing (1 hour)
 
-- [ ] **Step 13.1:** Write failing proptest tests
+- [ ] **Step 14.1:** Write failing proptest tests
   - File: `crates/lr-lexer/tests/prop_tests.rs`
   - Properties: never panics, spans in bounds [https://www.beamtalk.dev/adr/0011-robustness-testing-layered-fuzzing.html]
 
-- [ ] **Step 13.2:** Run property-based tests
+- [ ] **Step 14.2:** Run property-based tests
   - Run: `cargo test -p lr-lexer prop_tests`
   - Expected: PASS
 
-- [ ] **Step 13.3:** Commit
+- [ ] **Step 14.3:** Commit
   ```bash
   git add crates/lr-lexer/tests/prop_tests.rs
   git commit -m "feat: add property-based tests for lexer robustness"
   ```
 
-### Phase 14: Integration Testing (2 hours)
+### Phase 15: Integration Testing (2 hours)
 
-- [ ] **Step 14.1:** Create end-to-end integration tests
+- [ ] **Step 15.1:** Create end-to-end integration tests
   - File: `compiler/tests/integration_tests.rs`
   - Test full pipeline: source → lexer → parser → AST
 
-- [ ] **Step 14.2:** Implement snapshot testing with insta
+- [ ] **Step 15.2:** Implement snapshot testing with insta
   - Use `tokenstream` feature for AST snapshots [https://github.com/mitsuhiko/insta/pull/884]
 
-- [ ] **Step 14.3:** Run integration tests
+- [ ] **Step 15.3:** Run integration tests
   - Run: `cargo test --test integration_tests`
   - Expected: PASS
 
-- [ ] **Step 14.4:** Verify all tests pass
+- [ ] **Step 15.4:** Verify all tests pass
   - Run: `cargo test --workspace`
   - Expected: ALL PASS
 
-- [ ] **Step 14.5:** Commit
+- [ ] **Step 15.5:** Commit
   ```bash
   git add compiler/tests/
   git commit -m "feat: add end-to-end integration tests with insta snapshots"
   ```
 
-### Phase 15: Documentation and Final Verification (1 hour)
+### Phase 16: Documentation and Final Verification (1 hour)
 
-- [ ] **Step 15.1:** Write README for each crate
+- [ ] **Step 16.1:** Write README for each crate
   - `crates/lr-lexer/README.md`
   - `crates/lr-parser/README.md`
   - `crates/lr-ast/README.md`
   - `crates/lr-diagnostics/README.md`
 
-- [ ] **Step 15.2:** Write compiler README
+- [ ] **Step 16.2:** Write compiler README
   - `compiler/README.md`
   - Overview of architecture and usage
 
-- [ ] **Step 15.3:** Run final verification
+- [ ] **Step 16.3:** Run final verification
   - Run: `cargo build --workspace --release`
   - Expected: Successful optimized build
 
-- [ ] **Step 15.4:** Run final test suite
+- [ ] **Step 16.4:** Run final test suite
   - Run: `cargo test --workspace`
   - Expected: ALL PASS (no failures)
 
-- [ ] **Step 15.5:** Commit
+- [ ] **Step 16.5:** Commit
   ```bash
   git add .
   git commit -m "docs: add README documentation and final verification"
@@ -2634,16 +2448,18 @@ proptest! {
 
 Before claiming implementation is complete, verify:
 
-- [ ] All 15 phases completed (checked off)
+- [ ] All 16 phases completed (checked off)
 - [ ] `cargo build --workspace` passes (no compilation errors)
 - [ ] `cargo test --workspace` passes (all tests green)
 - [ ] All 20 live system test flows pass
 - [ ] Property-based tests run without failures
 - [ ] Insta snapshots reviewed and correct
 - [ ] Error recovery tested with malformed input
-- [ ] String interpolation nesting tested
+- [ ] String interpolation nesting tested with re-lexing
+- [ ] Operator identifier maximal munch tested
 - [ ] Unicode identifiers tested
 - [ ] Empty input handled correctly
+- [ ] Logos-based tokenization verified (2-10x speedup over pure hand-written)
 - [ ] LSP diagnostics clean on all modified files
 - [ ] No TODOs left in code
 - [ ] All crates have README documentation
@@ -2654,14 +2470,15 @@ Before claiming implementation is complete, verify:
 
 This implementation plan cites these sources:
 
-1. **Hand-written lexer pattern**: SWC uses `chars.peekable()` + `LexerCheckpoint` for backtracking [https://github.com/swc-project/swc/blob/main/crates/swc_es_parser/src/lexer.rs]
-2. **Token cloning for speed**: "Avoid returning refs — clone tokens for 25% speedup" [https://alic.dev/blog/fast-lexing]
-3. **Zero precedence parsing**: Set binding power 0 for all operators, parse as left-associative chain [https://docs.rs/prattle/latest/prattle/]
-4. **Insta snapshots**: Use `tokenstream` feature for AST snapshot testing [https://github.com/mitsuhiko/insta/pull/884]
-5. **Proptest properties**: Parser never panics, diagnostic spans within input bounds [https://www.beamtalk.dev/adr/0011-robustness-testing-layered-fuzzing.html]
-6. **Error recovery**: Biome `ParseRecoveryTokenSet` with bogus nodes [https://github.com/biomejs/biome/blob/main/.claude/skills/parser-development/SKILL.md]
-7. **Ariadne diagnostics**: Multi-line spans, multi-file errors, colors [https://docs.rs/ariadne/latest/ariadne/]
-8. **Logos alternative**: Compile-time state machine, 1204 MB/s identifiers [https://github.com/maciejhirsz/logos/]
+1. **Hybrid lexer pattern**: Logos compile-time FSM + hand-written fallback for edge cases [https://github.com/maciejhirsz/logos/]
+2. **Logos performance**: Compile-time state machine, 1204 MB/s identifiers, 2-10x faster than hand-written [https://github.com/maciejhirsz/logos/]
+3. **Token cloning for speed**: "Avoid returning refs — clone tokens for 25% speedup" [https://alic.dev/blog/fast-lexing]
+4. **Zero precedence parsing**: Set binding power 0 for all operators, parse as left-associative chain [https://docs.rs/prattle/latest/prattle/]
+5. **Insta snapshots**: Use `tokenstream` feature for AST snapshot testing [https://github.com/mitsuhiko/insta/pull/884]
+6. **Proptest properties**: Parser never panics, diagnostic spans within input bounds [https://www.beamtalk.dev/adr/0011-robustness-testing-layered-fuzzing.html]
+7. **Error recovery**: Biome `ParseRecoveryTokenSet` with bogus nodes [https://github.com/biomejs/biome/blob/main/.claude/skills/parser-development/SKILL.md]
+8. **Ariadne diagnostics**: Multi-line spans, multi-file errors, colors [https://docs.rs/ariadne/latest/ariadne/]
+9. **String interpolation re-lexing**: Two-pass approach for nested braces in strings [https://doc.rust-lang.org/reference/tokens.html]
 
 ---
 
