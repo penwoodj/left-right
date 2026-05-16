@@ -414,6 +414,9 @@ proptest = { workspace = true }
 //!
 //! Reference: Lua VM uses 32-bit fixed-width instructions, ~47% fewer dispatches vs stack-based
 //! https://luaf.dev/pages/virtualmachine.html
+//!
+//! **Design decision**: 32-bit fixed-width encoding chosen for simplicity and predictable dispatch.
+//! Variable-width (VaryingOperand/LEB128) deferred to optimization phase. Lua/LuaJIT use 32-bit successfully.
 
 use std::fmt;
 
@@ -1980,12 +1983,38 @@ For EACH of the 20 test flows, create a test file with:
 - [ ] Performance benchmarks
 - [ ] Error case coverage
 
-### Phase 8: Optimization (Inline Caching)
-- [ ] Inline cache implementation
-- [ ] Monomorphic fast path
-- [ ] Polymorphic fallback
-- [ ] Megamorphic slow path
-- [ ] Inline cache tests
+### Phase 8: Performance Optimizations (DEFERRED)
+
+**NOTE: This phase is intentionally DEFERRED. Implement only after baseline VM passes all tests (Phase 1-7 complete).**
+
+Do not implement inline caching, shapes, or hidden classes in the initial implementation. These are optimization techniques that should be added only after verifying correct functionality.
+
+#### 8.1 Inline Caching (4-20% speedup)
+- [ ] Monomorphic inline caching (single type fast path)
+  - Pattern: `BTreeMap<usize, usize>` (bytecode offset → cache slot)
+  - Per-instruction cache, keyed by shape/type
+  - Reference: som-rs implementation
+- [ ] Polymorphic inline caching (2-4 types)
+  - Small vector of type-specialized paths
+  - Fallback to megamorphic when cache overflows
+- [ ] Megamorphic fallback
+  - Dictionary lookup for rare type combinations
+- [ ] Inline cache tests and benchmarks
+- References:
+  - som-rs pattern: https://github.com/OctaveLarose/som-rs/commit/6a258977d25a051589c73b0663aa0274334e45b1
+  - V8 IC article: https://debuglab.net/2026/05/10/inside-v8-deoptimization-how-inline-caches-distort-javascript/
+
+#### 8.2 Shapes / Hidden Classes for Maps
+- [ ] Track property addition order
+  - Each map shape has unique ID based on property sequence
+  - Monomorphic ICs keyed by shape ID (not individual properties)
+- [ ] Transition chains
+  - Root → prototype → insert transitions
+  - Fast path: follow transition chain to find property offset
+- [ ] Shape-based map optimization tests
+- References:
+  - Boa shapes implementation: https://boajs.dev/docs/intro
+  - V8 hidden classes: https://debuglab.net/2026/05/10/inside-v8-deoptimization-how-inline-caches-distort-javascript/
 
 ---
 
@@ -2000,6 +2029,16 @@ For EACH of the 20 test flows, create a test file with:
 - Every operator takes left arg, may take right arg
 - `5 + 3` = `((5+)3)` → 8
 - Zero precedence: strict left-to-right
+- **Currying note**: Use push-enter model — evaluate arguments first, then invoke. Currying creates small closures with environment chaining. Compiler detects when function is fully applied vs partially applied. Register-based possible but requires careful closure representation.
+
+### Async Operator Approach
+- `!` suffix makes an operator async (e.g., `///`, `\\\`)
+- At VM level: `!` operators compile to async closures
+- `AWAIT` opcode (opcode 121) pauses async execution
+- Use Rust's native async/await (zero-cost state machines via generators)
+- Tokio runtime for async task scheduling
+- NOT green threads, NOT custom coroutine implementation
+- Async values: boxed `Future` in heap, GC-managed
 
 ### Maps Are Universal
 - Maps serve as: functions, conditionals, control flow, data storage
@@ -2016,18 +2055,10 @@ For EACH of the 20 test flows, create a test file with:
 - Used by Ruffle and piccolo
 - Reference: https://docs.rs/gc-arena/latest/gc_arena/
 
-### Inline Caching Pattern
-- Monomorphic fast path → polymorphic (2-4 types) → megamorphic fallback
-- som-rs pattern: https://github.com/OctaveLarose/som-rs/commit/6a258977d25a051589c73b0663aa0274334e45b1
-- Reference: https://debuglab.net/2026/05/10/inside-v8-deoptimization-how-inline-caches-distort-javascript/
-
 ### Golden Testing
 - Use `goldenfile` v1.11.0 for golden tests
+- Alternative: okane-golden (actively maintained fork)
 - Reference: https://docs.rs/goldenfile/latest/goldenfile/
-
-### Hidden Classes for Maps
-- Track property transitions for fast map access
-- Reference: https://debuglab.net/2026/05/10/inside-v8-deoptimization-how-inline-caches-distort-javascript/
 
 ---
 
@@ -2042,11 +2073,13 @@ Before claiming implementation complete, verify:
 - [ ] Golden tests are up-to-date
 - [ ] No memory leaks (verify with Valgrind if possible)
 - [ ] All operators from spec are implemented
-- [ ] Async/await works correctly
-- [ ] Error handling works correctly
-- [ ] Import/export works correctly
-- [ ] Inline caching provides performance improvement
-- [ ] GC handles cycles correctly
+ - [ ] Async/await works correctly
+ - [ ] Error handling works correctly
+ - [ ] Import/export works correctly
+ - [ ] GC handles cycles correctly
+ - [ ] Baseline performance acceptable (target: <1ms for simple expressions)
+
+**Note: Inline caching and shape optimization are Phase 8 (deferred), not required for baseline implementation.**
 
 ---
 
@@ -2084,10 +2117,10 @@ Implementation is successful when:
 
 ## Next Steps After Core VM
 
-After completing Phase 6 (Live System Test Suite), proceed with:
+After completing Phase 7 (Live System Test Suite), proceed with:
 
 1. **Optimization Passes**: Constant folding, dead code elimination, common subexpression elimination
-2. **Inline Caching**: Implement monomorphic/polymorphic inline caches
+2. **Phase 8: Performance Optimizations**: Inline caching, shapes/hidden classes (only after baseline verified)
 3. **JIT Compilation**: Optional, for performance-critical code paths
 4. **Debugging Support**: Add source maps, breakpoints, step-through debugging
 5. **Profile-Guided Optimization**: Collect runtime feedback, optimize hot paths
