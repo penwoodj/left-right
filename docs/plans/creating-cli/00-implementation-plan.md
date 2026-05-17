@@ -4,9 +4,9 @@
 
 **Goal:** Build a production-ready CLI tool (`lr`) for the Left-Right programming language with REPL, error reporting, build system, and LSP support.
 
-**Architecture:** Multi-crate Rust workspace using clap v4.6+ for CLI commands, reedline v0.47.0 for REPL, ariadne v0.6.0 for diagnostics, tower-lsp-server v0.23.0 for language server, and notify v8.2.0 + notify-debouncer-mini v2.0.0 for file watching.
+**Architecture:** Multi-crate Rust workspace using clap v4.6+ for CLI commands, reedline v0.47.0 for REPL, ariadne v0.6.0 for diagnostics, tower-lsp-server v0.23.0 for language server, and notify v8.2.0 + notify-debouncer-mini v0.7.0 for file watching.
 
-**Tech Stack:** Rust, clap v4.6+, reedline v0.47.0, ariadne v0.6.0, tower-lsp-server v0.23.0, notify v8.2.0, notify-debouncer-mini v2.0.0, watchexec v8.2.0, pubgrub v0.4.0, tokio.
+**Tech Stack:** Rust, clap v4.6+, reedline v0.47.0, ariadne v0.6.0, tower-lsp-server v0.23.0, notify v8.2.0, notify-debouncer-mini v0.7.0, watchexec v8.2.0, pubgrub v0.4.0, tokio.
 
 ---
 
@@ -68,6 +68,10 @@ repository = "https://github.com/yourname/left-right"
 homepage = "https://github.com/yourname/left-right"
 
 [workspace.dependencies]
+# NOTE: All three plan suites define overlapping workspace dependencies. When implementing,
+# create a single root Cargo.toml with all shared dependencies in [workspace.dependencies].
+# Each crate references them as { workspace = true }.
+
 # CLI framework [https://docs.rs/clap/latest/clap/]
 clap = { version = "4.6.0", features = ["derive"] }
 clap_complete = "4.6.0"
@@ -85,14 +89,14 @@ ariadne = "0.6.0"
 # **Design decision**: tower-lsp-server 0.23.0 chosen over original tower-lsp 0.20.0 (stalled since Aug 2023).
 # Community fork, same API, actively maintained.
 tower-lsp-server = "0.23.0"
-tokio = { version = "1.35.0", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
 tokio-util = "0.7.10"
 
 # File watching [https://docs.rs/watchexec/latest/watchexec/config/]
 # **Design decision**: notify 8.2.0 stable chosen over 9.0.0-rc.4 (still RC).
 # Debouncing via notify-debouncer-mini is critical — Linux produces 3-5 events per save without it.
 notify = "8.2.0"
-notify-debouncer-mini = "2.0.0"
+notify-debouncer-mini = "0.7.0"
 watchexec = "8.2.0"
 
 # Dependency resolution [https://docs.rs/pubgrub/latest/pubgrub/]
@@ -104,8 +108,8 @@ serde_json = "1.0.113"
 toml = "0.8.10"
 
 # Error handling
-anyhow = "1.0.79"
-thiserror = "1.0.56"
+anyhow = "1"
+thiserror = "1"
 
 # Async runtime
 futures = "0.3.30"
@@ -470,6 +474,8 @@ git commit -m "feat: add error types and diagnostics with ariadne integration"
 
 ## Phase 3: CLI Commands Skeleton
 
+NOTE: The `.` (dot) operator is used as a reverse-args operator in Left-Right (e.g., `response@.Logger`). The lexer handles it as a reserved single-character token. The CLI formatter should preserve dot spacing conventions.
+
 ### Task 3: Define CLI Structure with clap
 
 **Files:**
@@ -490,8 +496,6 @@ use crate::Result;
 #[derive(Parser, Debug)]
 #[command(name = "lr")]
 #[command(about = "Point-free, operator-based, array-oriented programming language", long_about = None)]
-#[command(version)]
-#[command(propagate_version = true)]
 pub struct Cli {
     /// Increase verbosity (-v, -vv, -vvv)
     #[arg(short, long, action = clap::ArgAction::Count)]
@@ -1037,7 +1041,6 @@ use crate::error::{Error, Result};
 pub struct Repl {
     line_editor: Reedline,
     prompt: DefaultPrompt,
-    history_path: String,
     operators: HashSet<String>,
 }
 
@@ -1065,15 +1068,14 @@ impl Repl {
 
         let history_path_str = history_path.to_string_lossy().to_string();
 
-        // Load history if exists
-        if let Some(history) = line_editor.history_mut() {
-            let _ = history.load(&history_path);
-        }
+        // Use FileBackedHistory for persistent history
+        use reedline::FileBackedHistory;
+        let history = Box::new(FileBackedHistory::with_file(1000, history_path)?);
+        line_editor = line_editor.with_history(history);
 
         Self {
             line_editor,
             prompt,
-            history_path: history_path_str,
             operators,
         }
     }
@@ -1102,11 +1104,6 @@ impl Repl {
                     // Evaluate expression
                     if !trimmed.is_empty() {
                         self.evaluate(trimmed).await?;
-                    }
-
-                    // Save history
-                    if let Some(history) = self.line_editor.history_mut() {
-                        let _ = history.save(&self.history_path);
                     }
                 }
                 Ok(Signal::CtrlD) => {

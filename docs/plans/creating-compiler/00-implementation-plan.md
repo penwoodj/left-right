@@ -6,7 +6,7 @@
 
 **Architecture:** AST → IR (SSA form) → Optimized IR → Bytecode → Register-based VM execution (32-bit fixed-width instructions, Lua-style)
 
-**Tech Stack:** Rust (1.75+), gc-arena v0.5.3 (safe, incremental, exact, cycle-detecting GC), goldenfile v1.11.0 (golden tests), insta v1.34 (snapshots), ariadne v0.3 (diagnostics)
+**Tech Stack:** Rust (1.75+), gc-arena v0.5.3 (safe, incremental, exact, cycle-detecting GC), goldenfile v1.11.0 (golden tests), insta v1.47.2 (snapshots), ariadne v0.6.0 (diagnostics)
 
 ---
 
@@ -84,16 +84,16 @@ resolver = "2"
 # Core dependencies
 gc-arena = "0.5.3"
 goldenfile = "1.11.0"
-insta = "1.34"
-ariadne = "0.3"
+insta = "1.47.2"
+ariadne = "0.6.0"
 
 # Testing
-proptest = "1.4"
+proptest = "1.11.0"
 criterion = "0.5"
 
 # Development
-thiserror = "1.0"
-anyhow = "1.0"
+thiserror = "1"
+anyhow = "1"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 ```
@@ -137,6 +137,8 @@ goldenfile = { workspace = true }
 ```
 
 - [ ] **Step 2: Write lr-ast/src/ast.rs (AST definitions)**
+
+**NOTE: The canonical AST definitions live in docs/plans/creating-lexer-and-ast/00-implementation-plan.md. This section provides compiler-specific context (bytecode mapping, type tags) but references the same types. When implementing, use a shared lr-ast crate.**
 
 ```rust
 //! Left-Right AST Types
@@ -1318,6 +1320,7 @@ use lr_vm::Value;
 
 #[test]
 fn value_undefined() {
+    // Note: Rootable!() macro syntax may need adjustment based on gc-arena 0.5.3 API. Verify during implementation.
     let arena = Arena::<Rootable!()>::new(|mc| ());
     arena.mutate(|mc, root| {
         let val = Value::undefined(mc);
@@ -2069,6 +2072,12 @@ Do not implement inline caching, shapes, or hidden classes in the initial implem
 ## Verification Checklist
 
 Before claiming implementation complete, verify:
+
+**Translation Gap Notes:**
+The following language features found in translations need compiler support:
+- **Constructor call**: `Error[expr]` — Application with Identifier("Error") and ListLiteral args
+- **Default parameter**: `_<@2 | 10` — `|` is Identifier, compiler handles as binary operator
+- **Bracket access**: `@[`path`]` — Application chain
 
 - [ ] All unit tests pass
 - [ ] All 20 live system tests pass

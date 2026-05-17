@@ -60,9 +60,9 @@ rust-version = "1.75.0"
 
 [workspace.dependencies]
 # Core dependencies
-ariadne = "0.4.0"
-insta = "1.34.0"
-proptest = "1.4.0"
+ariadne = "0.6.0"
+insta = "1.47.2"
+proptest = "1.11.0"
 thiserror = "1.0.56"
 logos = "0.16.1"
 
@@ -363,7 +363,19 @@ impl<'a> Lexer<'a> {
         let mut lex = RawToken::lexer(self.source);
 
         // Phase 2: Hand-written wrapper adds spans and handles operator identifiers
-        while let Some(raw_token) = lex.next() {
+        while let Some(result) = lex.next() {
+            let raw_token = match result {
+                Ok(t) => t,
+                Err(_) => {
+                    // Create error token for invalid input
+                    let span = Span::from(lex.span());
+                    self.errors.push(LexError::InvalidToken {
+                        message: format!("Unrecognized character at position {}", span.start),
+                        span,
+                    });
+                    continue;
+                }
+            };
             let span = Span::from(lex.span());
 
             match raw_token {
@@ -420,7 +432,7 @@ impl<'a> Lexer<'a> {
                 // Error token
                 RawToken::Error => {
                     let error_span = Span::new(span.start, (span.start + 1).min(span.end));
-                    self.errors.push(LexError {
+                    self.errors.push(LexError::InvalidToken {
                         message: format!("Unrecognized character at position {}", span.start),
                         span: error_span,
                     });
@@ -518,10 +530,20 @@ use lr_common::Span;
 use thiserror::Error;
 
 #[derive(Debug, Clone, Error)]
-#[error("Lex error: {message}")]
-pub struct LexError {
-    pub message: String,
-    pub span: Span,
+pub enum LexError {
+    #[error("Invalid token: {message}")]
+    InvalidToken {
+        message: String,
+        span: Span,
+    },
+}
+
+impl LexError {
+    pub fn span(&self) -> Span {
+        match self {
+            LexError::InvalidToken { span, .. } => *span,
+        }
+    }
 }
 ```
 
@@ -595,6 +617,8 @@ pub use lexer::Lexer;
 ---
 
 ## 3. AST Node Types
+
+> **NOTE:** AST definitions are also referenced in the compiler/VM plan (docs/plans/creating-compiler/). When implementing, create a shared lr-ast crate that both lexer and compiler depend on.
 
 ### 3.1 AST Structure
 
@@ -1422,11 +1446,14 @@ pub fn emit_diagnostics(
 
     // Lexer errors
     for error in errors {
-        let report = Report::build(ReportKind::Error, file_name, error.span.start as usize)
-            .with_message(&error.message)
+        let message = match error {
+            LexError::InvalidToken { message, span: _ } => message,
+        };
+        let report = Report::build(ReportKind::Error, (file_name, error.span().start as usize))
+            .with_message(message)
             .with_label(
-                Label::new((file_name, error.span.range()))
-                    .with_message(&error.message)
+                Label::new((file_name, error.span().start..error.span().end))
+                    .with_message(message)
                     .with_color(Color::Red),
             );
 
@@ -1435,10 +1462,10 @@ pub fn emit_diagnostics(
 
     // Parse errors
     for error in parse_errors {
-        let report = Report::build(ReportKind::Error, file_name, error.span.start as usize)
+        let report = Report::build(ReportKind::Error, (file_name, error.span.start as usize))
             .with_message(&error.message)
             .with_label(
-                Label::new((file_name, error.span.range()))
+                Label::new((file_name, error.span.start..error.span.end))
                     .with_message(&error.message)
                     .with_color(Color::Red),
             );
@@ -2443,7 +2470,50 @@ proptest! {
 
 ---
 
-## 8. Verification Checklist
+## 7. Translation Gaps and Future Work
+
+### 7.1 Syntax Patterns from Translations Not Yet Fully Covered
+
+Several syntax patterns found in JavaScript-to-Left-Right translations are parsed but may need additional runtime semantics or special handling:
+
+#### Constructor Call Syntax
+Pattern: `Error[bodyErrors@[0,`message`]]`
+
+- **Current parsing**: Parsed as Application chain (Error[ bodyErrors@[ 0, "message"] ])
+- **Runtime support needed**: Constructor invocation semantics for error classes
+- **Note**: This is effectively a method call on the Error constructor
+
+#### Default Parameter Syntax
+Pattern: `_<@2 | 10`
+
+- **Current parsing**: `_<` token parsed as LeftArg, `|` treated as Identifier
+- **Runtime semantics needed**: Default parameter fallback (evaluate second operand if first is undefined)
+- **Language support**: This is the idiomatic Left-Right pattern for default values
+
+#### Bracket Access Syntax
+Pattern: `@[`path`]`
+
+- **Current parsing**: Parsed as Application chain with ListLiteral (@[ "path" ])
+- **Language semantics**: Bracket notation for property access, equivalent to dot notation
+- **Note**: This syntax is the inverse of the dot operator - uses list syntax instead of dot
+
+### 7.2 Reserved Delimiters
+
+The following characters are reserved as delimiters and have special meaning:
+
+- `.` (dot) - Used for bracket access syntax `@[`key`]` and may have reverse-args operator semantics
+- `:` (colon) - Map literal key-value separator
+- `,` (comma) - Element separator in lists and maps
+- `{}` (braces) - Map literal delimiters and operator context
+- `[]` (brackets) - List literal delimiters and property access
+- `()` (parens) - Grouping expressions
+- `` ` `` (backtick) - String literal delimiters
+- `_<` / `_>` - Left/right argument references
+- `<@` / `@>` - Bracket access delimiters
+
+---
+
+## 9. Verification Checklist
 
 Before claiming implementation is complete, verify:
 
@@ -2465,7 +2535,7 @@ Before claiming implementation is complete, verify:
 
 ---
 
-## 9. Research Citations
+## 10. Research Citations
 
 This implementation plan cites these sources:
 
@@ -2481,7 +2551,7 @@ This implementation plan cites these sources:
 
 ---
 
-## 10. Appendix: Complete Test Specification
+## 11. Appendix: Complete Test Specification
 
 ### Test Flow 1: Basic Arithmetic
 
