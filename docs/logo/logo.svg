@@ -34,5 +34,5 @@
     </filter>
   </defs>
   
-  <text x="140" y="68" text-anchor="middle" font-family="'IosevkaCurly', monospace" font-size="72" font-style="italic" font-weight="200" filter="url(#softGlow)" fill="url(#fullGrad)" stroke="url(#fullGrad)" stroke-width="0.5" stroke-linejoin="round"><tspan>{</tspan><tspan dx="-29" dy="-1">&lt;</tspan><tspan dx="-30" dy="-1" textLength="58" lengthAdjust="spacingAndGlyphs">_</tspan><tspan dx="-29" dy="2">&gt;</tspan><tspan dx="-30" dy="0">}</tspan></text>
+  <text x="140" y="68" text-anchor="middle" font-family="'IosevkaCurly', monospace" font-size="72" font-style="italic" font-weight="200" filter="url(#softGlow)" fill="url(#fullGrad)" stroke="url(#fullGrad)" stroke-width="0.5" stroke-linejoin="round"><tspan>{</tspan><tspan dx="-29" dy="-1">&lt;</tspan><tspan dx="-30" dy="-1" textLength="58" lengthAdjust="spacingAndGlyphs">_</tspan><tspan dx="-30" dy="2">&gt;</tspan><tspan dx="-30" dy="0">}</tspan></text>
 </svg>
