@@ -1,0 +1,10 @@
+[package]
+name = "lr-parser"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+lr-common = { path = "../lr-common" }
+lr-lexer = { path = "../lr-lexer" }
+lr-ast = { path = "../lr-ast" }
+thiserror.workspace = true
