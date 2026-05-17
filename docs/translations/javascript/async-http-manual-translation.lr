@@ -1,0 +1,128 @@
+{ ``` SOT FILE: Manual Left-Right Translation - DO NOT EDIT!!
+  +: imports@`lodash/fp`@&[
+    `map`,
+    `get`,
+    `getOr`,
+    `filter`,
+    `flow`,
+    `negate`,
+    `isEmpty`,
+    `size`
+  ],
+  
+  +: imports@`async`@&[`parallelLimit`],
+  
+  +: imports@`polarity-integration-utils`@&{
+    requests: [`createRequestWithDefaults`]
+  },
+
+  config: files@`../config/config`,  
+  config@`request`: {
+    cert: ``
+    key: ``
+    passphrase: ``
+    ca: ``
+    proxy: ``
+  },
+
+  NodeCache: imports@`node-cache`,
+  tokenCache: NodeCache [{
+    stdTTL: 23 * 60 * 60
+  }],
+  
+  requestForAuth: {
+    config:config,
+    roundedSuccessStatusCodes: [200],
+    requestOptionsToOmitFromLogsKeyPaths: [`form.client_secret`]
+  } createRequestWithDefaults,
+  
+  requestWithDefaults: {
+    config:config,
+    roundedSuccessStatusCodes: [200],
+    useLimiter: true,
+    requestOptionsToOmitFromLogsKeyPaths: [`authorization`, `query`],
+    preprocessRequestOptions: { options: _<@0, query: _<@1,
+      token: [options] getToken \\\,
+      
+      {
+        method: `POST`,
+        url: `https://api.{options@`apiRegion`}.app.wiz.io/graphql`,
+        headers: {
+          accept: `application/json`,
+          authorization: `Bearer {token}`,
+          content-type: `application/json`
+        },
+        body: { query } /"
+      }
+    } ///,
+    postprocessRequestResponse: { response: _<,
+      jsonResponseBody:response@`body` /json
+      bodyErrors: jsonResponseBody@[`errors`],
+      bodyErrors #: {
+        bodyError: Error[bodyErrors@[0,`message`]],
+        bodyError@`status`: response@`status`,
+        bodyError !!!
+      },
+      
+      response + { body: jsonResponseBody }
+    },
+    postprocessRequestFailure: { error: _<,
+      error@`message`: `{error@`message`} - ({error@`status`}) | {error@`description`}`,
+      error !!!
+    }
+  } createRequestWithDefaults,
+  
+  getToken: { options: _<,
+    tokenCacheKey: options@`clientId` + options@`clientSecret`,
+    cachedToken: tokenCache@`get`[tokenCacheKey],
+    
+    cachedToken?: cachedToken,
+    
+    token: {
+      method: `POST`,
+      url: `https://{options@`authTokenDomain`}/oauth/token`,
+      headers: {
+        accept: `application/json`,
+        content-type: `application/x-www-form-urlencoded`
+      },
+      form: {
+        grant_type: `client_credentials`,
+        audience: `wiz-api`,
+        client_id: options@`clientId`,
+        client_secret: options@`clientSecret`
+      },
+      json: true
+    } requestForAuth \\\ @[`body`,`access_token`],
+    
+    tokenCache set [tokenCacheKey, token],
+    
+    token
+  } ///,
+  
+  createRequestsInParallel: { requestWithDefaults: _<,
+    { requestOptions: _<@0,
+      responseGetPath: _<@1,
+      limit: _<@2 | 10,
+      onlyReturnPopulatedResults: _<@3 | true,
+
+      unexecutedRequestFunctions: requestOptions ${ 
+        entity: _<@`entity`, 
+        requestOptions: _< - `entity`,
+        {
+          response: requestOptions requestWithDefaults \\\,
+          result: responseGetPath!! {_<: response@responseGetPath, response },
+          entity? {_<: { entity:entity, result:result }, result}
+        } ///
+      },
+      
+      results: [unexecutedRequestFunctions, limit] parallelLimit \\\,
+      
+      onlyReturnPopulatedResults? {_<: 
+        results $?{ _<@`result` | _< ?_ ! },
+        results
+      }
+    } ///
+  },
+  
+  requestsInParallel: [requestWithDefaults] createRequestsInParallel
+}@&[`requestWithDefaults`, `requestsInParallel`]

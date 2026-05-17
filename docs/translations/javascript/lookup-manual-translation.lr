@@ -1,0 +1,47 @@
+{ ``` SOT FILE: Manual Left-Right Translation - DO NOT EDIT!!
+  +: imports@`polarity-integration-utils`@&{
+    logging: [`setLogger`, `getLogger`],
+	  errors: [`parseErrorToReadableJson`]
+  },
+
+  +: files@`./server/dataTransformations'@&[`removePrivateIps`,`getEntityTypes`,`addIdsToEntities`], ```@& is kind of like pick in lodash/fp in terms of functionality but can take in an array of strings or a collections of lists and maps in which case it is a nested pick where the strings and keys along the path show you how to build the resulting destructured picked map that it outputs
+
+  +: files@`./server/queries`@&[`queryIssues`, `queryVulnerabilities`, `queryAssets`], 
+
+  assembleLookupResults: files@`./server/assembleLookupResults`,
+
+
+  doLookup: { entities: _<@0, _options: _<@1, callback: _<@2,
+    options: {
+      +: _options,
+      maxConcurrent: 1,
+      minimumMillisecondsRequestWillTake: 350,
+      parsedAssetQueryTypes: _options@`assetQueryTypeList` $@ `value`
+    },
+
+    searchableEntities: options@`searchPrivateIps`? {_<:
+      entities,
+      entities removePrivateIps
+    },
+    entitiesWithIds: searchableEntities addIdsToEntities,
+    cveEntities: [`cve`, entitiesWithIds] getEntityTypes,
+
+    +: options $|||[                                                  ```$||| is applyAll in parallel where as $\ is apply in sequence while passing along initially list to the left of each operator with the first item being the input data, and the next arguments being in the position executed's + 1's output 
+      { _<@`queryIssues`: [cveEntities, _<] queryIssues, [] },
+      { _<@`queryVulnerabilities`: [cveEntities, _<] queryVulnerabilities, [] },
+      { _<@`queryAssets`: [entitiesWithIds, _<] queryAssets, [] }
+    ] \\\,  
+
+    _: `trace`@.Logger. { issues:issues, vulnerabilities:vulnerabilities, assets:assets }
+
+    lookupResults: [entities, issues, vulnerabilities, assets, options] assembleLookupResults,
+
+    [null, lookupResults] callback
+  } !!!? { error: _<,
+    err: error parseErrorToReadableJson,
+    _:  `error`@.Logger. { error:error, formattedError: err } 
+    [{ detail: error.message || 'Lookup Failed', err }] callback
+  },
+  startup: setLogger,
+  validateOptions: validateOptions
+}@&[`startup`,`validateOptions`,`doLookup`]
