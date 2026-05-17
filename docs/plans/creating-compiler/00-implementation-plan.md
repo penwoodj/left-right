@@ -49,7 +49,11 @@ Create this workspace structure:
 │       ├── async_operations.lr
 │       ├── import_export.lr
 │       └── complex_operations.lr
-├── language-summary/             # Documentation (exists)
+├── docs/
+│   ├── specs/                    # Language specifications
+│   ├── brainstorms/              # Original brainstorm documents
+│   ├── reports/                  # Research reports
+│   └── translations/             # JS translations
 └── README.md                     # Project README (exists)
 ```
 
@@ -2107,11 +2111,11 @@ Implementation is successful when:
 7. rilua: https://crates.io/crates/rilua/v0.1.21
 8. Hidden classes: https://debuglab.net/2026/05/10/inside-v8-deoptimization-how-inline-caches-distort-javascript/
 9. Cranelift e-graph: https://github.com/cfallin/rfcs/blob/main/accepted/cranelift-egraph.md
-10. AST Specification: `/home/jon/code/left-right/compiler/specs/ast-specification.md`
-11. Language Specification: `/home/jon/code/left-right/compiler/specs/left-right-language-specification.md`
-12. IR and Optimization: `/home/jon/code/left-right/compiler/how-to-build-a-compiled-language/04-intermediate-representations-and-optimization.md`
-13. Code Generation: `/home/jon/code/left-right/compiler/how-to-build-a-compiled-language/05-code-generation.md`
-14. Runtime Systems: `/home/jon/code/left-right/compiler/how-to-build-a-compiled-language/06-runtime-systems-and-memory-management.md`
+10. AST Specification: `docs/specs/ast-specification.md`
+11. Language Specification: `docs/specs/left-right-language-specification.md`
+12. IR and Optimization: `docs/reports/how-to-build-a-compiled-language/04-intermediate-representations-and-optimization.md`
+13. Code Generation: `docs/reports/how-to-build-a-compiled-language/05-code-generation.md`
+14. Runtime Systems: `docs/reports/how-to-build-a-compiled-language/06-runtime-systems-and-memory-management.md`
 
 ---
 

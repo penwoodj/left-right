@@ -18,7 +18,9 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 
 ## Project Structure
 
-- `/language-summary/` — Generated report suite (safe to create/edit)
+- `/docs/specs/` — Language specifications (read-only reference)
+- `/docs/brainstorms/` — Original brainstorm documents (protected, read-only)
+- `/docs/translations/` — JavaScript-to-Left-Right translations
 - `/docs/reports/initial-thoughts/` — User's research notes (read-only reference)
 - Top-level `.txt` and `.md` files — Protected source documents
 

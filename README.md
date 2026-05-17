@@ -105,13 +105,12 @@ lr --watch myfile.lr
 
 ## Documentation
 
-Comprehensive documentation is available in the [`language-summary/`](./language-summary/) directory:
-
-- [Language Overview](./language-summary/00-language-overview.md) — Complete language overview and philosophy
-- [Operator Reference](./language-summary/03-operator-reference.md) — All operators with examples
-- [Type System](./language-summary/02-type-system.md) — Primitive types, collections, type inference
-- [Evaluation Model](./language-summary/04-evaluation-model.md) — LTR evaluation, currying, composition
-- [Examples](./language-summary/example-io/) — Practical examples by difficulty level
+- [Language Specification](./docs/specs/left-right-language-specification.md) — Complete language specification
+- [AST Specification](./docs/specs/ast-specification.md) — AST node definitions and grammar
+- [Lexer Specification](./docs/specs/lexer-specification.md) — Token types and recognition rules
+- [Brainstorm Documents](./docs/brainstorms/) — Original language design documents
+- [Implementation Plans](./docs/plans/) — Detailed plans for lexer/AST, compiler/VM, and CLI
+- [Translations](./docs/translations/) — JavaScript-to-Left-Right translation examples
 
 ## Design Philosophy
 
