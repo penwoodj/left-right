@@ -31,10 +31,6 @@ left-right/
 ├── Cargo.toml                      # Workspace root
 ├── compiler/
 │   ├── Cargo.toml                  # Compiler workspace
-│   ├── plans/
-│   │   └── creating-lexer-and-ast/
-│   │       └── 00-implementation-plan.md
-│   ├── specs/                      # Specification files (read-only)
 │   ├── crates/
 │   │   ├── lr-lexer/               # Lexer implementation
 │   │   ├── lr-parser/              # Parser implementation
@@ -42,7 +38,10 @@ left-right/
 │   │   ├── lr-diagnostics/         # Error reporting
 │   │   └── lr-common/              # Shared types (span, location)
 │   └── tests/                      # Integration tests
-└── language-summary/               # Language documentation (read-only)
+├── docs/
+│   ├── specs/                      # Language specifications
+│   ├── brainstorms/                # Original brainstorm documents
+    └── translations/             # JS translations
 ```
 
 ### 1.2 Root Cargo.toml
