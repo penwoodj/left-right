@@ -10,6 +10,14 @@ These 3 files are the user's original language design documents. They must NEVER
 
 **Enforcement**: Do not use Edit, Write, or any other tool to modify these files. Only Read is permitted.
 
+## Brainstorm History (NEVER EDIT)
+
+The `docs/brainstorm-history/` directory contains the complete historical record of the language design process. This folder is **permanently frozen** — it must NEVER be modified, renamed, or deleted by any agent, tool, or automated process.
+
+**Contents include**: Original brainstorm documents, early language experiments, design evolution artifacts.
+
+**Enforcement**: Only Read is permitted on files in `docs/brainstorm-history/`. No edits, moves, or deletions.
+
 ## DO NOT EDIT Files (NEVER EDIT)
 
 Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its content must NEVER be modified by any agent, tool, or automated process. This applies across the entire workspace, not just to specific directories.
@@ -19,7 +27,7 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 ## Project Structure
 
 - `/docs/specs/` — Language specifications (read-only reference)
-- `/docs/brainstorms/` — Original brainstorm documents (protected, read-only)
+- `/docs/brainstorm-history/` — Historical brainstorm documents (frozen, never modify)
 - `/docs/translations/` — JavaScript-to-Left-Right translations
 - `/docs/reports/initial-thoughts/` — User's research notes (read-only reference)
 - Top-level `.txt` and `.md` files — Protected source documents
