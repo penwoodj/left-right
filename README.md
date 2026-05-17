@@ -1,7 +1,7 @@
 # Left-Right
 
 <div align="center">
-  <img src="logo.svg" alt="Left-Right Logo" width="256" />
+  <img src="docs/logo/logo.svg" alt="Left-Right Logo" width="256" />
 </div>
 
 **Left-Right was previously known as PenRoScript**
