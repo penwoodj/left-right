@@ -1,0 +1,8 @@
+[package]
+name = "lr-diagnostics"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+lr-common = { path = "../lr-common" }
+ariadne.workspace = true

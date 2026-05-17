@@ -1,0 +1,15 @@
+# Rust build artifacts
+compiler/target/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Opencode state
+.opencode-handoff.md

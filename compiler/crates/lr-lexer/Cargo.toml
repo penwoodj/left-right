@@ -1,0 +1,9 @@
+[package]
+name = "lr-lexer"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+lr-common = { path = "../lr-common" }
+thiserror.workspace = true
+proptest.workspace = true

@@ -1,0 +1,8 @@
+[package]
+name = "lr-ast"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+lr-common = { path = "../lr-common" }
+insta.workspace = true
