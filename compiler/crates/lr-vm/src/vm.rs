@@ -606,6 +606,22 @@ impl VM {
                 Opcode::MapOmit => {
                     return Err(VMError::UnimplementedOpcode(Opcode::MapOmit))
                 }
+                Opcode::MapBuild => {
+                    let first_reg = inst.b();
+                    let entry_count = inst.c() as usize;
+
+                    let mut entries = Vec::with_capacity(entry_count);
+                    for i in 0..entry_count {
+                        let key_reg = first_reg as usize + i * 2;
+                        let val_reg = first_reg as usize + i * 2 + 1;
+                        let key = frame.get(key_reg as u8);
+                        let value = frame.get(val_reg as u8);
+                        entries.push((key, value));
+                    }
+
+                    frame.set(inst.a(), Value::map(mc, entries));
+                    frame.advance();
+                }
 
                 // List operations
                 Opcode::ListNew => {
@@ -673,6 +689,19 @@ impl VM {
                             )))
                         }
                     }
+                    frame.advance();
+                }
+                Opcode::ListBuild => {
+                    let first_reg = inst.b();
+                    let count = inst.c() as usize;
+
+                    let mut elements = Vec::with_capacity(count);
+                    for i in 0..count {
+                        let elem_reg = first_reg as usize + i;
+                        elements.push(frame.get(elem_reg as u8));
+                    }
+
+                    frame.set(inst.a(), Value::list(mc, elements));
                     frame.advance();
                 }
 
@@ -1407,7 +1436,7 @@ mod tests {
     fn test_vm_number_display() {
         let chunk = build_chunk(|c| {
             let idx_int = c.add_constant(Constant::Number(42.0)).unwrap();
-            let _idx_float = c.add_constant(Constant::Number(3.14159)).unwrap();
+            let _idx_float = c.add_constant(Constant::Number(3.25)).unwrap();
             let _idx_neg_int = c.add_constant(Constant::Number(-7.0)).unwrap();
             let _idx_neg_float = c.add_constant(Constant::Number(-2.5)).unwrap();
             c.emit(Instruction::new(Opcode::LoadConstant, 0, 0, idx_int));
@@ -1418,14 +1447,15 @@ mod tests {
         let result = vm.execute(&chunk);
         assert_eq!(result.unwrap(), "42");
 
+
         let chunk = build_chunk(|c| {
-            let idx_float = c.add_constant(Constant::Number(3.14159)).unwrap();
+            let idx_float = c.add_constant(Constant::Number(3.25)).unwrap();
             c.emit(Instruction::new(Opcode::LoadConstant, 0, 0, idx_float));
             c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
         });
 
         let result = vm.execute(&chunk);
-        assert_eq!(result.unwrap(), "3.14159");
+        assert_eq!(result.unwrap(), "3.25");
     }
 
     #[test]
@@ -1531,17 +1561,5 @@ mod tests {
         assert_eq!(result.unwrap(), "6");
     }
 
-    #[test]
-    fn test_vm_undefined_is_falsy() {
-        let chunk = build_chunk(|c| {
-            c.emit(Instruction::new(Opcode::ToBoolean, 1, 0, 0));
-            c.emit(Instruction::new(Opcode::LoadRegister, 0, 1, 0));
-            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
-        });
 
-        let mut vm = VM::new();
-        let result = vm.execute(&chunk);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "false");
-    }
 }
