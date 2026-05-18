@@ -1,0 +1,20 @@
+[package]
+name = "lr-cli"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+lr-lexer = { path = "../lr-lexer" }
+lr-parser = { path = "../lr-parser" }
+lr-compiler = { path = "../lr-compiler" }
+lr-bytecode = { path = "../lr-bytecode" }
+lr-vm = { path = "../lr-vm" }
+lr-common = { path = "../lr-common" }
+clap.workspace = true
+anyhow.workspace = true
+colored.workspace = true
+thiserror.workspace = true
+
+[[bin]]
+name = "lr"
+path = "src/main.rs"

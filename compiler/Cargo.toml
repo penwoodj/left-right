@@ -10,6 +10,7 @@ members = [
     "crates/lr-vm",
     "crates/lr-compiler",
     "crates/lr-runtime",
+    "crates/lr-cli",
 ]
 
 [workspace.package]
@@ -21,3 +22,6 @@ thiserror = "1"
 ariadne = "0.6.0"
 insta = { version = "1.47.2", features = ["yaml"] }
 proptest = "1.11.0"
+clap = { version = "4.6.0", features = ["derive"] }
+anyhow = "1"
+colored = "2.1.0"
