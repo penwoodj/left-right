@@ -36,8 +36,8 @@
   
   <g font-family="'IosevkaCurly', monospace" font-size="54"  font-weight="500" filter="url(#softGlow)" fill="url(#fullGrad)" stroke="url(#fullGrad)" stroke-width="0.5" stroke-linejoin="round" text-anchor="middle">
     <text x="50" y="20" transform="rotate(75, 50, 20)">|</text>
-    <text x="50" y="0" transform="rotate(-75, 50, 0)">|</text>
+    <text x="80" y="0" transform="rotate(-75, 80, 0)">|</text>
     <text x="50" y="20" transform="rotate(75, 50, 20)">|</text>
-    <text x="50" y="0" transform="rotate(-75, 50, 0)">|</text>
+    <text x="80" y="0" transform="rotate(-75, 80, 0)">|</text>
   </g>
 </svg>
