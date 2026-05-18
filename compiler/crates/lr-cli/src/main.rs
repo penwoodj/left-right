@@ -2,6 +2,10 @@ use clap::{Parser, Subcommand};
 use anyhow::Result;
 use colored::Colorize;
 use std::io::{self, Write, BufRead};
+use std::path::{Path, PathBuf};
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use std::time::Duration;
+use std::sync::mpsc::channel;
 
 #[derive(Parser)]
 #[command(name = "lr", version, about = "Left-Right programming language")]
@@ -25,6 +29,14 @@ enum Commands {
     Fmt {
         file: String,
     },
+    New {
+        name: String,
+    },
+    Build,
+    Test,
+    Watch {
+        file: String,
+    },
 }
 
 fn main() -> Result<()> {
@@ -35,6 +47,10 @@ fn main() -> Result<()> {
         Commands::Check { file } => cmd_check(&file),
         Commands::Repl => cmd_repl(),
         Commands::Fmt { file } => cmd_fmt(&file),
+        Commands::New { name } => cmd_new(&name),
+        Commands::Build => cmd_build(),
+        Commands::Test => cmd_test(),
+        Commands::Watch { file } => cmd_watch(&file),
     }
 }
 
@@ -189,4 +205,227 @@ fn cmd_repl() -> Result<()> {
 fn cmd_fmt(_file: &str) -> Result<()> {
     println!("{}", "Not yet implemented".yellow());
     Ok(())
+}
+
+fn cmd_new(name: &str) -> Result<()> {
+    let project_dir = Path::new(name);
+
+    if project_dir.exists() {
+        eprintln!("{}", format!("Directory '{}' already exists", name).red());
+        std::process::exit(1);
+    }
+
+    println!("{}", format!("Creating new Left-Right project: {}", name).green());
+
+    std::fs::create_dir_all(project_dir)?;
+    std::fs::create_dir_all(project_dir.join("src"))?;
+    std::fs::create_dir_all(project_dir.join("tests"))?;
+
+    let package_content = format!(
+        "name: {}\nversion: 0.1.0\nentry: src/main.lr\n",
+        name
+    );
+    std::fs::write(project_dir.join("package.lr"), package_content)?;
+
+    std::fs::write(project_dir.join("src/main.lr"), "42")?;
+
+    std::fs::write(project_dir.join("tests/test.lr"), "")?;
+
+    println!("  {}", format!("{}/package.lr", name).cyan());
+    println!("  {}", format!("{}/src/main.lr", name).cyan());
+    println!("  {}", format!("{}/tests/test.lr", name).cyan());
+    println!();
+    println!("{}", "Project created successfully!".green());
+    println!("{}", "Run 'cd {} && lr build' to build the project.".replace("{}", name).cyan());
+
+    Ok(())
+}
+
+fn cmd_build() -> Result<()> {
+    let package_path = Path::new("package.lr");
+    if !package_path.exists() {
+        eprintln!("{}", "package.lr not found. Run this command in a Left-Right project directory.".red());
+        std::process::exit(1);
+    }
+
+    let package_content = std::fs::read_to_string(package_path)?;
+    let entry_line = package_content
+        .lines()
+        .find(|line| line.starts_with("entry:"))
+        .ok_or_else(|| anyhow::anyhow!("No 'entry' field in package.lr"))?;
+
+    let entry_path = entry_line
+        .strip_prefix("entry:")
+        .map(|s| s.trim())
+        .ok_or_else(|| anyhow::anyhow!("Invalid entry line format"))?;
+
+    let source_path = Path::new(entry_path);
+    if !source_path.exists() {
+        eprintln!("{}", format!("Entry file '{}' not found", entry_path).red());
+        std::process::exit(1);
+    }
+
+    println!("{}", format!("Building {}...", entry_path).cyan());
+
+    let source = std::fs::read_to_string(source_path)?;
+
+    match lr_compiler::compile_source(&source) {
+        Ok(chunk) => {
+            println!("{}", format!("  {} instructions", chunk.code.len()).green());
+            println!("{}", format!("  {} constants", chunk.constants.len()).green());
+            println!();
+            println!("{}", "Build successful!".green());
+        }
+        Err(e) => {
+            eprintln!("{}", format!("Build error: {}", e).red());
+            std::process::exit(1);
+        }
+    }
+
+    Ok(())
+}
+
+fn cmd_test() -> Result<()> {
+    let tests_dir = Path::new("tests");
+    if !tests_dir.exists() {
+        println!("{}", "No tests directory found".yellow());
+        return Ok(());
+    }
+
+    let test_files: Vec<_> = std::fs::read_dir(tests_dir)?
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| {
+            entry.path().extension().is_some_and(|ext| ext == "lr")
+        })
+        .collect();
+
+    if test_files.is_empty() {
+        println!("{}", "No test files found".yellow());
+        return Ok(());
+    }
+
+    println!("{}", format!("Running {} test(s)...", test_files.len()).cyan());
+    println!();
+
+    let mut passed = 0;
+    let mut failed = 0;
+
+    for test_file in &test_files {
+        let path = test_file.path();
+        let _display_name = path.display();
+        print!("  {} ... ", path.file_name().unwrap().to_string_lossy().cyan());
+
+        let source = match std::fs::read_to_string(&path) {
+            Ok(s) => s,
+            Err(e) => {
+                println!("{}", "ERROR".red());
+                eprintln!("    {}", e);
+                failed += 1;
+                continue;
+            }
+        };
+
+        if source.trim().is_empty() {
+            println!("{}", "SKIP".yellow());
+            continue;
+        }
+
+        match lr_compiler::compile_source(&source) {
+            Ok(chunk) => {
+                let mut vm = lr_vm::VM::new();
+                match vm.execute(&chunk) {
+                    Ok(result) => {
+                        let is_truthy = result != "undefined" && result != "false" && result != "0";
+                        if is_truthy {
+                            println!("{}", "PASS".green());
+                            passed += 1;
+                        } else {
+                            println!("{}", "FAIL".red());
+                            eprintln!("    Result: {}", result);
+                            failed += 1;
+                        }
+                    }
+                    Err(e) => {
+                        println!("{}", "FAIL".red());
+                        eprintln!("    Runtime error: {}", e);
+                        failed += 1;
+                    }
+                }
+            }
+            Err(e) => {
+                println!("{}", "FAIL".red());
+                eprintln!("    Compile error: {}", e);
+                failed += 1;
+            }
+        }
+    }
+
+    println!();
+    println!("{}", "Test Results:".cyan());
+    println!("  {} passed, {} failed", passed, failed);
+
+    if failed > 0 {
+        std::process::exit(1);
+    }
+
+    Ok(())
+}
+
+fn cmd_watch(file: &str) -> Result<()> {
+    let file_path = PathBuf::from(file);
+    if !file_path.exists() {
+        eprintln!("{}", format!("File '{}' not found", file).red());
+        std::process::exit(1);
+    }
+
+    println!("{}", format!("Watching {} for changes...", file).cyan());
+    println!("{}", "Press Ctrl+C to stop".yellow());
+    println!();
+
+    let watch_path = file_path.clone();
+    let (tx, rx) = channel();
+
+    let mut watcher: RecommendedWatcher = Watcher::new(
+        move |res: Result<notify::Event, _>| {
+            if let Ok(event) = res
+                && event.kind.is_modify()
+                && let Some(path) = event.paths.first()
+                && path == &watch_path
+            {
+                let _ = tx.send(()).ok();
+            }
+        },
+        notify::Config::default(),
+    )?;
+
+    watcher.watch(&file_path, RecursiveMode::NonRecursive)?;
+
+    loop {
+        let source = std::fs::read_to_string(&file_path)?;
+        println!("\n{} {} {}",
+                 "\x1b[2K\r".clear(),
+                 "Running".cyan(),
+                 file);
+
+        match lr_compiler::compile_source(&source) {
+            Ok(chunk) => {
+                let mut vm = lr_vm::VM::new();
+                match vm.execute(&chunk) {
+                    Ok(result) => {
+                        println!("  {}", result.green());
+                    }
+                    Err(e) => {
+                        println!("  {}", format!("Error: {}", e).red());
+                    }
+                }
+            }
+            Err(e) => {
+                println!("  {}", format!("Error: {}", e).red());
+            }
+        }
+
+        println!("Watching for changes...");
+
+        rx.recv_timeout(Duration::from_secs(1))?;
+    }
 }

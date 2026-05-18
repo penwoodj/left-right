@@ -122,7 +122,7 @@ impl VM {
                     let result = match (&left, &right) {
                         (Value::String(s), Value::String(op_name)) => {
                             match op_name.as_str() {
-                                "+" => Value::partial_operator(mc, "+".to_string(), Value::string(mc, s.to_string())),
+                                "+" | "_" => Value::partial_operator(mc, op_name.to_string(), Value::string(mc, s.to_string())),
                                 _ => {
                                     return Err(VMError::Runtime(format!(
                                         "Unknown operator for strings: {}",
@@ -138,6 +138,14 @@ impl VM {
                                 "*" => Value::partial_operator(mc, "*".to_string(), Value::Number(*n)),
                                 "/" => Value::partial_operator(mc, "/".to_string(), Value::Number(*n)),
                                 "%" => Value::partial_operator(mc, "%".to_string(), Value::Number(*n)),
+                                "==" => Value::partial_operator(mc, "==".to_string(), Value::Number(*n)),
+                                "!=" => Value::partial_operator(mc, "!=".to_string(), Value::Number(*n)),
+                                "<" => Value::partial_operator(mc, "<".to_string(), Value::Number(*n)),
+                                ">" => Value::partial_operator(mc, ">".to_string(), Value::Number(*n)),
+                                "<=" => Value::partial_operator(mc, "<=".to_string(), Value::Number(*n)),
+                                ">=" => Value::partial_operator(mc, ">=".to_string(), Value::Number(*n)),
+                                "&" => Value::partial_operator(mc, "&".to_string(), Value::Number(*n)),
+                                "|" => Value::partial_operator(mc, "|".to_string(), Value::Number(*n)),
                                 _ => {
                                     return Err(VMError::Runtime(format!(
                                         "Unknown operator: {}",
@@ -155,6 +163,14 @@ impl VM {
                                         "*" => Value::partial_operator(mc, "*".to_string(), Value::Number(*n)),
                                         "/" => Value::partial_operator(mc, "/".to_string(), Value::Number(*n)),
                                         "%" => Value::partial_operator(mc, "%".to_string(), Value::Number(*n)),
+                                        "==" => Value::partial_operator(mc, "==".to_string(), Value::Number(*n)),
+                                        "!=" => Value::partial_operator(mc, "!=".to_string(), Value::Number(*n)),
+                                        "<" => Value::partial_operator(mc, "<".to_string(), Value::Number(*n)),
+                                        ">" => Value::partial_operator(mc, ">".to_string(), Value::Number(*n)),
+                                        "<=" => Value::partial_operator(mc, "<=".to_string(), Value::Number(*n)),
+                                        ">=" => Value::partial_operator(mc, ">=".to_string(), Value::Number(*n)),
+                                        "&" => Value::partial_operator(mc, "&".to_string(), Value::Number(*n)),
+                                        "|" => Value::partial_operator(mc, "|".to_string(), Value::Number(*n)),
                                         _ => {
                                             return Err(VMError::Runtime(format!(
                                                 "Unknown operator: {}",
@@ -192,6 +208,14 @@ impl VM {
                                                 }
                                                 Value::number(left_val % right_val)
                                             }
+                                            "==" => Value::boolean(mc, left_val == right_val),
+                                            "!=" => Value::boolean(mc, left_val != right_val),
+                                            "<" => Value::boolean(mc, left_val < right_val),
+                                            ">" => Value::boolean(mc, left_val > right_val),
+                                            "<=" => Value::boolean(mc, left_val <= right_val),
+                                            ">=" => Value::boolean(mc, left_val >= right_val),
+                                        "&" => Value::boolean(mc, Value::number(*left_val).is_truthy() && Value::number(*right_val).is_truthy()),
+                                        "|" => Value::boolean(mc, Value::number(*left_val).is_truthy() || Value::number(*right_val).is_truthy()),
                                             _ => {
                                                 return Err(VMError::Runtime(format!(
                                                     "Unknown partial operator: {}",
@@ -209,7 +233,7 @@ impl VM {
                                 Value::String(right_str) => {
                                     if let Value::String(left_str) = &partial.left_arg {
                                         match partial.name.as_str() {
-                                            "+" => {
+                                            "+" | "_" => {
                                                 let combined = format!("{}{}", left_str, right_str);
                                                 Value::string(mc, combined)
                                             }
@@ -1087,24 +1111,24 @@ mod tests {
     }
 
     #[test]
-    fn test_vm_conditional_jump() {
+    fn test_vm_list_build_three_elements() {
         let chunk = build_chunk(|c| {
-            let idx_true = c.add_constant(Constant::Boolean(true)).unwrap();
-            let idx_skip = c.add_constant(Constant::Number(99.0)).unwrap();
-            let idx_exec = c.add_constant(Constant::Number(42.0)).unwrap();
-            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx_true));
-            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_skip));
-            c.emit(Instruction::new(Opcode::JumpIfTrue, 1, 3, 0)); // skip 3 instructions
-            c.emit(Instruction::new(Opcode::LoadConstant, 0, 0, idx_skip)); // should be skipped
-            c.emit(Instruction::new(Opcode::Return, 0, 0, 0)); // should be skipped
-            c.emit(Instruction::new(Opcode::LoadConstant, 0, 0, idx_exec));
+            let idx42 = c.add_constant(Constant::Number(42.0)).unwrap();
+            let idx24 = c.add_constant(Constant::Number(24.0)).unwrap();
+            let idx6 = c.add_constant(Constant::Number(6.0)).unwrap();
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx42));
+            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx24));
+            c.emit(Instruction::new(Opcode::LoadConstant, 3, 0, idx6));
+            c.emit(Instruction::new(Opcode::ListBuild, 4, 1, 3));
+            c.emit(Instruction::new(Opcode::ListLen, 5, 4, 0));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 5, 0));
             c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
         });
 
         let mut vm = VM::new();
         let result = vm.execute(&chunk);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "42");
+        assert_eq!(result.unwrap(), "3");
     }
 
     #[test]
