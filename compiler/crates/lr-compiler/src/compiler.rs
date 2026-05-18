@@ -537,4 +537,219 @@ mod tests {
         assert_eq!(compiler.register_count, 0);
         assert!(compiler.chunk.code.is_empty());
     }
+
+    #[test]
+    fn test_e2e_basic_number() {
+        let result = compile_and_run("42").unwrap();
+        assert_eq!(result, "42");
+    }
+
+    #[test]
+    fn test_e2e_basic_string() {
+        let result = compile_and_run("`hello`").unwrap();
+        assert_eq!(result, "hello");
+    }
+
+    #[test]
+    fn test_e2e_boolean_true() {
+        let result = compile_and_run("true").unwrap();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_e2e_boolean_false() {
+        let result = compile_and_run("false").unwrap();
+        assert_eq!(result, "false");
+    }
+
+    #[test]
+    fn test_e2e_undefined() {
+        let result = compile_and_run("undefined").unwrap();
+        assert_eq!(result, "undefined");
+    }
+
+    #[test]
+    fn test_e2e_negative_number() {
+        let chunk = compile_source("-3");
+        assert!(chunk.is_ok());
+        let chunk = chunk.unwrap();
+
+        let has_call = chunk.code.iter().any(|i| i.opcode() == Opcode::Call);
+        assert!(has_call, "Should have Call instruction for negative number application");
+
+        let has_string_minus = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "-"));
+        let has_number_3 = chunk.constants.iter().any(|c| matches!(c, Constant::Number(n) if *n == 3.0));
+        assert!(has_string_minus, "Should have string constant '-'");
+        assert!(has_number_3, "Should have number constant 3.0");
+    }
+
+    #[test]
+    fn test_e2e_empty_list() {
+        let result = compile_and_run("[]").unwrap();
+        assert_eq!(result, "[]");
+    }
+
+    #[test]
+    fn test_e2e_list_with_numbers() {
+        let chunk = compile_source("[1, 2, 3]");
+        assert!(chunk.is_ok());
+        let chunk = chunk.unwrap();
+
+        let has_list_new = chunk.code.iter().any(|i| i.opcode() == Opcode::ListNew);
+        let has_list_push = chunk.code.iter().any(|i| i.opcode() == Opcode::ListPush);
+        assert!(has_list_new, "Should have ListNew instruction");
+        assert!(has_list_push, "Should have ListPush instructions");
+
+        let num_consts = chunk.constants.iter().filter(|c| matches!(c, Constant::Number(_))).count();
+        assert_eq!(num_consts, 3, "Should have 3 number constants");
+    }
+
+    #[test]
+    fn test_e2e_empty_map() {
+        let result = compile_and_run("{}").unwrap();
+        assert!(result.starts_with("{"));
+    }
+
+    #[test]
+    fn test_e2e_map_with_entries() {
+        let chunk = compile_source("{a: 1, b: 2}");
+        assert!(chunk.is_ok());
+        let chunk = chunk.unwrap();
+
+        let has_map_new = chunk.code.iter().any(|i| i.opcode() == Opcode::MapNew);
+        let has_map_set = chunk.code.iter().any(|i| i.opcode() == Opcode::MapSet);
+        assert!(has_map_new, "Should have MapNew instruction");
+        assert!(has_map_set, "Should have MapSet instruction");
+
+        let has_string_a = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "a"));
+        let has_string_b = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "b"));
+        let has_number_1 = chunk.constants.iter().any(|c| matches!(c, Constant::Number(n) if *n == 1.0));
+        let has_number_2 = chunk.constants.iter().any(|c| matches!(c, Constant::Number(n) if *n == 2.0));
+        assert!(has_string_a, "Should have string constant 'a'");
+        assert!(has_string_b, "Should have string constant 'b'");
+        assert!(has_number_1, "Should have number constant 1.0");
+        assert!(has_number_2, "Should have number constant 2.0");
+    }
+
+    #[test]
+    fn test_e2e_grouped_expression() {
+        let result = compile_and_run("(42)").unwrap();
+        assert_eq!(result, "42");
+    }
+
+    #[test]
+    fn test_e2e_identifier() {
+        let result = compile_and_run("x").unwrap();
+        assert_eq!(result, "x");
+    }
+
+    #[test]
+    fn test_e2e_application_simple() {
+        let chunk = compile_source("f 42");
+        assert!(chunk.is_ok());
+        let chunk = chunk.unwrap();
+
+        let has_call = chunk.code.iter().any(|i| i.opcode() == Opcode::Call);
+        assert!(has_call, "Should have Call instruction");
+
+        let has_string_f = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "f"));
+        let has_number_42 = chunk.constants.iter().any(|c| matches!(c, Constant::Number(n) if *n == 42.0));
+        assert!(has_string_f, "Should have string constant 'f'");
+        assert!(has_number_42, "Should have number constant 42.0");
+    }
+
+    #[test]
+    fn test_e2e_nested_list() {
+        let chunk = compile_source("[[1, 2], [3, 4]]");
+        assert!(chunk.is_ok());
+        let chunk = chunk.unwrap();
+
+        let has_list_new = chunk.code.iter().any(|i| i.opcode() == Opcode::ListNew);
+        let has_list_push = chunk.code.iter().any(|i| i.opcode() == Opcode::ListPush);
+        assert!(has_list_new, "Should have ListNew instruction");
+        assert!(has_list_push, "Should have ListPush instructions");
+
+        let num_consts = chunk.constants.iter().filter(|c| matches!(c, Constant::Number(_))).count();
+        assert_eq!(num_consts, 4, "Should have 4 number constants");
+    }
+
+    #[test]
+    fn test_e2e_string_with_spaces() {
+        let result = compile_and_run("`hello world`").unwrap();
+        assert_eq!(result, "hello world");
+    }
+
+    #[test]
+    fn test_e2e_number_float() {
+        let result = compile_and_run("3.14").unwrap();
+        assert_eq!(result, "3.14");
+    }
+
+    #[test]
+    fn test_e2e_map_with_string_key() {
+        let chunk = compile_source("{`name`: `test`}");
+        assert!(chunk.is_ok());
+        let chunk = chunk.unwrap();
+
+        let has_map_new = chunk.code.iter().any(|i| i.opcode() == Opcode::MapNew);
+        let has_map_set = chunk.code.iter().any(|i| i.opcode() == Opcode::MapSet);
+        assert!(has_map_new, "Should have MapNew instruction");
+        assert!(has_map_set, "Should have MapSet instruction");
+
+        let has_string_name = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "name"));
+        let has_string_test = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "test"));
+        assert!(has_string_name, "Should have string constant 'name'");
+        assert!(has_string_test, "Should have string constant 'test'");
+    }
+
+    #[test]
+    fn test_e2e_application_chain() {
+        let chunk = compile_source("f g 42");
+        assert!(chunk.is_ok());
+        let chunk = chunk.unwrap();
+
+        let call_count = chunk.code.iter().filter(|i| i.opcode() == Opcode::Call).count();
+        assert_eq!(call_count, 2, "Should have 2 Call instructions for curried chain");
+
+        let has_string_f = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "f"));
+        let has_string_g = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "g"));
+        let has_number_42 = chunk.constants.iter().any(|c| matches!(c, Constant::Number(n) if *n == 42.0));
+        assert!(has_string_f, "Should have string constant 'f'");
+        assert!(has_string_g, "Should have string constant 'g'");
+        assert!(has_number_42, "Should have number constant 42.0");
+    }
+
+    #[test]
+    fn test_e2e_list_of_strings() {
+        let chunk = compile_source("[`a`, `b`, `c`]");
+        assert!(chunk.is_ok());
+        let chunk = chunk.unwrap();
+
+        let has_list_new = chunk.code.iter().any(|i| i.opcode() == Opcode::ListNew);
+        let has_list_push = chunk.code.iter().any(|i| i.opcode() == Opcode::ListPush);
+        assert!(has_list_new, "Should have ListNew instruction");
+        assert!(has_list_push, "Should have ListPush instructions");
+
+        let string_consts = chunk.constants.iter().filter(|c| matches!(c, Constant::String(_))).count();
+        assert_eq!(string_consts, 3, "Should have 3 string constants");
+    }
+
+    #[test]
+    fn test_e2e_nested_map() {
+        let chunk = compile_source("{a: {b: 1}}");
+        assert!(chunk.is_ok());
+        let chunk = chunk.unwrap();
+
+        let has_map_new = chunk.code.iter().any(|i| i.opcode() == Opcode::MapNew);
+        let has_map_set = chunk.code.iter().any(|i| i.opcode() == Opcode::MapSet);
+        assert!(has_map_new, "Should have MapNew instruction");
+        assert!(has_map_set, "Should have MapSet instruction");
+
+        let has_string_a = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "a"));
+        let has_string_b = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "b"));
+        let has_number_1 = chunk.constants.iter().any(|c| matches!(c, Constant::Number(n) if *n == 1.0));
+        assert!(has_string_a, "Should have string constant 'a'");
+        assert!(has_string_b, "Should have string constant 'b'");
+        assert!(has_number_1, "Should have number constant 1.0");
+    }
 }
