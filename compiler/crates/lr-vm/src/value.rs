@@ -217,7 +217,7 @@ mod tests {
     #[test]
     fn test_value_number() {
         let int_val = Value::number(42.0);
-        let float_val = Value::number(3.14);
+        let float_val = Value::number(3.25);
         let zero_val = Value::number(0.0);
         let nan_val = Value::number(f64::NAN);
 
@@ -227,7 +227,7 @@ mod tests {
         assert!(!nan_val.is_truthy());
 
         assert_eq!(format!("{}", int_val), "42");
-        assert_eq!(format!("{}", float_val), "3.14");
+        assert_eq!(format!("{}", float_val), "3.25");
     }
 
     #[test]

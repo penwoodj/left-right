@@ -175,45 +175,60 @@ impl Compiler {
     }
 
     fn compile_list_literal(&mut self, l: &ListLiteral, dest: u8) -> Result<(), CompilerError> {
-        // Create empty list
-        self.chunk.emit(Instruction::new(Opcode::ListNew, dest, 0, 0));
+        if l.elements.is_empty() {
+            self.chunk.emit(Instruction::new(Opcode::ListNew, dest, 0, 0));
+        } else {
+            let first_reg = self.alloc_register()?;
+            self.compile_expression(&l.elements[0], first_reg)?;
 
-        // Push each element (note: VM doesn't support ListPush on GC lists yet)
-        for element in &l.elements {
-            let temp = self.alloc_register()?;
-            self.compile_expression(element, temp)?;
-            // For now, just emit the push instruction. VM will error at runtime.
-            // This is OK for initial implementation.
-            self.chunk.emit(Instruction::new(Opcode::ListPush, temp, dest, 0));
-            self.free_register();
+            for element in &l.elements[1..] {
+                let temp = self.alloc_register()?;
+                self.compile_expression(element, temp)?;
+            }
+
+            let count = l.elements.len() as u8;
+            self.chunk.emit(Instruction::new(Opcode::ListBuild, dest, first_reg, count));
+
+            for _ in 0..l.elements.len() {
+                self.free_register();
+            }
         }
 
         Ok(())
     }
 
     fn compile_map_literal(&mut self, m: &MapLiteral, dest: u8) -> Result<(), CompilerError> {
-        // Create empty map
-        self.chunk.emit(Instruction::new(Opcode::MapNew, dest, 0, 0));
+        if m.entries.is_empty() {
+            self.chunk.emit(Instruction::new(Opcode::MapNew, dest, 0, 0));
+        } else {
+            let first_key_reg = self.alloc_register()?;
+            self.compile_expression(&m.entries[0].key, first_key_reg)?;
 
-        // Set each entry
-        for entry in &m.entries {
-            // Compile key
-            let key_reg = self.alloc_register()?;
-            self.compile_expression(&entry.key, key_reg)?;
-
-            // Compile value if present, otherwise use key as value (shorthand)
-            let value_reg = self.alloc_register()?;
-            if let Some(ref value) = entry.value {
-                self.compile_expression(value, value_reg)?;
+            let first_value_reg = self.alloc_register()?;
+            if let Some(ref value) = m.entries[0].value {
+                self.compile_expression(value, first_value_reg)?;
             } else {
-                self.chunk.emit(Instruction::new(Opcode::LoadRegister, value_reg, key_reg, 0));
+                self.chunk.emit(Instruction::new(Opcode::LoadRegister, first_value_reg, first_key_reg, 0));
             }
 
-            // Set entry (note: VM doesn't support MapSet on GC maps yet)
-            self.chunk.emit(Instruction::new(Opcode::MapSet, value_reg, dest, key_reg));
+            for entry in &m.entries[1..] {
+                let key_reg = self.alloc_register()?;
+                self.compile_expression(&entry.key, key_reg)?;
 
-            self.free_register();
-            self.free_register();
+                let value_reg = self.alloc_register()?;
+                if let Some(ref value) = entry.value {
+                    self.compile_expression(value, value_reg)?;
+                } else {
+                    self.chunk.emit(Instruction::new(Opcode::LoadRegister, value_reg, key_reg, 0));
+                }
+            }
+
+            let entry_count = m.entries.len() as u8;
+            self.chunk.emit(Instruction::new(Opcode::MapBuild, dest, first_key_reg, entry_count));
+
+            for _ in 0..m.entries.len() * 2 {
+                self.free_register();
+            }
         }
 
         Ok(())
@@ -335,18 +350,13 @@ mod tests {
 
     #[test]
     fn test_compile_list_with_elements() {
-        // VM doesn't support ListPush on GC lists yet, so just verify bytecode
         let chunk = compile_source("[1, 2, 3]");
         assert!(chunk.is_ok());
         let chunk = chunk.unwrap();
 
-        // Should have ListNew and ListPush instructions
-        let has_list_new = chunk.code.iter().any(|i| i.opcode() == Opcode::ListNew);
-        let has_list_push = chunk.code.iter().any(|i| i.opcode() == Opcode::ListPush);
-        assert!(has_list_new, "Should have ListNew instruction");
-        assert!(has_list_push, "Should have ListPush instructions");
+        let has_list_build = chunk.code.iter().any(|i| i.opcode() == Opcode::ListBuild);
+        assert!(has_list_build, "Should have ListBuild instruction");
 
-        // Should have 3 number constants
         let num_consts = chunk.constants.iter().filter(|c| matches!(c, Constant::Number(_))).count();
         assert_eq!(num_consts, 3, "Should have 3 number constants");
     }
@@ -361,18 +371,13 @@ mod tests {
 
     #[test]
     fn test_compile_map_with_entry() {
-        // VM doesn't support MapSet on GC maps yet, so just verify bytecode
         let chunk = compile_source("{ a: 1 }");
         assert!(chunk.is_ok());
         let chunk = chunk.unwrap();
 
-        // Should have MapNew and MapSet instructions
-        let has_map_new = chunk.code.iter().any(|i| i.opcode() == Opcode::MapNew);
-        let has_map_set = chunk.code.iter().any(|i| i.opcode() == Opcode::MapSet);
-        assert!(has_map_new, "Should have MapNew instruction");
-        assert!(has_map_set, "Should have MapSet instruction");
+        let has_map_build = chunk.code.iter().any(|i| i.opcode() == Opcode::MapBuild);
+        assert!(has_map_build, "Should have MapBuild instruction");
 
-        // Should have string "a" and number 1 constants
         let has_string_a = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "a"));
         let has_number_1 = chunk.constants.iter().any(|c| matches!(c, Constant::Number(n) if *n == 1.0));
         assert!(has_string_a, "Should have string constant 'a'");
@@ -381,18 +386,13 @@ mod tests {
 
     #[test]
     fn test_compile_map_shorthand() {
-        // VM doesn't support MapSet on GC maps yet, so just verify bytecode
         let chunk = compile_source("{ a }");
         assert!(chunk.is_ok());
         let chunk = chunk.unwrap();
 
-        // Should have MapNew and MapSet instructions
-        let has_map_new = chunk.code.iter().any(|i| i.opcode() == Opcode::MapNew);
-        let has_map_set = chunk.code.iter().any(|i| i.opcode() == Opcode::MapSet);
-        assert!(has_map_new, "Should have MapNew instruction");
-        assert!(has_map_set, "Should have MapSet instruction");
+        let has_map_build = chunk.code.iter().any(|i| i.opcode() == Opcode::MapBuild);
+        assert!(has_map_build, "Should have MapBuild instruction");
 
-        // Should have string "a" constant
         let has_string_a = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "a"));
         assert!(has_string_a, "Should have string constant 'a'");
     }
@@ -444,15 +444,10 @@ mod tests {
         assert!(chunk.is_ok());
         let chunk = chunk.unwrap();
 
-        // Should have MapNew, ListNew, MapSet, and ListPush instructions
-        let has_map_new = chunk.code.iter().any(|i| i.opcode() == Opcode::MapNew);
-        let has_list_new = chunk.code.iter().any(|i| i.opcode() == Opcode::ListNew);
-        let has_map_set = chunk.code.iter().any(|i| i.opcode() == Opcode::MapSet);
-        let has_list_push = chunk.code.iter().any(|i| i.opcode() == Opcode::ListPush);
-        assert!(has_map_new, "Should have MapNew instruction");
-        assert!(has_list_new, "Should have ListNew instruction");
-        assert!(has_map_set, "Should have MapSet instructions");
-        assert!(has_list_push, "Should have ListPush instructions");
+        let has_map_build = chunk.code.iter().any(|i| i.opcode() == Opcode::MapBuild);
+        let has_list_build = chunk.code.iter().any(|i| i.opcode() == Opcode::ListBuild);
+        assert!(has_map_build, "Should have MapBuild instruction");
+        assert!(has_list_build, "Should have ListBuild instruction");
     }
 
     #[test]
@@ -595,10 +590,8 @@ mod tests {
         assert!(chunk.is_ok());
         let chunk = chunk.unwrap();
 
-        let has_list_new = chunk.code.iter().any(|i| i.opcode() == Opcode::ListNew);
-        let has_list_push = chunk.code.iter().any(|i| i.opcode() == Opcode::ListPush);
-        assert!(has_list_new, "Should have ListNew instruction");
-        assert!(has_list_push, "Should have ListPush instructions");
+        let has_list_build = chunk.code.iter().any(|i| i.opcode() == Opcode::ListBuild);
+        assert!(has_list_build, "Should have ListBuild instruction");
 
         let num_consts = chunk.constants.iter().filter(|c| matches!(c, Constant::Number(_))).count();
         assert_eq!(num_consts, 3, "Should have 3 number constants");
@@ -616,10 +609,8 @@ mod tests {
         assert!(chunk.is_ok());
         let chunk = chunk.unwrap();
 
-        let has_map_new = chunk.code.iter().any(|i| i.opcode() == Opcode::MapNew);
-        let has_map_set = chunk.code.iter().any(|i| i.opcode() == Opcode::MapSet);
-        assert!(has_map_new, "Should have MapNew instruction");
-        assert!(has_map_set, "Should have MapSet instruction");
+        let has_map_build = chunk.code.iter().any(|i| i.opcode() == Opcode::MapBuild);
+        assert!(has_map_build, "Should have MapBuild instruction");
 
         let has_string_a = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "a"));
         let has_string_b = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "b"));
@@ -664,10 +655,8 @@ mod tests {
         assert!(chunk.is_ok());
         let chunk = chunk.unwrap();
 
-        let has_list_new = chunk.code.iter().any(|i| i.opcode() == Opcode::ListNew);
-        let has_list_push = chunk.code.iter().any(|i| i.opcode() == Opcode::ListPush);
-        assert!(has_list_new, "Should have ListNew instruction");
-        assert!(has_list_push, "Should have ListPush instructions");
+        let has_list_build = chunk.code.iter().any(|i| i.opcode() == Opcode::ListBuild);
+        assert!(has_list_build, "Should have ListBuild instruction");
 
         let num_consts = chunk.constants.iter().filter(|c| matches!(c, Constant::Number(_))).count();
         assert_eq!(num_consts, 4, "Should have 4 number constants");
@@ -691,10 +680,8 @@ mod tests {
         assert!(chunk.is_ok());
         let chunk = chunk.unwrap();
 
-        let has_map_new = chunk.code.iter().any(|i| i.opcode() == Opcode::MapNew);
-        let has_map_set = chunk.code.iter().any(|i| i.opcode() == Opcode::MapSet);
-        assert!(has_map_new, "Should have MapNew instruction");
-        assert!(has_map_set, "Should have MapSet instruction");
+        let has_map_build = chunk.code.iter().any(|i| i.opcode() == Opcode::MapBuild);
+        assert!(has_map_build, "Should have MapBuild instruction");
 
         let has_string_name = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "name"));
         let has_string_test = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "test"));
@@ -725,10 +712,8 @@ mod tests {
         assert!(chunk.is_ok());
         let chunk = chunk.unwrap();
 
-        let has_list_new = chunk.code.iter().any(|i| i.opcode() == Opcode::ListNew);
-        let has_list_push = chunk.code.iter().any(|i| i.opcode() == Opcode::ListPush);
-        assert!(has_list_new, "Should have ListNew instruction");
-        assert!(has_list_push, "Should have ListPush instructions");
+        let has_list_build = chunk.code.iter().any(|i| i.opcode() == Opcode::ListBuild);
+        assert!(has_list_build, "Should have ListBuild instruction");
 
         let string_consts = chunk.constants.iter().filter(|c| matches!(c, Constant::String(_))).count();
         assert_eq!(string_consts, 3, "Should have 3 string constants");
@@ -740,10 +725,8 @@ mod tests {
         assert!(chunk.is_ok());
         let chunk = chunk.unwrap();
 
-        let has_map_new = chunk.code.iter().any(|i| i.opcode() == Opcode::MapNew);
-        let has_map_set = chunk.code.iter().any(|i| i.opcode() == Opcode::MapSet);
-        assert!(has_map_new, "Should have MapNew instruction");
-        assert!(has_map_set, "Should have MapSet instruction");
+        let has_map_build = chunk.code.iter().any(|i| i.opcode() == Opcode::MapBuild);
+        assert!(has_map_build, "Should have MapBuild instruction");
 
         let has_string_a = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "a"));
         let has_string_b = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "b"));

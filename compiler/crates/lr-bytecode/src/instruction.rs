@@ -46,6 +46,7 @@ pub enum Opcode {
     MapMerge = 63,
     MapPick = 64,
     MapOmit = 65,
+    MapBuild = 66,
 
     ListNew = 70,
     ListGet = 71,
@@ -53,6 +54,7 @@ pub enum Opcode {
     ListPush = 73,
     ListPop = 74,
     ListLen = 75,
+    ListBuild = 76,
 
     StringConcat = 80,
     StringLen = 81,
@@ -132,6 +134,7 @@ impl Opcode {
             63 => Some(Opcode::MapMerge),
             64 => Some(Opcode::MapPick),
             65 => Some(Opcode::MapOmit),
+            66 => Some(Opcode::MapBuild),
 
             70 => Some(Opcode::ListNew),
             71 => Some(Opcode::ListGet),
@@ -139,6 +142,7 @@ impl Opcode {
             73 => Some(Opcode::ListPush),
             74 => Some(Opcode::ListPop),
             75 => Some(Opcode::ListLen),
+            76 => Some(Opcode::ListBuild),
 
             80 => Some(Opcode::StringConcat),
             81 => Some(Opcode::StringLen),
@@ -222,6 +226,7 @@ impl Display for Opcode {
             Opcode::MapMerge => write!(f, "MAP_MERGE"),
             Opcode::MapPick => write!(f, "MAP_PICK"),
             Opcode::MapOmit => write!(f, "MAP_OMIT"),
+            Opcode::MapBuild => write!(f, "MAP_BUILD"),
 
             Opcode::ListNew => write!(f, "LIST_NEW"),
             Opcode::ListGet => write!(f, "LIST_GET"),
@@ -229,6 +234,7 @@ impl Display for Opcode {
             Opcode::ListPush => write!(f, "LIST_PUSH"),
             Opcode::ListPop => write!(f, "LIST_POP"),
             Opcode::ListLen => write!(f, "LIST_LEN"),
+            Opcode::ListBuild => write!(f, "LIST_BUILD"),
 
             Opcode::StringConcat => write!(f, "STR_CAT"),
             Opcode::StringLen => write!(f, "STR_LEN"),
@@ -368,12 +374,14 @@ mod tests {
             Opcode::MapMerge,
             Opcode::MapPick,
             Opcode::MapOmit,
+            Opcode::MapBuild,
             Opcode::ListNew,
             Opcode::ListGet,
             Opcode::ListSet,
             Opcode::ListPush,
             Opcode::ListPop,
             Opcode::ListLen,
+            Opcode::ListBuild,
             Opcode::StringConcat,
             Opcode::StringLen,
             Opcode::StringSlice,
@@ -414,8 +422,7 @@ mod tests {
             assert_eq!(None, Opcode::from_u8(36));
             assert_eq!(None, Opcode::from_u8(46));
             assert_eq!(None, Opcode::from_u8(54));
-            assert_eq!(None, Opcode::from_u8(66));
-            assert_eq!(None, Opcode::from_u8(76));
+            assert_eq!(None, Opcode::from_u8(67));
             assert_eq!(None, Opcode::from_u8(86));
             assert_eq!(None, Opcode::from_u8(101));
             assert_eq!(None, Opcode::from_u8(113));
