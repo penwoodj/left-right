@@ -1,0 +1,12 @@
+[package]
+name = "lr-runtime"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+gc-arena = "0.5.3"
+lr-bytecode = { path = "../lr-bytecode" }
+lr-vm = { path = "../lr-vm" }
+
+[dev-dependencies]
+proptest.workspace = true

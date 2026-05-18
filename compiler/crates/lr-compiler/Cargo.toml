@@ -1,0 +1,15 @@
+[package]
+name = "lr-compiler"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+lr-ast = { path = "../lr-ast" }
+lr-lexer = { path = "../lr-lexer" }
+lr-parser = { path = "../lr-parser" }
+lr-bytecode = { path = "../lr-bytecode" }
+lr-common = { path = "../lr-common" }
+
+[dev-dependencies]
+lr-vm = { path = "../lr-vm" }
