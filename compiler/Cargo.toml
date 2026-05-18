@@ -25,3 +25,4 @@ proptest = "1.11.0"
 clap = { version = "4.6.0", features = ["derive"] }
 anyhow = "1"
 colored = "2.1.0"
+notify = "8.2.0"
