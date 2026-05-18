@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 100" width="280" height="100">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -60 200 120" width="200" height="120">
   <defs>
     <style>
       @font-face {
@@ -35,9 +35,9 @@
   </defs>
   
   <g font-family="'IosevkaCurly', monospace" font-size="54"  font-weight="500" filter="url(#softGlow)" fill="url(#fullGrad)" stroke="url(#fullGrad)" stroke-width="0.5" stroke-linejoin="round" text-anchor="middle">
-    <text x="70" y="68" transform="rotate(63, 70, 68)">|</text>
-    <text x="120" y="68" transform="rotate(-63, 120, 68)">|</text>
-    <text x="170" y="68" transform="rotate(63, 170, 68)">|</text>
-    <text x="220" y="68" transform="rotate(-63, 220, 68)">|</text>
+    <text x="70" y="0" transform="rotate(75, 70, 0)">|</text>
+    <text x="70" y="0" transform="rotate(-75, 70, 0)">|</text>
+    <text x="130" y="0" transform="rotate(75, 130, 0)">|</text>
+    <text x="130" y="0" transform="rotate(-75, 130, 0)">|</text>
   </g>
 </svg>
