@@ -34,10 +34,10 @@
     </filter>
   </defs>
   
-  <g font-family="'IosevkaCurly', monospace" font-size="72" font-style="italic" font-weight="200" filter="url(#softGlow)" fill="url(#fullGrad)" stroke="url(#fullGrad)" stroke-width="0.5" stroke-linejoin="round" text-anchor="middle">
-    <text x="70" y="68">{</text>
-    <text x="120" y="68" transform="rotate(-30, 120, 68)">|</text>
-    <text x="170" y="68" transform="rotate(30, 170, 68)">|</text>
-    <text x="220" y="68">}</text>
+  <g font-family="'IosevkaCurly', monospace" font-size="54" font-style="italic" font-weight="600" filter="url(#softGlow)" fill="url(#fullGrad)" stroke="url(#fullGrad)" stroke-width="0.5" stroke-linejoin="round" text-anchor="middle">
+    <text x="70" y="68" transform="rotate(20, 70, 68)">|</text>
+    <text x="120" y="68" transform="rotate(-35, 120, 68)">|</text>
+    <text x="170" y="68" transform="rotate(35, 170, 68)">|</text>
+    <text x="220" y="68" transform="rotate(-20, 220, 68)">|</text>
   </g>
 </svg>
