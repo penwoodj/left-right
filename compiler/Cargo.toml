@@ -6,6 +6,10 @@ members = [
     "crates/lr-ast",
     "crates/lr-parser",
     "crates/lr-diagnostics",
+    "crates/lr-bytecode",
+    "crates/lr-vm",
+    "crates/lr-compiler",
+    "crates/lr-runtime",
 ]
 
 [workspace.package]

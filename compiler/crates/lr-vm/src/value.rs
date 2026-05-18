@@ -1,0 +1,294 @@
+use gc_arena::{Collect, Gc, Mutation};
+use std::fmt;
+
+#[derive(Debug, Copy, Clone, Collect)]
+#[collect(no_drop)]
+pub enum Value<'gc> {
+    Undefined,
+    Boolean(bool),
+    Number(f64),
+    String(Gc<'gc, String>),
+    List(Gc<'gc, Vec<Value<'gc>>>),
+    Map(Gc<'gc, Vec<(Value<'gc>, Value<'gc>)>>),
+    Operator(Gc<'gc, OperatorData<'gc>>),
+}
+
+#[derive(Debug, Collect)]
+#[collect(no_drop)]
+pub struct OperatorData<'gc> {
+    #[collect(require_static)]
+    pub call_fn: fn(&Mutation<'gc>, Value<'gc>, Value<'gc>) -> Value<'gc>,
+    pub name: String,
+}
+
+impl<'gc> Value<'gc> {
+    pub fn undefined() -> Self {
+        Value::Undefined
+    }
+
+    pub fn boolean(_mc: &Mutation<'gc>, value: bool) -> Self {
+        Value::Boolean(value)
+    }
+
+    pub fn number(value: f64) -> Self {
+        Value::Number(value)
+    }
+
+    pub fn string(mc: &Mutation<'gc>, value: String) -> Self {
+        Value::String(Gc::new(mc, value))
+    }
+
+    pub fn list(mc: &Mutation<'gc>, value: Vec<Value<'gc>>) -> Self {
+        Value::List(Gc::new(mc, value))
+    }
+
+    pub fn map(mc: &Mutation<'gc>, value: Vec<(Value<'gc>, Value<'gc>)>) -> Self {
+        Value::Map(Gc::new(mc, value))
+    }
+
+    pub fn is_truthy(&self) -> bool {
+        match self {
+            Value::Undefined => false,
+            Value::Boolean(b) => *b,
+            Value::Number(n) => *n != 0.0 && !n.is_nan(),
+            Value::String(s) => !s.is_empty(),
+            Value::List(l) => !l.is_empty(),
+            Value::Map(m) => !m.is_empty(),
+            Value::Operator(_) => true,
+        }
+    }
+
+    pub fn type_name(&self) -> &'static str {
+        match self {
+            Value::Undefined => "undefined",
+            Value::Boolean(_) => "boolean",
+            Value::Number(_) => "number",
+            Value::String(_) => "string",
+            Value::List(_) => "list",
+            Value::Map(_) => "map",
+            Value::Operator(_) => "operator",
+        }
+    }
+
+    pub fn deep_eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Value::Undefined, Value::Undefined) => true,
+            (Value::Boolean(a), Value::Boolean(b)) => a == b,
+            (Value::Number(a), Value::Number(b)) => {
+                if a.is_nan() && b.is_nan() {
+                    true
+                } else if a.is_nan() || b.is_nan() {
+                    false
+                } else {
+                    a == b
+                }
+            }
+            (Value::String(a), Value::String(b)) => a == b,
+            (Value::List(a), Value::List(b)) => {
+                if a.len() != b.len() {
+                    return false;
+                }
+                a.iter().zip(b.iter()).all(|(x, y)| x.deep_eq(y))
+            }
+            (Value::Map(a), Value::Map(b)) => {
+                if a.len() != b.len() {
+                    return false;
+                }
+                for (key_a, val_a) in a.iter() {
+                    match b.iter().find(|(key_b, _)| key_b.deep_eq(key_a)) {
+                        Some((_, val_b)) => {
+                            if !val_a.deep_eq(val_b) {
+                                return false;
+                            }
+                        }
+                        None => return false,
+                    }
+                }
+                true
+            }
+            (Value::Operator(a), Value::Operator(b)) => a.name == b.name,
+            _ => false,
+        }
+    }
+}
+
+impl<'gc> fmt::Display for Value<'gc> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::Undefined => write!(f, "undefined"),
+            Value::Boolean(b) => write!(f, "{}", b),
+            Value::Number(n) => {
+                if n.fract() == 0.0 {
+                    write!(f, "{}", *n as i64)
+                } else {
+                    write!(f, "{}", n)
+                }
+            }
+            Value::String(s) => write!(f, "{}", s),
+            Value::List(l) => {
+                write!(f, "[")?;
+                for (i, elem) in l.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", elem)?;
+                }
+                write!(f, "]")
+            }
+            Value::Map(m) => {
+                write!(f, "{{")?;
+                for (i, (key, val)) in m.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}: {}", key, val)?;
+                }
+                write!(f, "}}")
+            }
+            Value::Operator(op) => write!(f, "<operator:{}>", op.name),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use gc_arena::{Arena, Rootable};
+    use std::marker::PhantomData;
+
+    #[derive(Debug, Clone, Copy, Collect)]
+    #[collect(no_drop)]
+    struct TestRoot<'gc> {
+        _marker: PhantomData<&'gc ()>,
+    }
+
+    fn with_arena<F, R>(f: F) -> R
+    where
+        F: for<'gc> FnOnce(&Mutation<'gc>, &TestRoot<'gc>) -> R,
+    {
+        let arena = Arena::<Rootable![TestRoot<'_>]>::new(|_mc| TestRoot {
+            _marker: PhantomData,
+        });
+        arena.mutate(f)
+    }
+
+    #[test]
+    fn test_value_undefined() {
+        let val = Value::undefined();
+        assert!(!val.is_truthy());
+        assert_eq!(val.type_name(), "undefined");
+        assert_eq!(format!("{}", val), "undefined");
+    }
+
+    #[test]
+    fn test_value_boolean() {
+        with_arena(|mc, _| {
+            let t = Value::boolean(mc, true);
+            let f = Value::boolean(mc, false);
+
+            assert!(t.is_truthy());
+            assert!(!f.is_truthy());
+            assert_eq!(t.type_name(), "boolean");
+            assert_eq!(format!("{}", t), "true");
+            assert_eq!(format!("{}", f), "false");
+        });
+    }
+
+    #[test]
+    fn test_value_number() {
+        let int_val = Value::number(42.0);
+        let float_val = Value::number(3.14);
+        let zero_val = Value::number(0.0);
+        let nan_val = Value::number(f64::NAN);
+
+        assert!(int_val.is_truthy());
+        assert!(float_val.is_truthy());
+        assert!(!zero_val.is_truthy());
+        assert!(!nan_val.is_truthy());
+
+        assert_eq!(format!("{}", int_val), "42");
+        assert_eq!(format!("{}", float_val), "3.14");
+    }
+
+    #[test]
+    fn test_value_string() {
+        with_arena(|mc, _| {
+            let s = Value::string(mc, "hello".to_string());
+            let empty = Value::string(mc, "".to_string());
+
+            assert!(s.is_truthy());
+            assert!(!empty.is_truthy());
+            assert_eq!(s.type_name(), "string");
+            assert_eq!(format!("{}", s), "hello");
+        });
+    }
+
+    #[test]
+    fn test_value_list() {
+        with_arena(|mc, _| {
+            let list = Value::list(mc, vec![Value::number(1.0), Value::number(2.0)]);
+            let empty = Value::list(mc, vec![]);
+
+            assert!(list.is_truthy());
+            assert!(!empty.is_truthy());
+            assert_eq!(format!("{}", list), "[1, 2]");
+        });
+    }
+
+    #[test]
+    fn test_value_map() {
+        with_arena(|mc, _| {
+            let key = Value::string(mc, "key".to_string());
+            let val = Value::number(42.0);
+            let map = Value::map(mc, vec![(key, val)]);
+            let empty = Value::map(mc, vec![]);
+
+            assert!(map.is_truthy());
+            assert!(!empty.is_truthy());
+            assert!(format!("{}", map).starts_with("{"));
+        });
+    }
+
+    #[test]
+    fn test_deep_eq() {
+        with_arena(|mc, _| {
+            let undef1 = Value::undefined();
+            let undef2 = Value::undefined();
+            assert!(undef1.deep_eq(&undef2));
+
+            let bool1 = Value::boolean(mc, true);
+            let bool2 = Value::boolean(mc, true);
+            let bool3 = Value::boolean(mc, false);
+            assert!(bool1.deep_eq(&bool2));
+            assert!(!bool1.deep_eq(&bool3));
+
+            let num1 = Value::number(42.0);
+            let num2 = Value::number(42.0);
+            let num3 = Value::number(43.0);
+            assert!(num1.deep_eq(&num2));
+            assert!(!num1.deep_eq(&num3));
+
+            let str1 = Value::string(mc, "hello".to_string());
+            let str2 = Value::string(mc, "hello".to_string());
+            let str3 = Value::string(mc, "world".to_string());
+            assert!(str1.deep_eq(&str2));
+            assert!(!str1.deep_eq(&str3));
+
+            let list1 = Value::list(mc, vec![Value::number(1.0), Value::number(2.0)]);
+            let list2 = Value::list(mc, vec![Value::number(1.0), Value::number(2.0)]);
+            let list3 = Value::list(mc, vec![Value::number(1.0)]);
+            assert!(list1.deep_eq(&list2));
+            assert!(!list1.deep_eq(&list3));
+        });
+    }
+
+    #[test]
+    fn test_nan_equality() {
+        let nan1 = Value::number(f64::NAN);
+        let nan2 = Value::number(f64::NAN);
+        let num = Value::number(42.0);
+
+        assert!(nan1.deep_eq(&nan2), "NaN should equal NaN with deep_eq");
+        assert!(!nan1.deep_eq(&num));
+    }
+}

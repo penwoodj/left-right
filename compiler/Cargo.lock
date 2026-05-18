@@ -103,6 +103,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
 
 [[package]]
+name = "gc-arena"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3cd70cf88a32937834aae9614ff2569b5d9467fa0c42c5d7762fd94a8de88266"
+dependencies = [
+ "gc-arena-derive",
+ "sptr",
+]
+
+[[package]]
+name = "gc-arena-derive"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c612a69f5557a11046b77a7408d2836fe77077f842171cd211c5ef504bd3cddd"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+ "synstructure",
+]
+
+[[package]]
 name = "getrandom"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -218,8 +240,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "lr-bytecode"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "thiserror",
+]
+
+[[package]]
 name = "lr-common"
 version = "0.1.0"
+
+[[package]]
+name = "lr-compiler"
+version = "0.1.0"
+dependencies = [
+ "lr-ast",
+ "lr-bytecode",
+ "lr-common",
+ "lr-lexer",
+ "lr-parser",
+ "lr-vm",
+ "thiserror",
+]
 
 [[package]]
 name = "lr-diagnostics"
@@ -245,6 +288,26 @@ dependencies = [
  "lr-ast",
  "lr-common",
  "lr-lexer",
+ "thiserror",
+]
+
+[[package]]
+name = "lr-runtime"
+version = "0.1.0"
+dependencies = [
+ "gc-arena",
+ "lr-bytecode",
+ "lr-vm",
+ "proptest",
+]
+
+[[package]]
+name = "lr-vm"
+version = "0.1.0"
+dependencies = [
+ "gc-arena",
+ "lr-bytecode",
+ "proptest",
  "thiserror",
 ]
 
@@ -467,6 +530,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbbb5d9659141646ae647b42fe094daf6c6192d1620870b449d9557f748b2daa"
 
 [[package]]
+name = "sptr"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b9b39299b249ad65f3b7e96443bad61c02ca5cd3589f46cb6d610a0fd6c0d6a"
+
+[[package]]
 name = "syn"
 version = "2.0.117"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -475,6 +544,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "synstructure"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "728a70f3dbaf5bab7f0c4b1ac8d7ae5ea60a4b5549c8a5914361c99147a709d2"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
