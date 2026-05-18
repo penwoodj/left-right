@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -60 140 120" width="140" height="120">
+  <defs>
+    <style>
+      @font-face {
+        font-family: 'IosevkaCurly';
+        src: url(data:font/woff2;base64,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);
+        font-weight: 500;
+        
+      }
+    </style>
+    <!-- Full logo gradient: purple → green → teal bridge → blue → purple -->
+    <linearGradient id="fullGrad" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" style="stop-color:#b358b5;stop-opacity:0.85" />
+      <stop offset="12%" style="stop-color:#9a7aaf;stop-opacity:0.8" />
+      <stop offset="22%" style="stop-color:#4a9e8a;stop-opacity:0.85" />
+      <stop offset="38%" style="stop-color:#6dbfaa;stop-opacity:0.8" />
+      <stop offset="50%" style="stop-color:#8abfb2;stop-opacity:0.75" />
+      <stop offset="62%" style="stop-color:#6a9fba;stop-opacity:0.8" />
+      <stop offset="78%" style="stop-color:#3d71bf;stop-opacity:0.85" />
+      <stop offset="88%" style="stop-color:#7a64ba;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#b358b5;stop-opacity:0.85" />
+    </linearGradient>
+    
+    <!-- Soft outer glow -->
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur1" />
+      <feColorMatrix in="blur1" type="saturate" values="1.5" result="saturated" />
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1" result="blur2" />
+      <feMerge>
+        <feMergeNode in="saturated" />
+        <feMergeNode in="blur2" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <g font-family="'IosevkaCurly', monospace" font-size="50"  font-weight="500" filter="url(#softGlow)" fill="url(#fullGrad)" stroke="url(#fullGrad)" stroke-width="0.5" stroke-linejoin="round" text-anchor="middle">
+    <text x="50" y="17" transform="rotate(75, 50, 17)">|</text>
+    <text x="82" y="0" transform="rotate(-77, 82, 0)>|</text>
+    <text x="82" y="17" transform="rotate(-75, 82, 17)>|</text>
+    <text x="50" y="0" transform="rotate(77, 50, 0)">|</text>
+  </g>
+</svg>
