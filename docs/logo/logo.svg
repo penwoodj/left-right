@@ -34,11 +34,5 @@
     </filter>
   </defs>
   
-  <g font-family="'IosevkaCurly', monospace" font-size="72" font-style="italic" font-weight="200" filter="url(#softGlow)" fill="url(#fullGrad)" stroke="url(#fullGrad)" stroke-width="0.5" stroke-linejoin="round">
-    <text x="95" y="68">{</text>
-    <text x="0" y="0" transform="translate(108, 0) scale(1, 0.5) translate(0, 98)" vector-effect="non-scaling-stroke">&lt;</text>
-    <text x="118" y="66" textLength="54" lengthAdjust="spacingAndGlyphs">_</text>
-    <text x="0" y="0" transform="translate(146, 0) scale(1, 0.5) translate(0, 99)" vector-effect="non-scaling-stroke">&gt;</text>
-    <text x="155" y="68">}</text>
-  </g>
+  <text x="140" y="68" text-anchor="middle" font-family="'IosevkaCurly', monospace" font-size="72" font-style="italic" font-weight="200" filter="url(#softGlow)" fill="url(#fullGrad)" stroke="url(#fullGrad)" stroke-width="0.5" stroke-linejoin="round"><tspan>{</tspan><tspan dx="-29" dy="-1">&lt;</tspan><tspan dx="-30" dy="-1" textLength="58" lengthAdjust="spacingAndGlyphs">_</tspan><tspan dx="-30" dy="1.5">&gt;</tspan><tspan dx="-30" dy="0.5">}</tspan></text>
 </svg>
