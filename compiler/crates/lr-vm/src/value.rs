@@ -10,15 +10,21 @@ pub enum Value<'gc> {
     String(Gc<'gc, String>),
     List(Gc<'gc, Vec<Value<'gc>>>),
     Map(Gc<'gc, Vec<(Value<'gc>, Value<'gc>)>>),
-    Operator(Gc<'gc, OperatorData<'gc>>),
+    Operator(Gc<'gc, OperatorData>),
+    PartialOperator(Gc<'gc, PartialOperatorData<'gc>>),
 }
 
-#[derive(Debug, Collect)]
+#[derive(Debug, Clone, Collect)]
 #[collect(no_drop)]
-pub struct OperatorData<'gc> {
-    #[collect(require_static)]
-    pub call_fn: fn(&Mutation<'gc>, Value<'gc>, Value<'gc>) -> Value<'gc>,
+pub struct OperatorData {
     pub name: String,
+}
+
+#[derive(Debug, Clone, Collect)]
+#[collect(no_drop)]
+pub struct PartialOperatorData<'gc> {
+    pub name: String,
+    pub left_arg: Value<'gc>,
 }
 
 impl<'gc> Value<'gc> {
@@ -46,6 +52,14 @@ impl<'gc> Value<'gc> {
         Value::Map(Gc::new(mc, value))
     }
 
+    pub fn operator(mc: &Mutation<'gc>, name: String) -> Self {
+        Value::Operator(Gc::new(mc, OperatorData { name }))
+    }
+
+    pub fn partial_operator(mc: &Mutation<'gc>, name: String, left_arg: Value<'gc>) -> Self {
+        Value::PartialOperator(Gc::new(mc, PartialOperatorData { name, left_arg }))
+    }
+
     pub fn is_truthy(&self) -> bool {
         match self {
             Value::Undefined => false,
@@ -55,6 +69,7 @@ impl<'gc> Value<'gc> {
             Value::List(l) => !l.is_empty(),
             Value::Map(m) => !m.is_empty(),
             Value::Operator(_) => true,
+            Value::PartialOperator(_) => true,
         }
     }
 
@@ -67,6 +82,7 @@ impl<'gc> Value<'gc> {
             Value::List(_) => "list",
             Value::Map(_) => "map",
             Value::Operator(_) => "operator",
+            Value::PartialOperator(_) => "partial_operator",
         }
     }
 
@@ -107,6 +123,9 @@ impl<'gc> Value<'gc> {
                 true
             }
             (Value::Operator(a), Value::Operator(b)) => a.name == b.name,
+            (Value::PartialOperator(a), Value::PartialOperator(b)) => {
+                a.name == b.name && a.left_arg.deep_eq(&b.left_arg)
+            }
             _ => false,
         }
     }
@@ -146,6 +165,7 @@ impl<'gc> fmt::Display for Value<'gc> {
                 write!(f, "}}")
             }
             Value::Operator(op) => write!(f, "<operator:{}>", op.name),
+            Value::PartialOperator(op) => write!(f, "<partial_operator:{}>", op.name),
         }
     }
 }

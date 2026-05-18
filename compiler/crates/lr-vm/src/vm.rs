@@ -116,6 +116,136 @@ impl VM {
                     }
                 }
                 Opcode::Call => {
+                    let left = frame.get(inst.b());
+                    let right = frame.get(inst.c());
+
+                    let result = match (&left, &right) {
+                        (Value::String(s), Value::String(op_name)) => {
+                            match op_name.as_str() {
+                                "+" => Value::partial_operator(mc, "+".to_string(), Value::string(mc, s.to_string())),
+                                _ => {
+                                    return Err(VMError::Runtime(format!(
+                                        "Unknown operator for strings: {}",
+                                        op_name
+                                    )))
+                                }
+                            }
+                        }
+                        (Value::Number(n), Value::String(op_name)) => {
+                            match op_name.as_str() {
+                                "+" => Value::partial_operator(mc, "+".to_string(), Value::Number(*n)),
+                                "-" => Value::partial_operator(mc, "-".to_string(), Value::Number(*n)),
+                                "*" => Value::partial_operator(mc, "*".to_string(), Value::Number(*n)),
+                                "/" => Value::partial_operator(mc, "/".to_string(), Value::Number(*n)),
+                                "%" => Value::partial_operator(mc, "%".to_string(), Value::Number(*n)),
+                                _ => {
+                                    return Err(VMError::Runtime(format!(
+                                        "Unknown operator: {}",
+                                        op_name
+                                    )))
+                                }
+                            }
+                        }
+                        (Value::Operator(op), _) => {
+                            match &right {
+                                Value::Number(n) => {
+                                    match op.name.as_str() {
+                                        "+" => Value::partial_operator(mc, "+".to_string(), Value::Number(*n)),
+                                        "-" => Value::partial_operator(mc, "-".to_string(), Value::Number(*n)),
+                                        "*" => Value::partial_operator(mc, "*".to_string(), Value::Number(*n)),
+                                        "/" => Value::partial_operator(mc, "/".to_string(), Value::Number(*n)),
+                                        "%" => Value::partial_operator(mc, "%".to_string(), Value::Number(*n)),
+                                        _ => {
+                                            return Err(VMError::Runtime(format!(
+                                                "Unknown operator: {}",
+                                                op.name
+                                            )))
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    return Err(VMError::TypeError(format!(
+                                        "Cannot apply operator {} to {}",
+                                        op.name,
+                                        right.type_name()
+                                    )))
+                                }
+                            }
+                        }
+                        (Value::PartialOperator(partial), _) => {
+                            match &right {
+                                Value::Number(right_val) => {
+                                    if let Value::Number(left_val) = &partial.left_arg {
+                                        match partial.name.as_str() {
+                                            "+" => Value::number(left_val + right_val),
+                                            "-" => Value::number(left_val - right_val),
+                                            "*" => Value::number(left_val * right_val),
+                                            "/" => {
+                                                if *right_val == 0.0 {
+                                                    return Err(VMError::Runtime("Division by zero".to_string()));
+                                                }
+                                                Value::number(left_val / right_val)
+                                            }
+                                            "%" => {
+                                                if *right_val == 0.0 {
+                                                    return Err(VMError::Runtime("Division by zero".to_string()));
+                                                }
+                                                Value::number(left_val % right_val)
+                                            }
+                                            _ => {
+                                                return Err(VMError::Runtime(format!(
+                                                    "Unknown partial operator: {}",
+                                                    partial.name
+                                                )))
+                                            }
+                                        }
+                                    } else {
+                                        return Err(VMError::TypeError(format!(
+                                            "Partial operator {} left arg is not a number",
+                                            partial.name
+                                        )));
+                                    }
+                                }
+                                Value::String(right_str) => {
+                                    if let Value::String(left_str) = &partial.left_arg {
+                                        match partial.name.as_str() {
+                                            "+" => {
+                                                let combined = format!("{}{}", left_str, right_str);
+                                                Value::string(mc, combined)
+                                            }
+                                            _ => {
+                                                return Err(VMError::Runtime(format!(
+                                                    "Unknown partial operator for strings: {}",
+                                                    partial.name
+                                                )))
+                                            }
+                                        }
+                                    } else {
+                                        return Err(VMError::TypeError(format!(
+                                            "Partial operator {} left arg is not a string",
+                                            partial.name
+                                        )));
+                                    }
+                                }
+                                _ => {
+                                    return Err(VMError::TypeError(format!(
+                                        "Cannot apply partial operator {} to {}",
+                                        partial.name,
+                                        right.type_name()
+                                    )))
+                                }
+                            }
+                        }
+                        _ => {
+                            return Err(VMError::TypeError(format!(
+                                "Cannot call: left={} right={}",
+                                left.type_name(),
+                                right.type_name()
+                            )))
+                        }
+                    };
+
+                    frame.set(inst.a(), result);
                     frame.advance();
                 }
                 Opcode::TailCall => {
@@ -165,8 +295,8 @@ impl VM {
                     let b = frame.get(inst.b());
                     let c = frame.get(inst.c());
 
-                    let result = match (b, c) {
-                        (Value::Number(b), Value::Number(c)) => Value::number(b + c),
+                    let result = match (&b, &c) {
+                        (Value::Number(b), Value::Number(c)) => Value::number(*b + *c),
                         (Value::String(b), Value::String(c)) => {
                             let combined = format!("{}{}", b, c);
                             Value::string(mc, combined)
@@ -187,8 +317,8 @@ impl VM {
                     let b = frame.get(inst.b());
                     let c = frame.get(inst.c());
 
-                    let result = match (b, c) {
-                        (Value::Number(b), Value::Number(c)) => Value::number(b - c),
+                    let result = match (&b, &c) {
+                        (Value::Number(b), Value::Number(c)) => Value::number(*b - *c),
                         _ => {
                             return Err(VMError::TypeError(format!(
                                 "Sub requires numbers, got {} and {}",
@@ -205,8 +335,8 @@ impl VM {
                     let b = frame.get(inst.b());
                     let c = frame.get(inst.c());
 
-                    let result = match (b, c) {
-                        (Value::Number(b), Value::Number(c)) => Value::number(b * c),
+                    let result = match (&b, &c) {
+                        (Value::Number(b), Value::Number(c)) => Value::number(*b * *c),
                         _ => {
                             return Err(VMError::TypeError(format!(
                                 "Mul requires numbers, got {} and {}",
@@ -223,12 +353,12 @@ impl VM {
                     let b = frame.get(inst.b());
                     let c = frame.get(inst.c());
 
-                    let result = match (b, c) {
+                    let result = match (&b, &c) {
                         (Value::Number(b), Value::Number(c)) => {
-                            if c == 0.0 {
-                                return Err(VMError::DivisionByZero);
+                            if *c == 0.0 {
+                                return Err(VMError::Runtime("Division by zero".to_string()));
                             }
-                            Value::number(b / c)
+                            Value::number(*b / *c)
                         }
                         _ => {
                             return Err(VMError::TypeError(format!(
@@ -246,12 +376,12 @@ impl VM {
                     let b = frame.get(inst.b());
                     let c = frame.get(inst.c());
 
-                    let result = match (b, c) {
+                    let result = match (&b, &c) {
                         (Value::Number(b), Value::Number(c)) => {
-                            if c == 0.0 {
+                            if *c == 0.0 {
                                 return Err(VMError::DivisionByZero);
                             }
-                            Value::number(b % c)
+                            Value::number(*b % *c)
                         }
                         _ => {
                             return Err(VMError::TypeError(format!(
@@ -268,8 +398,8 @@ impl VM {
                 Opcode::Neg => {
                     let b = frame.get(inst.b());
 
-                    let result = match b {
-                        Value::Number(n) => Value::number(-n),
+                    let result = match &b {
+                        Value::Number(n) => Value::number(-*n),
                         _ => {
                             return Err(VMError::TypeError(format!(
                                 "Neg requires a number, got {}",
@@ -301,8 +431,8 @@ impl VM {
                     let b = frame.get(inst.b());
                     let c = frame.get(inst.c());
 
-                    let result = match (b, c) {
-                        (Value::Number(b), Value::Number(c)) => Value::boolean(mc, b < c),
+                    let result = match (&b, &c) {
+                        (Value::Number(b), Value::Number(c)) => Value::boolean(mc, *b < *c),
                         _ => {
                             return Err(VMError::TypeError(format!(
                                 "Lt requires numbers, got {} and {}",
@@ -319,8 +449,8 @@ impl VM {
                     let b = frame.get(inst.b());
                     let c = frame.get(inst.c());
 
-                    let result = match (b, c) {
-                        (Value::Number(b), Value::Number(c)) => Value::boolean(mc, b <= c),
+                    let result = match (&b, &c) {
+                        (Value::Number(b), Value::Number(c)) => Value::boolean(mc, *b <= *c),
                         _ => {
                             return Err(VMError::TypeError(format!(
                                 "Le requires numbers, got {} and {}",
@@ -991,7 +1121,7 @@ mod tests {
 
         let mut vm = VM::new();
         let result = vm.execute(&chunk);
-        assert!(matches!(result, Err(VMError::DivisionByZero)));
+        assert!(matches!(result, Err(VMError::Runtime(_))));
     }
 
     #[test]
@@ -1183,7 +1313,8 @@ mod tests {
 
         let mut vm = VM::new();
         let result = vm.execute(&chunk);
-        assert!(matches!(result, Err(VMError::DivisionByZero)));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Division by zero"));
     }
 
     #[test]
@@ -1327,6 +1458,77 @@ mod tests {
         let result = vm.execute(&chunk);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_call_arithmetic() {
+        let chunk = build_chunk(|c| {
+            let idx5 = c.add_constant(Constant::Number(5.0)).unwrap();
+            let idx3 = c.add_constant(Constant::Number(3.0)).unwrap();
+            let idx_plus = c.add_constant(Constant::String("+".to_string())).unwrap();
+
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx5));
+            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_plus));
+            c.emit(Instruction::new(Opcode::Call, 3, 1, 2));
+            c.emit(Instruction::new(Opcode::LoadConstant, 4, 0, idx3));
+            c.emit(Instruction::new(Opcode::Call, 5, 3, 4));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 5, 0));
+            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
+        });
+
+        let mut vm = VM::new();
+        let result = vm.execute(&chunk);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "8");
+    }
+
+    #[test]
+    fn test_call_string_concat() {
+        let chunk = build_chunk(|c| {
+            let idx_hello = c.add_constant(Constant::String("hello".to_string())).unwrap();
+            let idx_world = c.add_constant(Constant::String(" world".to_string())).unwrap();
+            let idx_plus = c.add_constant(Constant::String("+".to_string())).unwrap();
+
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx_hello));
+            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_plus));
+            c.emit(Instruction::new(Opcode::Call, 3, 1, 2));
+            c.emit(Instruction::new(Opcode::LoadConstant, 4, 0, idx_world));
+            c.emit(Instruction::new(Opcode::Call, 5, 3, 4));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 5, 0));
+            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
+        });
+
+        let mut vm = VM::new();
+        let result = vm.execute(&chunk);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "hello world");
+    }
+
+    #[test]
+    fn test_call_nested_arithmetic() {
+        let chunk = build_chunk(|c| {
+            let idx1 = c.add_constant(Constant::Number(1.0)).unwrap();
+            let idx2 = c.add_constant(Constant::Number(2.0)).unwrap();
+            let idx3 = c.add_constant(Constant::Number(3.0)).unwrap();
+            let idx_plus = c.add_constant(Constant::String("+".to_string())).unwrap();
+
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx1));
+            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_plus));
+            c.emit(Instruction::new(Opcode::Call, 3, 1, 2));
+            c.emit(Instruction::new(Opcode::LoadConstant, 4, 0, idx2));
+            c.emit(Instruction::new(Opcode::Call, 5, 3, 4));
+            c.emit(Instruction::new(Opcode::LoadConstant, 6, 0, idx_plus));
+            c.emit(Instruction::new(Opcode::Call, 7, 5, 6));
+            c.emit(Instruction::new(Opcode::LoadConstant, 8, 0, idx3));
+            c.emit(Instruction::new(Opcode::Call, 9, 7, 8));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 9, 0));
+            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
+        });
+
+        let mut vm = VM::new();
+        let result = vm.execute(&chunk);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "6");
     }
 
     #[test]
