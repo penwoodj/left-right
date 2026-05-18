@@ -35,9 +35,9 @@
   </defs>
   
   <g font-family="'IosevkaCurly', monospace" font-size="54"  font-weight="500" filter="url(#softGlow)" fill="url(#fullGrad)" stroke="url(#fullGrad)" stroke-width="0.5" stroke-linejoin="round" text-anchor="middle">
-    <text x="70" y="68" transform="rotate(55, 70, 68)">|</text>
-    <text x="120" y="68" transform="rotate(-55, 120, 68)">|</text>
-    <text x="170" y="68" transform="rotate(55, 170, 68)">|</text>
-    <text x="220" y="68" transform="rotate(-55, 220, 68)">|</text>
+    <text x="70" y="68" transform="rotate(63, 70, 68)">|</text>
+    <text x="120" y="68" transform="rotate(-63, 120, 68)">|</text>
+    <text x="170" y="68" transform="rotate(63, 170, 68)">|</text>
+    <text x="220" y="68" transform="rotate(-63, 220, 68)">|</text>
   </g>
 </svg>
