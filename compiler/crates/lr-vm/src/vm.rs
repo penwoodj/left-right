@@ -154,6 +154,86 @@ impl VM {
                                 }
                             }
                         }
+                        (Value::String(op_name), _) => {
+                            match op_name.as_str() {
+                                "-" => match &right {
+                                    Value::Number(n) => Value::number(-*n),
+                                    _ => return Err(VMError::TypeError(format!(
+                                        "Cannot negate: {}", right.type_name()
+                                    ))),
+                                },
+                                "!" => Value::boolean(mc, !right.is_truthy()),
+                                _ => return Err(VMError::TypeError(format!(
+                                    "Cannot call: left=string right={}", right.type_name()
+                                ))),
+                            }
+                        }
+                        (Value::Boolean(b), Value::String(op_name)) => {
+                            match op_name.as_str() {
+                                "&" => Value::partial_operator(mc, "&".to_string(), Value::boolean(mc, *b)),
+                                "|" => Value::partial_operator(mc, "|".to_string(), Value::boolean(mc, *b)),
+                                "==" | "!=" => Value::partial_operator(mc, op_name.to_string(), Value::boolean(mc, *b)),
+                                _ => return Err(VMError::TypeError(format!(
+                                    "Unknown boolean operator: {}", op_name
+                                ))),
+                            }
+                        }
+                        (Value::PartialOperator(partial), _) => {
+                            match &right {
+                                Value::Boolean(right_val) => {
+                                    if let Value::Boolean(left_val) = &partial.left_arg {
+                                        match partial.name.as_str() {
+                                            "&" => Value::boolean(mc, *left_val && *right_val),
+                                            "|" => Value::boolean(mc, *left_val || *right_val),
+                                            "==" => Value::boolean(mc, *left_val == *right_val),
+                                            "!=" => Value::boolean(mc, *left_val != *right_val),
+                                            _ => return Err(VMError::Runtime(format!(
+                                                "Unknown partial boolean operator: {}", partial.name
+                                            ))),
+                                        }
+                                    } else {
+                                        return Err(VMError::TypeError(format!(
+                                            "Partial operator {} left arg is not a boolean", partial.name
+                                        )));
+                                    }
+                                }
+                                _ => {
+                                    match (&partial.left_arg, &right, partial.name.as_str()) {
+                                        (Value::Number(lv), Value::Number(rv), op) => {
+                                            match op {
+                                                "+" => Value::number(*lv + *rv),
+                                                "-" => Value::number(*lv - *rv),
+                                                "*" => Value::number(*lv * *rv),
+                                                "/" => {
+                                                    if *rv == 0.0 { return Err(VMError::Runtime("Division by zero".to_string())); }
+                                                    Value::number(*lv / *rv)
+                                                }
+                                                "%" => {
+                                                    if *rv == 0.0 { return Err(VMError::Runtime("Division by zero".to_string())); }
+                                                    Value::number(*lv % *rv)
+                                                }
+                                                "==" => Value::boolean(mc, lv == rv),
+                                                "!=" => Value::boolean(mc, lv != rv),
+                                                "<" => Value::boolean(mc, lv < rv),
+                                                ">" => Value::boolean(mc, lv > rv),
+                                                "<=" => Value::boolean(mc, lv <= rv),
+                                                ">=" => Value::boolean(mc, lv >= rv),
+                                                "&" => Value::boolean(mc, partial.left_arg.is_truthy() && right.is_truthy()),
+                                                "|" => Value::boolean(mc, partial.left_arg.is_truthy() || right.is_truthy()),
+                                                _ => return Err(VMError::Runtime(format!("Unknown partial operator: {}", partial.name))),
+                                            }
+                                        }
+                                        (Value::String(ls), Value::String(rs), "+" | "_") => {
+                                            let combined = format!("{}{}", ls, rs);
+                                            Value::string(mc, combined)
+                                        }
+                                        _ => return Err(VMError::TypeError(format!(
+                                            "Cannot apply partial operator {} to {}", partial.name, right.type_name()
+                                        ))),
+                                    }
+                                }
+                            }
+                        }
                         (Value::Operator(op), _) => {
                             match &right {
                                 Value::Number(n) => {
@@ -183,78 +263,6 @@ impl VM {
                                     return Err(VMError::TypeError(format!(
                                         "Cannot apply operator {} to {}",
                                         op.name,
-                                        right.type_name()
-                                    )))
-                                }
-                            }
-                        }
-                        (Value::PartialOperator(partial), _) => {
-                            match &right {
-                                Value::Number(right_val) => {
-                                    if let Value::Number(left_val) = &partial.left_arg {
-                                        match partial.name.as_str() {
-                                            "+" => Value::number(left_val + right_val),
-                                            "-" => Value::number(left_val - right_val),
-                                            "*" => Value::number(left_val * right_val),
-                                            "/" => {
-                                                if *right_val == 0.0 {
-                                                    return Err(VMError::Runtime("Division by zero".to_string()));
-                                                }
-                                                Value::number(left_val / right_val)
-                                            }
-                                            "%" => {
-                                                if *right_val == 0.0 {
-                                                    return Err(VMError::Runtime("Division by zero".to_string()));
-                                                }
-                                                Value::number(left_val % right_val)
-                                            }
-                                            "==" => Value::boolean(mc, left_val == right_val),
-                                            "!=" => Value::boolean(mc, left_val != right_val),
-                                            "<" => Value::boolean(mc, left_val < right_val),
-                                            ">" => Value::boolean(mc, left_val > right_val),
-                                            "<=" => Value::boolean(mc, left_val <= right_val),
-                                            ">=" => Value::boolean(mc, left_val >= right_val),
-                                        "&" => Value::boolean(mc, Value::number(*left_val).is_truthy() && Value::number(*right_val).is_truthy()),
-                                        "|" => Value::boolean(mc, Value::number(*left_val).is_truthy() || Value::number(*right_val).is_truthy()),
-                                            _ => {
-                                                return Err(VMError::Runtime(format!(
-                                                    "Unknown partial operator: {}",
-                                                    partial.name
-                                                )))
-                                            }
-                                        }
-                                    } else {
-                                        return Err(VMError::TypeError(format!(
-                                            "Partial operator {} left arg is not a number",
-                                            partial.name
-                                        )));
-                                    }
-                                }
-                                Value::String(right_str) => {
-                                    if let Value::String(left_str) = &partial.left_arg {
-                                        match partial.name.as_str() {
-                                            "+" | "_" => {
-                                                let combined = format!("{}{}", left_str, right_str);
-                                                Value::string(mc, combined)
-                                            }
-                                            _ => {
-                                                return Err(VMError::Runtime(format!(
-                                                    "Unknown partial operator for strings: {}",
-                                                    partial.name
-                                                )))
-                                            }
-                                        }
-                                    } else {
-                                        return Err(VMError::TypeError(format!(
-                                            "Partial operator {} left arg is not a string",
-                                            partial.name
-                                        )));
-                                    }
-                                }
-                                _ => {
-                                    return Err(VMError::TypeError(format!(
-                                        "Cannot apply partial operator {} to {}",
-                                        partial.name,
                                         right.type_name()
                                     )))
                                 }
