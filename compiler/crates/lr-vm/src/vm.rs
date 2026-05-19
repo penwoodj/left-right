@@ -131,6 +131,26 @@ impl VM {
                                 }
                             }
                         }
+                        (Value::Map(m), Value::String(op_name)) => {
+                            match op_name.as_str() {
+                                "@" => Value::partial_operator(mc, "@".to_string(), Value::Map(*m)),
+                                "#" => Value::number(m.len() as f64),
+                                "?" => Value::partial_operator(mc, "?".to_string(), Value::Map(*m)),
+                                _ => return Err(VMError::TypeError(format!(
+                                    "Unknown map operator: {}", op_name
+                                ))),
+                            }
+                        }
+                        (Value::List(l), Value::String(op_name)) => {
+                            match op_name.as_str() {
+                                "@" => Value::partial_operator(mc, "@".to_string(), Value::List(*l)),
+                                "#" => Value::number(l.len() as f64),
+                                "?" => Value::partial_operator(mc, "?".to_string(), Value::List(*l)),
+                                _ => return Err(VMError::TypeError(format!(
+                                    "Unknown list operator: {}", op_name
+                                ))),
+                            }
+                        }
                         (Value::Number(n), Value::String(op_name)) => {
                             match op_name.as_str() {
                                 "+" => Value::partial_operator(mc, "+".to_string(), Value::Number(*n)),
@@ -146,6 +166,7 @@ impl VM {
                                 ">=" => Value::partial_operator(mc, ">=".to_string(), Value::Number(*n)),
                                 "&" => Value::partial_operator(mc, "&".to_string(), Value::Number(*n)),
                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::Number(*n)),
+                                "?" => Value::partial_operator(mc, "?".to_string(), Value::Number(*n)),
                                 _ => {
                                     return Err(VMError::Runtime(format!(
                                         "Unknown operator: {}",
@@ -163,6 +184,7 @@ impl VM {
                                     ))),
                                 },
                                 "!" => Value::boolean(mc, !right.is_truthy()),
+                                "?" => Value::partial_operator(mc, "?".to_string(), right),
                                 _ => return Err(VMError::TypeError(format!(
                                     "Cannot call: left=string right={}", right.type_name()
                                 ))),
@@ -226,6 +248,32 @@ impl VM {
                                         (Value::String(ls), Value::String(rs), "+" | "_") => {
                                             let combined = format!("{}{}", ls, rs);
                                             Value::string(mc, combined)
+                                        }
+                                        (Value::Map(entries), Value::String(key), "@") => {
+                                            entries.iter()
+                                                .find(|(k, _)| {
+                                                    if let Value::String(ks) = k { ks == key } else { false }
+                                                })
+                                                .map(|(_, v)| *v)
+                                                .unwrap_or(Value::undefined())
+                                        }
+                                        (Value::Map(entries), Value::Number(idx), "@") => {
+                                            let pair = entries.iter().nth(*idx as usize);
+                                            pair.map(|(k, v)| {
+                                                let mut result = Vec::new();
+                                                result.push(*k);
+                                                result.push(*v);
+                                                result
+                                            }).map(|v| Value::list(mc, v))
+                                            .unwrap_or(Value::undefined())
+                                        }
+                                        (Value::List(items), Value::Number(idx), "@") => {
+                                            items.iter().nth(*idx as usize)
+                                                .copied()
+                                                .unwrap_or(Value::undefined())
+                                        }
+                                        (_, _, "?") => {
+                                            if partial.left_arg.is_truthy() { right } else { Value::undefined() }
                                         }
                                         _ => return Err(VMError::TypeError(format!(
                                             "Cannot apply partial operator {} to {}", partial.name, right.type_name()
