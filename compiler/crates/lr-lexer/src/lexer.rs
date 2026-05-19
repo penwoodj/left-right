@@ -144,17 +144,9 @@ impl Lexer<'_> {
                         if let Some(&'`') = self.peek() {
                             self.next();
 
-                            if start == 0 || self.source[..start as usize].ends_with('\n') {
-                                self.state = LexerState::InComment;
-                                self.comment_start = start;
-                                return Ok(None);
-                            } else {
-                                return Ok(Some(Token::new(
-                                    TokenKind::Backtick,
-                                    "`".repeat(2),
-                                    Span::new(start, self.position),
-                                )));
-                            }
+                            self.state = LexerState::InComment;
+                            self.comment_start = start;
+                            return Ok(None);
                         }
                     }
 
