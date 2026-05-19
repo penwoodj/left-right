@@ -790,19 +790,46 @@ impl VM {
                     let b = frame.get(inst.b());
                     let c = frame.get(inst.c());
 
-                    match (b, c) {
-                        (Value::String(b), Value::String(c)) => {
-                            let combined = format!("{}{}", b, c);
-                            frame.set(inst.a(), Value::string(mc, combined));
+                    let b_str = match b {
+                        Value::String(s) => (*s).clone(),
+                        Value::Number(n) => {
+                            if n.fract() == 0.0 {
+                                (n as i64).to_string()
+                            } else {
+                                n.to_string()
+                            }
                         }
+                        Value::Boolean(b_val) => b_val.to_string(),
                         _ => {
                             return Err(VMError::TypeError(format!(
-                                "StringConcat requires strings, got {} and {}",
+                                "StringConcat requires string-convertible values, got {} and {}",
                                 b.type_name(),
                                 c.type_name()
                             )))
                         }
-                    }
+                    };
+
+                    let c_str = match c {
+                        Value::String(s) => (*s).clone(),
+                        Value::Number(n) => {
+                            if n.fract() == 0.0 {
+                                (n as i64).to_string()
+                            } else {
+                                n.to_string()
+                            }
+                        }
+                        Value::Boolean(b_val) => b_val.to_string(),
+                        _ => {
+                            return Err(VMError::TypeError(format!(
+                                "StringConcat requires string-convertible values, got {} and {}",
+                                b.type_name(),
+                                c.type_name()
+                            )))
+                        }
+                    };
+
+                    let combined = format!("{}{}", b_str, c_str);
+                    frame.set(inst.a(), Value::string(mc, combined));
                     frame.advance();
                 }
                 Opcode::StringLen => {

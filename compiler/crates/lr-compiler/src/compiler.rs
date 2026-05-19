@@ -6,6 +6,52 @@ use lr_ast::{
 use lr_bytecode::{Chunk, Constant, Instruction, Opcode};
 use thiserror::Error;
 
+fn parse_interpolation(value: &str) -> Result<Vec<StringPart>, String> {
+    let mut parts = Vec::new();
+    let mut current_text = String::new();
+    let mut depth = 0;
+
+    for c in value.chars() {
+        if c == '{' && depth == 0 {
+            if !current_text.is_empty() {
+                parts.push(StringPart::Text(std::mem::take(&mut current_text)));
+            }
+            depth = 1;
+        } else if c == '{' && depth > 0 {
+            depth += 1;
+            current_text.push(c);
+        } else if c == '}' && depth > 0 {
+            depth -= 1;
+            if depth == 0 {
+                let expr_str = std::mem::take(&mut current_text);
+                let tokens = lr_lexer::tokenize(&expr_str)
+                    .map_err(|e| format!("Lex error in interpolation: {}", e.first().map(|err| err.to_string()).unwrap_or_default()))?;
+                let program = lr_parser::parse(tokens, "<interpolation>".to_string())
+                    .map_err(|e| format!("Parse error in interpolation: {}", e))?;
+                parts.push(StringPart::Interpolation {
+                    expression: program.expression,
+                });
+            } else {
+                current_text.push(c);
+            }
+        } else if depth > 0 || c == '}' {
+            current_text.push(c);
+        } else {
+            current_text.push(c);
+        }
+    }
+
+    if !current_text.is_empty() {
+        parts.push(StringPart::Text(current_text));
+    }
+
+    if depth > 0 {
+        return Err("Unclosed interpolation in string".to_string());
+    }
+
+    Ok(parts)
+}
+
 #[derive(Debug, Error)]
 pub enum CompilerError {
     #[error("Register overflow: more than 255 registers needed")]
@@ -90,13 +136,30 @@ impl Compiler {
     }
 
     fn compile_string_literal(&mut self, s: &StringLiteral, dest: u8) -> Result<(), CompilerError> {
-        // Check if there's any interpolation
-        let has_interpolation = s.parts.iter().any(|p| matches!(p, StringPart::Interpolation { .. }));
+        let parts = &s.parts;
+
+        if parts.len() == 1 && let StringPart::Text(text) = &parts[0] {
+            if !text.contains('{') || !text.contains('}') {
+                let const_idx = self.chunk.add_constant(Constant::String(text.clone()))?;
+                self.chunk.emit(Instruction::new(Opcode::LoadConstant, dest, 0, const_idx));
+                return Ok(());
+            }
+
+            let parsed_parts = parse_interpolation(text)
+                .map_err(|e| CompilerError::Unsupported(format!("String interpolation parsing: {}", e)))?;
+
+            return self.compile_string_parts(&parsed_parts, dest);
+        }
+
+        self.compile_string_parts(parts, dest)
+    }
+
+    fn compile_string_parts(&mut self, parts: &[StringPart], dest: u8) -> Result<(), CompilerError> {
+        let has_interpolation = parts.iter().any(|p| matches!(p, StringPart::Interpolation { .. }));
 
         if !has_interpolation {
-            // Simple case: concatenate all text parts
             let mut result = String::new();
-            for part in &s.parts {
+            for part in parts {
                 if let StringPart::Text(text) = part {
                     result.push_str(text);
                 }
@@ -104,9 +167,8 @@ impl Compiler {
             let const_idx = self.chunk.add_constant(Constant::String(result))?;
             self.chunk.emit(Instruction::new(Opcode::LoadConstant, dest, 0, const_idx));
         } else {
-            // Complex case: compile each part and use StringConcat
             let mut first = true;
-            for part in &s.parts {
+            for part in parts {
                 match part {
                     StringPart::Text(text) => {
                         if !text.is_empty() {
@@ -135,7 +197,6 @@ impl Compiler {
                     }
                 }
             }
-            // Handle empty string case
             if first {
                 let const_idx = self.chunk.add_constant(Constant::String(String::new()))?;
                 self.chunk.emit(Instruction::new(Opcode::LoadConstant, dest, 0, const_idx));
