@@ -1,11 +1,13 @@
 use clap::{Parser, Subcommand};
 use anyhow::Result;
 use colored::Colorize;
-use std::io::{self, Write, BufRead};
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use std::time::Duration;
 use std::sync::mpsc::channel;
+use rustyline::error::ReadlineError;
+use rustyline::DefaultEditor;
 
 #[derive(Parser)]
 #[command(name = "lr", version, about = "Left-Right programming language")]
@@ -169,44 +171,94 @@ fn cmd_check(file: &str) -> Result<()> {
 }
 
 fn cmd_repl() -> Result<()> {
-    let stdin = io::stdin();
-    let mut stdout = io::stdout();
-
     println!("{}", "Left-Right REPL".green());
     println!("Type :quit or :q to exit, :help for help\n");
 
+    let mut rl = DefaultEditor::new()?;
+    rl.bind_sequence(rustyline::KeyEvent::ctrl('c'), rustyline::Cmd::Interrupt);
+
     loop {
-        print!("{} ", "lr>".cyan());
-        stdout.flush()?;
+        let prompt = "lr> ".cyan();
+        let mut input = String::new();
+        let mut depth: i32 = 0;
 
-        let mut line = String::new();
-        stdin.lock().read_line(&mut line)?;
+        loop {
+            let cont_prompt = if depth > 0 { "..> ".dimmed().cyan() } else { prompt.clone() };
+            let line = match rl.readline(&cont_prompt.to_string()) {
+                Ok(l) => l,
+                Err(ReadlineError::Interrupted) => {
+                    println!("^C");
+                    if input.is_empty() {
+                        break;
+                    }
+                    continue;
+                }
+                Err(ReadlineError::Eof) => {
+                    println!("{}", "Goodbye!".green());
+                    return Ok(());
+                }
+                Err(e) => return Err(e.into()),
+            };
 
-        let trimmed = line.trim();
+            let trimmed = line.trim();
+            if trimmed.is_empty() && input.is_empty() {
+                break;
+            }
 
+            if !trimmed.is_empty() {
+                if input.is_empty() {
+                    input = line.clone();
+                } else {
+                    input.push('\n');
+                    input.push_str(&line);
+                }
+
+                for ch in trimmed.chars() {
+                    match ch {
+                        '{' | '[' | '(' => depth += 1,
+                        '}' | ']' | ')' => depth = depth.saturating_sub(1),
+                        _ => {}
+                    }
+                }
+
+                if depth == 0 {
+                    break;
+                }
+            }
+        }
+
+        let trimmed = input.trim();
         if trimmed.is_empty() {
             continue;
         }
 
-        match trimmed {
-            ":quit" | ":q" => {
-                println!("{}", "Goodbye!".green());
-                break;
-            }
-            ":help" | ":h" => {
-                println!("Commands:");
-                println!("  :quit, :q  - Exit REPL");
-                println!("  :help, :h  - Show this help");
-                println!();
-                println!("Enter Left-Right expressions to evaluate them.");
-            }
-            _ => {
-                match run_source(trimmed, "<repl>") {
-                    Ok(()) => {}
-                    Err(_) => {
-                        // Error already printed by run_source
-                    }
+        if let Some(cmd) = trimmed.strip_prefix(':') {
+            match cmd {
+                "quit" | "q" => {
+                    println!("{}", "Goodbye!".green());
+                    break;
                 }
+                "help" | "h" => {
+                    println!("Commands:");
+                    println!("  :quit, :q  - Exit REPL");
+                    println!("  :help, :h  - Show this help");
+                    println!("  :clear     - Clear screen");
+                    println!();
+                    println!("Enter Left-Right expressions to evaluate them.");
+                }
+                "clear" => {
+                    print!("\x1b[2J\x1b[1;1H");
+                    io::stdout().flush()?;
+                }
+                _ => {
+                    println!("{}", format!("Unknown command: :{}", cmd).red());
+                }
+            }
+        } else {
+            rl.add_history_entry(input.clone())?;
+            match run_source(trimmed, "<repl>") {
+                Ok(()) => {}
+                Err(_) => {}
             }
         }
     }

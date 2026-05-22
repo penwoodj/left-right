@@ -16,6 +16,7 @@ anyhow.workspace = true
 colored.workspace = true
 thiserror.workspace = true
 notify.workspace = true
+rustyline.workspace = true
 
 [[bin]]
 name = "lr"

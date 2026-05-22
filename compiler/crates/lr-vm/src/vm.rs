@@ -123,6 +123,7 @@ impl VM {
                         (Value::String(s), Value::String(op_name)) => {
                             match op_name.as_str() {
                                 "+" | "_" => Value::partial_operator(mc, op_name.to_string(), Value::string(mc, s.to_string())),
+                                "?" => Value::partial_operator(mc, "?".to_string(), Value::string(mc, s.to_string())),
                                 _ => {
                                     return Err(VMError::Runtime(format!(
                                         "Unknown operator for strings: {}",
@@ -252,6 +253,17 @@ impl VM {
                                         (Value::String(ls), Value::String(rs), "+" | "_") => {
                                             let combined = format!("{}{}", ls, rs);
                                             Value::string(mc, combined)
+                                        }
+                                        (Value::String(ls), Value::Number(n), "+") => {
+                                            let s = if n.fract() == 0.0 {
+                                                (*n as i64).to_string()
+                                            } else {
+                                                n.to_string()
+                                            };
+                                            Value::string(mc, format!("{}{}", ls, s))
+                                        }
+                                        (Value::String(ls), Value::Boolean(b), "+") => {
+                                            Value::string(mc, format!("{}{}", ls, b))
                                         }
                                         (Value::Map(entries), Value::String(key), "@") => {
                                             entries.iter()
