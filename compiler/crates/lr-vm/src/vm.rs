@@ -1,6 +1,7 @@
 use crate::value::Value;
-use gc_arena::{Collect, Mutation, Rootable};
+use gc_arena::{Collect, Gc, Mutation, Rootable};
 use lr_bytecode::{Chunk, Constant, Instruction, Opcode};
+use std::collections::HashMap;
 use std::marker::PhantomData;
 
 #[derive(Debug, Clone, Copy, Collect)]
@@ -11,6 +12,7 @@ pub struct VMRoot<'gc> {
 
 pub struct Frame<'gc> {
     registers: Vec<Value<'gc>>,
+    bindings: HashMap<String, Value<'gc>>,
     pc: usize,
 }
 
@@ -18,6 +20,7 @@ impl<'gc> Frame<'gc> {
     pub fn new() -> Self {
         Self {
             registers: vec![Value::undefined(); 256],
+            bindings: HashMap::new(),
             pc: 0,
         }
     }
@@ -73,6 +76,73 @@ impl VM {
         })
     }
 
+    fn call_map_function<'a>(
+        &self,
+        mc: &Mutation<'a>,
+        entries: Gc<'a, Vec<(Value<'a>, Value<'a>)>>,
+        arg: Value<'a>,
+        _parent_frame: &Frame<'a>,
+    ) -> Result<Value<'a>, VMError> {
+        let mut result = Value::undefined();
+        let mut result_map = Vec::new();
+
+        for (key, value) in entries.iter() {
+            let resolved_value = if let Value::String(s) = value {
+                if s.as_str() == "_<" {
+                    arg
+                } else if s.as_str() == "_>" {
+                    Value::undefined()
+                } else {
+                    *value
+                }
+            } else {
+                *value
+            };
+            
+            if let Value::String(k) = key {
+                if k.as_str() != "_<" && k.as_str() != "_>" {
+                    result_map.push((*key, resolved_value));
+                }
+            } else {
+                result_map.push((*key, resolved_value));
+            }
+            
+            result = resolved_value;
+        }
+
+        if !result_map.is_empty() {
+            Ok(Value::map(mc, result_map))
+        } else {
+            Ok(result)
+        }
+    }
+
+    fn call_map_operator<'a>(
+        &self,
+        mc: &Mutation<'a>,
+        entries: &Gc<'a, Vec<(Value<'a>, Value<'a>)>>,
+        left: &Value<'a>,
+        right: &Value<'a>,
+    ) -> Result<Value<'a>, VMError> {
+        match (left, right) {
+            (Value::Map(_), Value::String(op_name)) => {
+                match op_name.as_str() {
+                    "@" => Ok(Value::partial_operator(mc, "@".to_string(), *left)),
+                    "#" => Ok(Value::number(entries.len() as f64)),
+                    "?" => Ok(Value::partial_operator(mc, "?".to_string(), *left)),
+                    _ => Err(VMError::TypeError(format!(
+                        "Unknown map operator: {}", op_name
+                    ))),
+                }
+            }
+            _ => Err(VMError::TypeError(format!(
+                "Cannot call: left={} right={}",
+                left.type_name(),
+                right.type_name()
+            ))),
+        }
+    }
+
     fn run_dispatch<'a>(
         &self,
         mc: &Mutation<'a>,
@@ -120,9 +190,18 @@ impl VM {
                     let right = frame.get(inst.c());
 
                     let result = match (&left, &right) {
+                        (Value::Map(entries), _) => {
+                            if entries.iter().any(|(k, _)| {
+                                if let Value::String(s) = k { s.as_str() == "_<" || s.as_str() == "_>" } else { false }
+                            }) {
+                                self.call_map_function(mc, entries.clone(), right, frame)?
+                            } else {
+                                self.call_map_operator(mc, entries, &left, &right)?
+                            }
+                        }
                         (Value::String(s), Value::String(op_name)) => {
                             match op_name.as_str() {
-                                "+" | "_" | "<>" => Value::partial_operator(mc, op_name.to_string(), Value::string(mc, s.to_string())),
+                                "+" | "_" | "<>" | "><" => Value::partial_operator(mc, op_name.to_string(), Value::string(mc, s.to_string())),
                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::string(mc, s.to_string())),
                                 "^" => Value::string(mc, s.to_uppercase()),
                                 "^_" => {
@@ -141,25 +220,17 @@ impl VM {
                                 }
                             }
                         }
-                        (Value::Map(m), Value::String(op_name)) => {
-                            match op_name.as_str() {
-                                "@" => Value::partial_operator(mc, "@".to_string(), Value::Map(*m)),
-                                "#" => Value::number(m.len() as f64),
-                                "?" => Value::partial_operator(mc, "?".to_string(), Value::Map(*m)),
-                                _ => return Err(VMError::TypeError(format!(
-                                    "Unknown map operator: {}", op_name
-                                ))),
-                            }
-                        }
                         (Value::List(l), Value::String(op_name)) => {
                             match op_name.as_str() {
                                 "@" => Value::partial_operator(mc, "@".to_string(), Value::List(*l)),
                                 "#" => Value::number(l.len() as f64),
                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::List(*l)),
-                                "+" => Value::partial_operator(mc, "+".to_string(), Value::List(*l)),
+                                 "+" | "_" => Value::partial_operator(mc, op_name.to_string(), Value::list(mc, l.as_ref().clone())),
+                                 "<>" | "><" => Value::partial_operator(mc, "<>".to_string(), Value::list(mc, l.as_ref().clone())),
                                 "==" | "=" => Value::partial_operator(mc, op_name.to_string(), Value::List(*l)),
                                 "$" => Value::partial_operator(mc, "$".to_string(), Value::List(*l)),
                                 "$?" => Value::partial_operator(mc, "$?".to_string(), Value::List(*l)),
+                                "$_" => Value::partial_operator(mc, "$_".to_string(), Value::List(*l)),
                                 _ => return Err(VMError::TypeError(format!(
                                     "Unknown list operator: {}", op_name
                                 ))),
@@ -291,6 +362,20 @@ impl VM {
                                                 .map(|s| Value::string(mc, s.to_string()))
                                                 .collect();
                                             Value::list(mc, parts)
+                                        }
+                                        (Value::List(items), Value::String(sep), "<>") => {
+                                            let joined: String = items.iter().enumerate().map(|(i, v)| {
+                                                let s = match v {
+                                                    Value::String(s) => s.to_string(),
+                                                    Value::Number(n) => {
+                                                        if n.fract() == 0.0 { (*n as i64).to_string() } else { n.to_string() }
+                                                    }
+                                                    Value::Boolean(b) => b.to_string(),
+                                                    _ => format!("{}", v),
+                                                };
+                                                if i > 0 { format!("{}{}", sep, s) } else { s }
+                                            }).collect();
+                                            Value::string(mc, joined)
                                         }
                                         (Value::Map(entries), Value::String(key), "@") => {
                                             entries.iter()
@@ -1035,6 +1120,37 @@ impl VM {
                 }
                 Opcode::Import => return Err(VMError::UnimplementedOpcode(Opcode::Import)),
                 Opcode::Export => return Err(VMError::UnimplementedOpcode(Opcode::Export)),
+                Opcode::BindName => {
+                    let const_idx = inst.b() as usize;
+                    let const_val = constants
+                        .get(const_idx)
+                        .ok_or(VMError::ConstantIndexOutOfBounds(const_idx))?;
+                    
+                    if let Constant::String(name) = const_val {
+                        let value = frame.get(inst.c());
+                        frame.bindings.insert(name.clone(), value);
+                    } else {
+                        return Err(VMError::TypeError("BindName requires string constant".to_string()));
+                    }
+                    frame.advance();
+                }
+                Opcode::LookupName => {
+                    let const_idx = inst.b() as usize;
+                    let const_val = constants
+                        .get(const_idx)
+                        .ok_or(VMError::ConstantIndexOutOfBounds(const_idx))?;
+                    
+                    if let Constant::String(name) = const_val {
+                        if let Some(&value) = frame.bindings.get(name) {
+                            frame.set(inst.a(), value);
+                        } else {
+                            return Err(VMError::Runtime(format!("Undefined binding: {}", name)));
+                        }
+                    } else {
+                        return Err(VMError::TypeError("LookupName requires string constant".to_string()));
+                    }
+                    frame.advance();
+                }
             }
         }
 
@@ -1567,6 +1683,28 @@ mod tests {
         let result = vm.execute(&chunk);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Division by zero"));
+    }
+
+    #[test]
+    fn test_vm_call_map_function_simple() {
+        let chunk = build_chunk(|c| {
+            let idx_fn = c.add_constant(Constant::String("_<".to_string())).unwrap();
+            let idx_arg = c.add_constant(Constant::String("_<".to_string())).unwrap();
+            let idx_five = c.add_constant(Constant::Number(5.0)).unwrap();
+
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx_fn));
+            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_arg));
+            c.emit(Instruction::new(Opcode::MapBuild, 3, 1, 1));
+            c.emit(Instruction::new(Opcode::LoadConstant, 4, 0, idx_five));
+            c.emit(Instruction::new(Opcode::Call, 5, 3, 4));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 5, 0));
+            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
+        });
+
+        let mut vm = VM::new();
+        let result = vm.execute(&chunk);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "5");
     }
 
     #[test]

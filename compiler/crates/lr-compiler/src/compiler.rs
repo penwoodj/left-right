@@ -4,6 +4,7 @@ use lr_ast::{
     RightArg, StringLiteral, StringPart, UndefinedLiteral,
 };
 use lr_bytecode::{Chunk, Constant, Instruction, Opcode};
+use std::collections::HashMap;
 use thiserror::Error;
 
 fn parse_interpolation(value: &str) -> Result<Vec<StringPart>, String> {
@@ -91,6 +92,7 @@ impl From<lr_parser::ParseError> for CompilerError {
 pub struct Compiler {
     chunk: Chunk,
     register_count: u8,
+    binding_scopes: Vec<HashMap<String, u8>>,
 }
 
 impl Compiler {
@@ -98,6 +100,7 @@ impl Compiler {
         Self {
             chunk: Chunk::new(),
             register_count: 0,
+            binding_scopes: Vec::new(),
         }
     }
 
@@ -228,8 +231,12 @@ impl Compiler {
     }
 
     fn compile_identifier(&mut self, i: &Identifier, dest: u8) -> Result<(), CompilerError> {
-        let const_idx = self.chunk.add_constant(Constant::String(i.name.clone()))?;
-        self.chunk.emit(Instruction::new(Opcode::LoadConstant, dest, 0, const_idx));
+        if let Some(const_idx) = self.lookup_binding(&i.name) {
+            self.chunk.emit(Instruction::new(Opcode::LookupName, dest, const_idx, 0));
+        } else {
+            let const_idx = self.chunk.add_constant(Constant::String(i.name.clone()))?;
+            self.chunk.emit(Instruction::new(Opcode::LoadConstant, dest, 0, const_idx));
+        }
         Ok(())
     }
 
@@ -269,6 +276,8 @@ impl Compiler {
     }
 
     fn compile_map_literal(&mut self, m: &MapLiteral, dest: u8) -> Result<(), CompilerError> {
+        self.push_scope();
+        
         if m.entries.is_empty() {
             self.chunk.emit(Instruction::new(Opcode::MapNew, dest, 0, 0));
         } else {
@@ -281,6 +290,12 @@ impl Compiler {
             } else {
                 self.chunk.emit(Instruction::new(Opcode::LoadRegister, first_value_reg, first_key_reg, 0));
             }
+            
+            if m.entries[0].is_assignment {
+                if let Expression::Identifier(ref ident) = m.entries[0].key {
+                    self.bind_name(&ident.name, first_value_reg)?;
+                }
+            }
 
             for entry in &m.entries[1..] {
                 let key_reg = self.alloc_register()?;
@@ -292,6 +307,12 @@ impl Compiler {
                 } else {
                     self.chunk.emit(Instruction::new(Opcode::LoadRegister, value_reg, key_reg, 0));
                 }
+                
+                if entry.is_assignment {
+                    if let Expression::Identifier(ref ident) = entry.key {
+                        self.bind_name(&ident.name, value_reg)?;
+                    }
+                }
             }
 
             let entry_count = m.entries.len() as u8;
@@ -301,7 +322,8 @@ impl Compiler {
                 self.free_register();
             }
         }
-
+        
+        self.pop_scope();
         Ok(())
     }
 
@@ -342,6 +364,34 @@ impl Compiler {
         if self.register_count > 0 {
             self.register_count -= 1;
         }
+    }
+    
+    /// Push a new scope for map bindings
+    fn push_scope(&mut self) {
+        self.binding_scopes.push(HashMap::new());
+    }
+    
+    /// Pop the current scope
+    fn pop_scope(&mut self) {
+        self.binding_scopes.pop();
+    }
+    
+    fn bind_name(&mut self, name: &str, reg: u8) -> Result<(), CompilerError> {
+        let const_idx = self.chunk.add_constant(Constant::String(name.to_string()))?;
+        self.chunk.emit(Instruction::new(Opcode::BindName, 0, const_idx, reg));
+        if let Some(scope) = self.binding_scopes.last_mut() {
+            scope.insert(name.to_string(), const_idx);
+        }
+        Ok(())
+    }
+    
+    fn lookup_binding(&self, name: &str) -> Option<u8> {
+        for scope in self.binding_scopes.iter().rev() {
+            if let Some(&const_idx) = scope.get(name) {
+                return Some(const_idx);
+            }
+        }
+        None
     }
 }
 
@@ -809,5 +859,33 @@ mod tests {
         assert!(has_string_a, "Should have string constant 'a'");
         assert!(has_string_b, "Should have string constant 'b'");
         assert!(has_number_1, "Should have number constant 1.0");
+    }
+
+    #[test]
+    fn test_map_binding_simple() {
+        let result = compile_and_run("{x: 42, y: x + 1}");
+        assert!(result.is_ok());
+        let result_str = result.unwrap();
+        assert!(result_str.contains("x: 42"), "Result should contain x: 42");
+        assert!(result_str.contains("y: 43"), "Result should contain y: 43");
+    }
+
+    #[test]
+    fn test_map_binding_multiple() {
+        let result = compile_and_run("{a: 1, b: a + 2, c: a + b}");
+        assert!(result.is_ok());
+        let result_str = result.unwrap();
+        assert!(result_str.contains("a: 1"), "Result should contain a: 1");
+        assert!(result_str.contains("b: 3"), "Result should contain b: 3");
+        assert!(result_str.contains("c: 4"), "Result should contain c: 4");
+    }
+
+    #[test]
+    fn test_map_binding_nested() {
+        let result = compile_and_run("{a: 1, b: {c: a + 1}}");
+        assert!(result.is_ok());
+        let result_str = result.unwrap();
+        assert!(result_str.contains("a: 1"), "Result should contain a: 1");
+        assert!(result_str.contains("c: 2"), "Result should contain c: 2");
     }
 }

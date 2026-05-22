@@ -86,6 +86,8 @@ pub enum Opcode {
     SilentExec = 131,
     Import = 140,
     Export = 141,
+    BindName = 142,
+    LookupName = 143,
 }
 
 impl Opcode {
@@ -174,6 +176,8 @@ impl Opcode {
             131 => Some(Opcode::SilentExec),
             140 => Some(Opcode::Import),
             141 => Some(Opcode::Export),
+            142 => Some(Opcode::BindName),
+            143 => Some(Opcode::LookupName),
 
             _ => None,
         }
@@ -266,6 +270,8 @@ impl Display for Opcode {
             Opcode::SilentExec => write!(f, "SILENT_EXEC"),
             Opcode::Import => write!(f, "IMPORT"),
             Opcode::Export => write!(f, "EXPORT"),
+            Opcode::BindName => write!(f, "BIND_NAME"),
+            Opcode::LookupName => write!(f, "LOOKUP_NAME"),
         }
     }
 }
@@ -408,6 +414,8 @@ mod tests {
             Opcode::SilentExec,
             Opcode::Import,
             Opcode::Export,
+            Opcode::BindName,
+            Opcode::LookupName,
         ];
 
         for opcode in all_opcodes {
@@ -428,7 +436,7 @@ mod tests {
             assert_eq!(None, Opcode::from_u8(113));
             assert_eq!(None, Opcode::from_u8(122));
             assert_eq!(None, Opcode::from_u8(132));
-            assert_eq!(None, Opcode::from_u8(142));
+            assert_eq!(None, Opcode::from_u8(144));
             assert_eq!(None, Opcode::from_u8(200));
             assert_eq!(None, Opcode::from_u8(255));
     }
@@ -504,6 +512,8 @@ mod tests {
         assert_eq!("SILENT_EXEC", format!("{}", Opcode::SilentExec));
         assert_eq!("IMPORT", format!("{}", Opcode::Import));
         assert_eq!("EXPORT", format!("{}", Opcode::Export));
+        assert_eq!("BIND_NAME", format!("{}", Opcode::BindName));
+        assert_eq!("LOOKUP_NAME", format!("{}", Opcode::LookupName));
     }
 
     #[test]
