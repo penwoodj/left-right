@@ -67,7 +67,7 @@ impl Lexer<'_> {
     }
 
     fn is_reserved_symbol(c: char) -> bool {
-        matches!(c, ':' | ',' | '.' | '\'' | '(' | ')' | '[' | ']' | '{' | '}' | '`' | '@')
+        matches!(c, ':' | ',' | '.' | '\'' | '(' | ')' | '[' | ']' | '{' | '}' | '`' | '@' | '!')
     }
 
     pub fn tokenize(mut self) -> Result<Vec<Token>, Vec<LexError>> {
@@ -248,6 +248,13 @@ impl Lexer<'_> {
                         '}' => TokenKind::CloseBrace,
                         '`' => TokenKind::Backtick,
                         '@' => TokenKind::Identifier,
+                        '!' => {
+                            if self.peek() == Some(&'=') {
+                                self.next();
+                                return Ok(Some(Token::new(TokenKind::Identifier, "!=".to_string(), Span::new(start, self.position))));
+                            }
+                            TokenKind::Identifier
+                        }
                         _ => unreachable!(),
                     };
                     return Ok(Some(Token::new(kind, c.to_string(), Span::new(start, self.position))));
@@ -383,7 +390,7 @@ impl Lexer<'_> {
             }
         }
 
-        _errors.push(LexError::UnclosedString(format!("position {}", self.string_start)));
+        _errors.push(LexError::UnclosedString(Span::new(self.string_start, self.position)));
         self.state = LexerState::Normal;
         Ok(None)
     }
@@ -427,7 +434,7 @@ impl Lexer<'_> {
                             }
                         }
                     } else {
-                        _errors.push(LexError::UnclosedString(format!("position {}", self.string_start)));
+                        _errors.push(LexError::UnclosedString(Span::new(self.string_start, self.position)));
                         self.state = LexerState::Normal;
                         return Ok(None);
                     }
@@ -626,9 +633,13 @@ mod tests {
     fn test_tokenize_triple_bang_question() {
         let source = "!!!?";
         let tokens = tokenize(source).unwrap();
-        assert_eq!(tokens.len(), 2);
+        assert_eq!(tokens.len(), 5);
         assert_eq!(tokens[0].kind, TokenKind::Identifier);
-        assert_eq!(tokens[0].value, "!!!?");
+        assert_eq!(tokens[0].value, "!");
+        assert_eq!(tokens[1].value, "!");
+        assert_eq!(tokens[2].value, "!");
+        assert_eq!(tokens[3].value, "?");
+        assert_eq!(tokens[4].kind, TokenKind::EOF);
     }
 
     #[test]

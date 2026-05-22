@@ -59,7 +59,7 @@ fn cmd_run(file: Option<String>) -> Result<()> {
         Some(path) => {
             let source = std::fs::read_to_string(&path)
                 .map_err(|_| anyhow::anyhow!("File not found: {}", path))?;
-            run_source(&source)?;
+            run_source(&source, &path)?;
         }
         None => {
             eprintln!("{}", "Usage: lr run <file>".red());
@@ -69,8 +69,8 @@ fn cmd_run(file: Option<String>) -> Result<()> {
     Ok(())
 }
 
-fn run_source(source: &str) -> Result<()> {
-    match lr_compiler::compile_source(source) {
+fn run_source(source: &str, source_name: &str) -> Result<()> {
+    match lr_compiler::compile_source_with_name(source, source_name) {
         Ok(chunk) => {
             let mut vm = lr_vm::VM::new();
             match vm.execute(&chunk) {
@@ -82,7 +82,12 @@ fn run_source(source: &str) -> Result<()> {
             }
         }
         Err(e) => {
-            eprintln!("{}", format!("Error: {}", e).red());
+            if let Some(span) = e.span() {
+                let diag = lr_diagnostics::Diagnostic::error(span, e.to_string(), source_name);
+                diag.eprint(source);
+            } else {
+                eprintln!("{}", format!("Error: {}", e).red());
+            }
             std::process::exit(1);
         }
     }
@@ -93,7 +98,7 @@ fn cmd_compile(file: &str) -> Result<()> {
     let source = std::fs::read_to_string(file)
         .map_err(|_| anyhow::anyhow!("File not found: {}", file))?;
 
-    match lr_compiler::compile_source(&source) {
+    match lr_compiler::compile_source_with_name(&source, file) {
         Ok(chunk) => {
             println!("{}:", "Bytecode".green());
             println!("{} instructions", chunk.code.len());
@@ -123,7 +128,12 @@ fn cmd_compile(file: &str) -> Result<()> {
             }
         }
         Err(e) => {
-            eprintln!("{}", format!("Error: {}", e).red());
+            if let Some(span) = e.span() {
+                let diag = lr_diagnostics::Diagnostic::error(span, e.to_string(), file);
+                diag.eprint(&source);
+            } else {
+                eprintln!("{}", format!("Error: {}", e).red());
+            }
             std::process::exit(1);
         }
     }
@@ -138,7 +148,8 @@ fn cmd_check(file: &str) -> Result<()> {
         Ok(t) => t,
         Err(errs) => {
             for err in &errs {
-                eprintln!("{}", format!("Lexer error: {}", err).red());
+                let diag = lr_diagnostics::Diagnostic::error(err.span(), err.to_string(), file);
+                diag.eprint(&source);
             }
             std::process::exit(1);
         }
@@ -147,7 +158,8 @@ fn cmd_check(file: &str) -> Result<()> {
     let _program = match lr_parser::parse(tokens, file.to_string()) {
         Ok(p) => p,
         Err(err) => {
-            eprintln!("{}", format!("Parse error: {}", err).red());
+            let diag = lr_diagnostics::Diagnostic::error(err.span(), err.to_string(), file);
+            diag.eprint(&source);
             std::process::exit(1);
         }
     };
@@ -189,7 +201,7 @@ fn cmd_repl() -> Result<()> {
                 println!("Enter Left-Right expressions to evaluate them.");
             }
             _ => {
-                match run_source(trimmed) {
+                match run_source(trimmed, "<repl>") {
                     Ok(()) => {}
                     Err(_) => {
                         // Error already printed by run_source
@@ -269,7 +281,7 @@ fn cmd_build() -> Result<()> {
 
     let source = std::fs::read_to_string(source_path)?;
 
-    match lr_compiler::compile_source(&source) {
+    match lr_compiler::compile_source_with_name(&source, entry_path) {
         Ok(chunk) => {
             println!("{}", format!("  {} instructions", chunk.code.len()).green());
             println!("{}", format!("  {} constants", chunk.constants.len()).green());
@@ -277,7 +289,12 @@ fn cmd_build() -> Result<()> {
             println!("{}", "Build successful!".green());
         }
         Err(e) => {
-            eprintln!("{}", format!("Build error: {}", e).red());
+            if let Some(span) = e.span() {
+                let diag = lr_diagnostics::Diagnostic::error(span, e.to_string(), entry_path);
+                diag.eprint(&source);
+            } else {
+                eprintln!("{}", format!("Build error: {}", e).red());
+            }
             std::process::exit(1);
         }
     }
@@ -330,7 +347,7 @@ fn cmd_test() -> Result<()> {
             continue;
         }
 
-        match lr_compiler::compile_source(&source) {
+        match lr_compiler::compile_source_with_name(&source, path.display().to_string().as_str()) {
             Ok(chunk) => {
                 let mut vm = lr_vm::VM::new();
                 match vm.execute(&chunk) {
@@ -407,7 +424,7 @@ fn cmd_watch(file: &str) -> Result<()> {
                  "Running".cyan(),
                  file);
 
-        match lr_compiler::compile_source(&source) {
+        match lr_compiler::compile_source_with_name(&source, file) {
             Ok(chunk) => {
                 let mut vm = lr_vm::VM::new();
                 match vm.execute(&chunk) {

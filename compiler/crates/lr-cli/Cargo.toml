@@ -10,6 +10,7 @@ lr-compiler = { path = "../lr-compiler" }
 lr-bytecode = { path = "../lr-bytecode" }
 lr-vm = { path = "../lr-vm" }
 lr-common = { path = "../lr-common" }
+lr-diagnostics = { path = "../lr-diagnostics" }
 clap.workspace = true
 anyhow.workspace = true
 colored.workspace = true

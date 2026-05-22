@@ -10,6 +10,7 @@ lr-lexer = { path = "../lr-lexer" }
 lr-parser = { path = "../lr-parser" }
 lr-bytecode = { path = "../lr-bytecode" }
 lr-common = { path = "../lr-common" }
+lr-diagnostics = { path = "../lr-diagnostics" }
 
 [dev-dependencies]
 lr-vm = { path = "../lr-vm" }

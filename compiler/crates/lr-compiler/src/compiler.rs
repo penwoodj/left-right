@@ -54,27 +54,37 @@ fn parse_interpolation(value: &str) -> Result<Vec<StringPart>, String> {
 
 #[derive(Debug, Error)]
 pub enum CompilerError {
-    #[error("Register overflow: more than 255 registers needed")]
+    #[error("register overflow: more than 255 registers needed")]
     RegisterOverflow,
-    #[error("Constant pool overflow: more than 255 constants")]
+    #[error("constant pool overflow: more than 255 constants")]
     ConstantPoolOverflow(#[from] lr_bytecode::BytecodeError),
-    #[error("Unsupported expression: {0}")]
+    #[error("unsupported expression: {0}")]
     Unsupported(String),
-    #[error("Lexer error: {0}")]
-    LexerError(String),
-    #[error("Parse error: {0}")]
-    ParseError(String),
+    #[error("{0}")]
+    LexerError(lr_lexer::LexError),
+    #[error("{0}")]
+    ParseError(lr_parser::ParseError),
+}
+
+impl CompilerError {
+    pub fn span(&self) -> Option<lr_common::Span> {
+        match self {
+            CompilerError::LexerError(e) => Some(e.span()),
+            CompilerError::ParseError(e) => Some(e.span()),
+            _ => None,
+        }
+    }
 }
 
 impl From<lr_lexer::LexError> for CompilerError {
     fn from(err: lr_lexer::LexError) -> Self {
-        CompilerError::LexerError(err.to_string())
+        CompilerError::LexerError(err)
     }
 }
 
 impl From<lr_parser::ParseError> for CompilerError {
     fn from(err: lr_parser::ParseError) -> Self {
-        CompilerError::ParseError(err.to_string())
+        CompilerError::ParseError(err)
     }
 }
 
@@ -343,10 +353,14 @@ impl Default for Compiler {
 
 /// Convenience function to tokenize, parse, and compile source code
 pub fn compile_source(source: &str) -> Result<Chunk, CompilerError> {
+    compile_source_with_name(source, "inline.lr")
+}
+
+pub fn compile_source_with_name(source: &str, source_name: &str) -> Result<Chunk, CompilerError> {
     let tokens = lr_lexer::tokenize(source).map_err(|errs| {
-        CompilerError::LexerError(format!("{} errors: {}", errs.len(), errs[0]))
+        CompilerError::LexerError(errs[0].clone())
     })?;
-    let program = lr_parser::parse(tokens, "inline.lr".to_string())?;
+    let program = lr_parser::parse(tokens, source_name.to_string())?;
     Compiler::compile(&program)
 }
 

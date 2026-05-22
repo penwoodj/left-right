@@ -75,15 +75,26 @@ impl Token {
 
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum LexError {
-    #[error("unexpected character '{0}' at {1}")]
-    UnexpectedCharacter(char, String),
+    #[error("unexpected character '{0}'")]
+    UnexpectedCharacter(char, Span),
 
-    #[error("unclosed string literal starting at {0}")]
-    UnclosedString(String),
+    #[error("unclosed string literal")]
+    UnclosedString(Span),
 
     #[error("invalid number literal: {0}")]
-    InvalidNumber(String),
+    InvalidNumber(String, Span),
 
-    #[error("error at {0}: {1}")]
-    General(String, String),
+    #[error("{0}")]
+    General(String, Span),  // (message, span)
+}
+
+impl LexError {
+    pub fn span(&self) -> Span {
+        match self {
+            LexError::UnexpectedCharacter(_, s) => *s,
+            LexError::UnclosedString(s) => *s,
+            LexError::InvalidNumber(_, s) => *s,
+            LexError::General(_, s) => *s,
+        }
+    }
 }

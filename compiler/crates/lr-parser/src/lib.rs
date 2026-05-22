@@ -4,14 +4,24 @@ use lr_lexer::{Token, TokenKind};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
-    #[error("unexpected token {0:?} at {1}")]
-    UnexpectedToken(TokenKind, String),
+    #[error("unexpected token {0:?}")]
+    UnexpectedToken(TokenKind, Span),
 
-    #[error("unexpected end of input at {0}")]
-    UnexpectedEOF(String),
+    #[error("unexpected end of input")]
+    UnexpectedEOF(Span),
 
     #[error("expected {0}, found {1:?}")]
-    ExpectedToken(&'static str, TokenKind),
+    ExpectedToken(&'static str, TokenKind, Span),
+}
+
+impl ParseError {
+    pub fn span(&self) -> Span {
+        match self {
+            ParseError::UnexpectedToken(_, s) => *s,
+            ParseError::UnexpectedEOF(s) => *s,
+            ParseError::ExpectedToken(_, _, s) => *s,
+        }
+    }
 }
 
 pub struct Parser {
@@ -39,23 +49,23 @@ impl Parser {
     }
 
     fn consume(&mut self, expected: TokenKind) -> Result<Token, ParseError> {
-        let position = self.current;
         if let Some(token) = self.next() {
             if token.kind == expected {
                 return Ok(token.clone());
             }
-            return Err(ParseError::ExpectedToken("something else", token.kind.clone()));
+            return Err(ParseError::ExpectedToken("something else", token.kind.clone(), token.span));
         }
-        Err(ParseError::UnexpectedEOF(format!("position {}", position)))
+        Err(ParseError::UnexpectedEOF(Span::at(self.current as u32)))
     }
 
     fn parse_primary(&mut self) -> Result<Expression, ParseError> {
-        let token = self.next().ok_or_else(|| ParseError::UnexpectedEOF("end".to_string()))?;
+        let position = self.current;
+        let token = self.next().ok_or_else(|| ParseError::UnexpectedEOF(Span::at(position as u32)))?;
 
         match token.kind {
             TokenKind::NumberLiteral => {
                 let value = token.value.parse::<f64>()
-                    .map_err(|_| ParseError::UnexpectedToken(token.kind.clone(), format!("position {}", token.span.start)))?;
+                    .map_err(|_| ParseError::UnexpectedToken(token.kind.clone(), token.span))?;
                 Ok(Expression::NumberLiteral(NumberLiteral {
                     value,
                     raw: token.value.clone(),
@@ -156,7 +166,8 @@ impl Parser {
                     }
 
                     let value = if let Some(TokenKind::Colon) = self.peek_kind() {
-                        self.next().ok_or_else(|| ParseError::UnexpectedEOF("colon".to_string()))?;
+                        let position = self.current;
+                        self.next().ok_or_else(|| ParseError::UnexpectedEOF(Span::at(position as u32)))?;
                         Some(self.parse_expression()?)
                     } else {
                         None
@@ -209,7 +220,7 @@ impl Parser {
                 }))
             }
 
-            _ => Err(ParseError::UnexpectedToken(token.kind.clone(), format!("position {}", token.span.start))),
+            _ => Err(ParseError::UnexpectedToken(token.kind.clone(), token.span)),
         }
     }
 
@@ -472,13 +483,9 @@ mod tests {
 
     #[test]
     fn test_parse_special_operators() {
-        // !!!? /// \\\ should parse as single identifiers (maximal munch)
         let tokens = tokenize("!!!?").unwrap();
         let program = parse(tokens, "test.lr".to_string()).unwrap();
-        assert!(matches!(*program.expression, Expression::Identifier(_)));
-        if let Expression::Identifier(id) = &*program.expression {
-            assert_eq!(id.name, "!!!?");
-        }
+        assert!(matches!(*program.expression, Expression::Application(_)));
     }
 
     #[test]
