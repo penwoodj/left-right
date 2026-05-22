@@ -148,6 +148,9 @@ impl Lexer<'_> {
                             self.comment_start = start;
                             return Ok(None);
                         }
+
+                        self.position -= 1;
+                        self.chars = self.source[self.position as usize..].chars().peekable();
                     }
 
                     self.state = LexerState::InStringLiteral;
@@ -448,13 +451,26 @@ impl Lexer<'_> {
 
     fn lex_comment(&mut self) -> Result<Option<Token>, LexError> {
         let mut text = String::new();
+        let mut backtick_count = 0u32;
 
         while let Some(&c) = self.peek() {
+            if c == '`' {
+                backtick_count += 1;
+                self.next();
+                if backtick_count == 3 {
+                    let token = Token::new(TokenKind::Comment, text, Span::new(self.comment_start, self.position));
+                    self.state = LexerState::Normal;
+                    return Ok(Some(token));
+                }
+                text.push(c);
+                continue;
+            } else {
+                backtick_count = 0;
+            }
             if c == '\n' {
                 self.next();
-                let token = Token::new(TokenKind::Comment, text, Span::new(self.comment_start, self.position));
-                self.state = LexerState::Normal;
-                return Ok(Some(token));
+                text.push(c);
+                continue;
             }
             self.next();
             text.push(c);
