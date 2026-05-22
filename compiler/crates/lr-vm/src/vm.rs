@@ -122,8 +122,17 @@ impl VM {
                     let result = match (&left, &right) {
                         (Value::String(s), Value::String(op_name)) => {
                             match op_name.as_str() {
-                                "+" | "_" => Value::partial_operator(mc, op_name.to_string(), Value::string(mc, s.to_string())),
+                                "+" | "_" | "<>" => Value::partial_operator(mc, op_name.to_string(), Value::string(mc, s.to_string())),
                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::string(mc, s.to_string())),
+                                "^" => Value::string(mc, s.to_uppercase()),
+                                "^_" => {
+                                    let mut chars = s.chars();
+                                    match chars.next() {
+                                        None => Value::string(mc, s.to_string()),
+                                        Some(first) => Value::string(mc,
+                                            format!("{}{}", first.to_uppercase(), chars.as_str().to_lowercase())),
+                                    }
+                                }
                                 _ => {
                                     return Err(VMError::Runtime(format!(
                                         "Unknown operator for strings: {}",
@@ -149,6 +158,8 @@ impl VM {
                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::List(*l)),
                                 "+" => Value::partial_operator(mc, "+".to_string(), Value::List(*l)),
                                 "==" | "=" => Value::partial_operator(mc, op_name.to_string(), Value::List(*l)),
+                                "$" => Value::partial_operator(mc, "$".to_string(), Value::List(*l)),
+                                "$?" => Value::partial_operator(mc, "$?".to_string(), Value::List(*l)),
                                 _ => return Err(VMError::TypeError(format!(
                                     "Unknown list operator: {}", op_name
                                 ))),
@@ -265,6 +276,22 @@ impl VM {
                                         (Value::String(ls), Value::Boolean(b), "+") => {
                                             Value::string(mc, format!("{}{}", ls, b))
                                         }
+                                        (Value::String(ls), _, "^") => {
+                                            Value::string(mc, ls.to_uppercase())
+                                        }
+                                        (Value::String(ls), _, "^_") => {
+                                            let mut chars = ls.chars();
+                                            match chars.next() {
+                                                None => Value::string(mc, ls.to_string()),
+                                                Some(first) => Value::string(mc, format!("{}{}", first.to_uppercase(), chars.as_str().to_lowercase())),
+                                            }
+                                        }
+                                        (Value::String(ls), Value::String(rs), "<>") => {
+                                            let parts: Vec<Value<'a>> = ls.split(rs.as_str())
+                                                .map(|s| Value::string(mc, s.to_string()))
+                                                .collect();
+                                            Value::list(mc, parts)
+                                        }
                                         (Value::Map(entries), Value::String(key), "@") => {
                                             entries.iter()
                                                 .find(|(k, _)| {
@@ -312,6 +339,47 @@ impl VM {
                                                     });
                                                 Value::boolean(mc, eq)
                                             }
+                                        }
+                                        (Value::List(items), Value::String(map_op), "$") => {
+                                            Value::partial_operator(mc, format!("${}", map_op), Value::List(*items))
+                                        }
+                                        (Value::List(items), Value::Number(n), op) if op.starts_with('$') && !op.starts_with("$?") => {
+                                            let inner_op = &op[1..];
+                                            let result: Vec<Value<'a>> = items.iter().map(|item| match (item, inner_op) {
+                                                (Value::Number(v), "+") => Value::number(*v + *n),
+                                                (Value::Number(v), "*") => Value::number(*v * *n),
+                                                (Value::Number(v), "-") => Value::number(*v - *n),
+                                                (Value::Number(v), "/") => {
+                                                    if *n == 0.0 {
+                                                        return Value::undefined();
+                                                    }
+                                                    Value::number(*v / *n)
+                                                }
+                                                (Value::Number(v), "%") => {
+                                                    if *n == 0.0 {
+                                                        return Value::undefined();
+                                                    }
+                                                    Value::number(*v % *n)
+                                                }
+                                                (_, _) => *item,
+                                            }).collect();
+                                            Value::list(mc, result)
+                                        }
+                                        (Value::List(items), Value::String(compare_op), "$?") => {
+                                            Value::partial_operator(mc, format!("$?{}", compare_op), Value::List(*items))
+                                        }
+                                        (Value::List(items), Value::Number(n), op) if op.starts_with("$?") => {
+                                            let compare_op = &op[2..];
+                                            let result: Vec<Value<'a>> = items.iter().filter(|item| match (item, compare_op) {
+                                                (Value::Number(v), ">") => *v > *n,
+                                                (Value::Number(v), ">=") => *v >= *n,
+                                                (Value::Number(v), "<") => *v < *n,
+                                                (Value::Number(v), "<=") => *v <= *n,
+                                                (Value::Number(v), "=" | "==") => *v == *n,
+                                                (Value::Number(v), "!=") => *v != *n,
+                                                _ => false,
+                                            }).copied().collect();
+                                            Value::list(mc, result)
                                         }
                                         (left, _, "?") => {
                                             if left.is_truthy() {
