@@ -63,18 +63,19 @@ jobs:
         run: |
           cd compiler/target/${{ matrix.target }}/release
           chmod +x ${{ matrix.artifact_name }}
-          tar czf ../../../${{ matrix.asset_name }}.tar.gz ${{ matrix.artifact_name }}
+          tar czf $GITHUB_WORKSPACE/${{ matrix.asset_name }}.tar.gz ${{ matrix.artifact_name }}
 
       - name: Package binary (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           cd compiler/target/${{ matrix.target }}/release
-          Compress-Archive -Path ${{ matrix.artifact_name }} -DestinationPath ..\..\..\${{ matrix.asset_name }}.zip
+          Compress-Archive -Path ${{ matrix.artifact_name }} -DestinationPath $env:GITHUB_WORKSPACE\${{ matrix.asset_name }}.zip
+
+      - name: Verify artifact exists
+        run: ls -la ${{ matrix.asset_name }}.*
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            ./${{ matrix.asset_name }}.tar.gz
-            ./${{ matrix.asset_name }}.zip
+          files: ${{ matrix.asset_name }}.*
