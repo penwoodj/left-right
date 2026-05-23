@@ -33,7 +33,7 @@ jobs:
           - target: x86_64-pc-windows-msvc
             os: windows-latest
             artifact_name: lr.exe
-            asset_name: lr-x86_64-windows.exe
+            asset_name: lr-x86_64-windows
 
     runs-on: ${{ matrix.os }}
 
@@ -72,12 +72,9 @@ jobs:
           cd compiler/target/${{ matrix.target }}/release
           Compress-Archive -Path ${{ matrix.artifact_name }} -DestinationPath ..\..\..\${{ matrix.asset_name }}.zip
 
-      - name: Upload artifact
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./${{ matrix.asset_name }}${{ runner.os == 'Windows' && '.zip' || '.tar.gz' }}
-          asset_name: ${{ matrix.asset_name }}${{ runner.os == 'Windows' && '.zip' || '.tar.gz' }}
-          asset_content_type: application/octet-stream
+          files: |
+            ./${{ matrix.asset_name }}.tar.gz
+            ./${{ matrix.asset_name }}.zip
