@@ -67,24 +67,47 @@ So this is an operator that literally reads Left Right. This simple pattern capt
 
 ### Installation
 
-```bash
-# From source (Rust)
-cargo install left-right
+Download a pre-built binary from the [latest release](https://github.com/penwoodj/left-right/releases).
 
-# Or download pre-built binary
-curl -fsSL https://raw.githubusercontent.com/user/left-right/main/install.sh | sh
+```bash
+# Linux (x86_64)
+curl -fsSL https://github.com/penwoodj/left-right/releases/latest/download/lr-x86_64-linux.tar.gz | tar xz
+
+# macOS (Apple Silicon)
+curl -fsSL https://github.com/penwoodj/left-right/releases/latest/download/lr-aarch64-macos.tar.gz | tar xz
+
+# Windows (x86_64)
+# Download lr-x86_64-windows.exe from the releases page
+```
+
+Or build from source:
+
+```bash
+cd compiler
+cargo build --release
+# Binary at compiler/target/release/lr
 ```
 
 ### Hello World
 
-```javascript
-// Simple pipeline: take first element, transform it
-[{ name: `Alice` }, { name: `Bob` }]  <  .name
-// Output: `Alice`
+```\lr
+# Map over a list — every operator is left-to-right
+[1, 2, 3, 4, 5] $ _< + 10
+# Output: [11, 12, 13, 14, 15]
 
-// Map over list with operator
-[1, 2, 3, 4, 5]  + 10
-// Output: [11, 12, 13, 14, 15]
+# Filter with a condition
+[1, 2, 3, 4, 5] $? _< > 3
+# Output: [4, 5]
+
+# Define and call a closure
+double: {_< * 2},
+double 5
+# Output: 10
+
+# String interpolation
+name: `Alice`,
+`hello {name}`
+# Output: `hello Alice`
 ```
 
 ### Running Code
@@ -93,14 +116,11 @@ curl -fsSL https://raw.githubusercontent.com/user/left-right/main/install.sh | s
 # Execute a file
 lr myfile.lr
 
-# Transpile to JavaScript
-lr --target js myfile.lr --output myfile.js
+# Run a single expression
+lr -e "[1, 2, 3] $ _< + 10"
 
-# Transpile to Rust
-lr --target rust myfile.lr --output myfile.rs
-
-# Watch mode for development
-lr --watch myfile.lr
+# Start the REPL
+lr
 ```
 
 ## Documentation
@@ -125,9 +145,9 @@ The language is inspired by APL, J, K, BQN, Haskell, Clojure, and lodash/FP — 
 
 ## Project Status
 
-**Current Status**: Design phase — comprehensive specification complete, implementation in progress.
+**Current Status**: Alpha — core compiler, VM, and CLI implemented. Run the REPL or execute `.lr` files.
 
-The transpiler is written in Rust and generates JavaScript/TypeScript and Rust code from Left-Right source.
+The compiler is written in Rust. It lexes, parses, compiles to bytecode, and executes via a stack-based VM with GC-managed values.
 
 ## Contributing
 
