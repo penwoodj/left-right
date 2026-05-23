@@ -18,29 +18,33 @@ pub enum Expression {
     CatchExpression(CatchExpression),
     AsyncExpression(AsyncExpression),
     AwaitExpression(AwaitExpression),
+    ImportExpression(ImportExpression),
+    ExportExpression(ExportExpression),
 }
 
-impl fmt::Display for Expression {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Expression::NumberLiteral(n) => write!(f, "{}", n),
-            Expression::StringLiteral(s) => write!(f, "{}", s),
-            Expression::BooleanLiteral(b) => write!(f, "{}", b),
-            Expression::UndefinedLiteral(u) => write!(f, "{}", u),
-            Expression::ListLiteral(l) => write!(f, "{}", l),
-            Expression::MapLiteral(m) => write!(f, "{}", m),
-            Expression::Identifier(i) => write!(f, "{}", i),
-            Expression::LeftArg(l) => write!(f, "{}", l),
-            Expression::RightArg(r) => write!(f, "{}", r),
-            Expression::Application(a) => write!(f, "{}", a),
-            Expression::GroupedExpression(g) => write!(f, "{}", g),
-            Expression::ThrowExpression(t) => write!(f, "{}", t),
-            Expression::CatchExpression(c) => write!(f, "{}", c),
-            Expression::AsyncExpression(a) => write!(f, "{}", a),
-            Expression::AwaitExpression(a) => write!(f, "{}", a),
+    impl fmt::Display for Expression {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            match self {
+                Expression::NumberLiteral(n) => write!(f, "{}", n),
+                Expression::StringLiteral(s) => write!(f, "{}", s),
+                Expression::BooleanLiteral(b) => write!(f, "{}", b),
+                Expression::UndefinedLiteral(u) => write!(f, "{}", u),
+                Expression::ListLiteral(l) => write!(f, "{}", l),
+                Expression::MapLiteral(m) => write!(f, "{}", m),
+                Expression::Identifier(i) => write!(f, "{}", i),
+                Expression::LeftArg(l) => write!(f, "{}", l),
+                Expression::RightArg(r) => write!(f, "{}", r),
+                Expression::Application(a) => write!(f, "{}", a),
+                Expression::GroupedExpression(g) => write!(f, "{}", g),
+                Expression::ThrowExpression(t) => write!(f, "{}", t),
+                Expression::CatchExpression(c) => write!(f, "{}", c),
+                Expression::AsyncExpression(a) => write!(f, "{}", a),
+                Expression::AwaitExpression(a) => write!(f, "{}", a),
+                Expression::ImportExpression(i) => write!(f, "{}", i),
+                Expression::ExportExpression(e) => write!(f, "{}", e),
+            }
         }
     }
-}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct NumberLiteral {
@@ -264,32 +268,71 @@ impl fmt::Display for AwaitExpression {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct ImportExpression {
+    pub source: Box<Expression>,
+    pub path: Box<Expression>,
+    pub destructuring: Option<Box<Expression>>,
+    pub span: Span,
+}
+
+impl fmt::Display for ImportExpression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}@{}", self.source, self.path)?;
+        if let Some(ref destructure) = self.destructuring {
+            write!(f, "{}", destructure)?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExportExpression {
+    pub keys: Vec<String>,
+    pub span: Span,
+}
+
+impl fmt::Display for ExportExpression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "}}@&[")?;
+        for (i, key) in self.keys.iter().enumerate() {
+            if i > 0 {
+                write!(f, ",")?;
+            }
+            write!(f, "`{}`", key)?;
+        }
+        write!(f, "]")
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
     pub struct Program {
     pub expression: Box<Expression>,
     pub source_path: String,
 }
 
-impl Expression {
-    pub fn span(&self) -> Span {
-        match self {
-            Expression::NumberLiteral(n) => n.span,
-            Expression::StringLiteral(s) => s.span,
-            Expression::BooleanLiteral(b) => b.span,
-            Expression::UndefinedLiteral(u) => u.span,
-            Expression::ListLiteral(l) => l.span,
-            Expression::MapLiteral(m) => m.span,
-            Expression::Identifier(i) => i.span,
-            Expression::LeftArg(l) => l.span,
-            Expression::RightArg(r) => r.span,
-            Expression::Application(a) => a.span,
-            Expression::GroupedExpression(g) => g.span,
-            Expression::ThrowExpression(t) => t.span,
-            Expression::CatchExpression(c) => c.span,
-            Expression::AsyncExpression(a) => a.span,
-            Expression::AwaitExpression(a) => a.span,
+    impl Expression {
+        pub fn span(&self) -> Span {
+            match self {
+                Expression::NumberLiteral(n) => n.span,
+                Expression::StringLiteral(s) => s.span,
+                Expression::BooleanLiteral(b) => b.span,
+                Expression::UndefinedLiteral(u) => u.span,
+                Expression::ListLiteral(l) => l.span,
+                Expression::MapLiteral(m) => m.span,
+                Expression::Identifier(i) => i.span,
+                Expression::LeftArg(l) => l.span,
+                Expression::RightArg(r) => r.span,
+                Expression::Application(a) => a.span,
+                Expression::GroupedExpression(g) => g.span,
+                Expression::ThrowExpression(t) => t.span,
+                Expression::CatchExpression(c) => c.span,
+                Expression::AsyncExpression(a) => a.span,
+                Expression::AwaitExpression(a) => a.span,
+                Expression::ImportExpression(i) => i.span,
+                Expression::ExportExpression(e) => e.span,
+            }
         }
     }
-}
 
 #[cfg(test)]
 mod tests {

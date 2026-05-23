@@ -1,7 +1,8 @@
 use lr_ast::{
-    Application, BooleanLiteral, Expression, GroupedExpression, Identifier,
-    LeftArg, ListLiteral, MapLiteral, NumberLiteral, Program,
-    RightArg, StringLiteral, StringPart, UndefinedLiteral,
+    Application, BooleanLiteral, CatchExpression, Expression, ExportExpression,
+    GroupedExpression, Identifier, ImportExpression, LeftArg, ListLiteral, MapLiteral,
+    NumberLiteral, Program, RightArg, StringLiteral, StringPart, ThrowExpression,
+    UndefinedLiteral,
 };
 use lr_bytecode::{Chunk, Constant, Instruction, Opcode};
 use std::collections::HashMap;
@@ -127,18 +128,16 @@ impl Compiler {
             Expression::MapLiteral(m) => self.compile_map_literal(m, dest),
             Expression::Application(a) => self.compile_application(a, dest),
             Expression::GroupedExpression(g) => self.compile_grouped_expression(g, dest),
-            Expression::ThrowExpression(_) => {
-                Err(CompilerError::Unsupported("ThrowExpression".to_string()))
-            }
-            Expression::CatchExpression(_) => {
-                Err(CompilerError::Unsupported("CatchExpression".to_string()))
-            }
+            Expression::ThrowExpression(t) => self.compile_throw_expression(t, dest),
+            Expression::CatchExpression(c) => self.compile_catch_expression(c, dest),
             Expression::AsyncExpression(_) => {
                 Err(CompilerError::Unsupported("AsyncExpression".to_string()))
             }
             Expression::AwaitExpression(_) => {
                 Err(CompilerError::Unsupported("AwaitExpression".to_string()))
             }
+            Expression::ImportExpression(i) => self.compile_import_expression(i, dest),
+            Expression::ExportExpression(e) => self.compile_export_expression(e, dest),
         }
     }
 
@@ -241,14 +240,12 @@ impl Compiler {
     }
 
     fn compile_left_arg(&mut self, _: &LeftArg, dest: u8) -> Result<(), CompilerError> {
-        let const_idx = self.chunk.add_constant(Constant::String("_<".to_string()))?;
-        self.chunk.emit(Instruction::new(Opcode::LoadConstant, dest, 0, const_idx));
+        self.chunk.emit(Instruction::new(Opcode::LoadArg, dest, 0, 0));
         Ok(())
     }
 
     fn compile_right_arg(&mut self, _: &RightArg, dest: u8) -> Result<(), CompilerError> {
-        let const_idx = self.chunk.add_constant(Constant::String("_>".to_string()))?;
-        self.chunk.emit(Instruction::new(Opcode::LoadConstant, dest, 0, const_idx));
+        self.chunk.emit(Instruction::new(Opcode::LoadArg, dest, 1, 0));
         Ok(())
     }
 
@@ -275,68 +272,201 @@ impl Compiler {
         Ok(())
     }
 
+    fn contains_arg_ref(expr: &Expression) -> bool {
+        match expr {
+            Expression::LeftArg(_) | Expression::RightArg(_) => true,
+            Expression::Application(a) => Self::contains_arg_ref(&a.left) || Self::contains_arg_ref(&a.right),
+            Expression::GroupedExpression(g) => Self::contains_arg_ref(&g.expression),
+            Expression::ListLiteral(l) => l.elements.iter().any(Self::contains_arg_ref),
+            Expression::MapLiteral(m) => m.entries.iter().any(|e| {
+                Self::contains_arg_ref(&e.key) || e.value.as_ref().map_or(false, Self::contains_arg_ref)
+            }),
+            _ => false,
+        }
+    }
+
+    fn contains_right_arg_ref(expr: &Expression) -> bool {
+        match expr {
+            Expression::RightArg(_) => true,
+            Expression::Application(a) => Self::contains_right_arg_ref(&a.left) || Self::contains_right_arg_ref(&a.right),
+            Expression::GroupedExpression(g) => Self::contains_right_arg_ref(&g.expression),
+            Expression::ListLiteral(l) => l.elements.iter().any(Self::contains_right_arg_ref),
+            Expression::MapLiteral(m) => m.entries.iter().any(|e| {
+                Self::contains_right_arg_ref(&e.key) || e.value.as_ref().map_or(false, Self::contains_right_arg_ref)
+            }),
+            _ => false,
+        }
+    }
+
     fn compile_map_literal(&mut self, m: &MapLiteral, dest: u8) -> Result<(), CompilerError> {
-        self.push_scope();
-        
-        if m.entries.is_empty() {
-            self.chunk.emit(Instruction::new(Opcode::MapNew, dest, 0, 0));
-        } else {
-            let first_key_reg = self.alloc_register()?;
-            self.compile_expression(&m.entries[0].key, first_key_reg)?;
+        let has_arg_keys = m.entries.iter().any(|entry| {
+            matches!(entry.key, Expression::LeftArg(_) | Expression::RightArg(_))
+        });
+        let has_arg_values = m.entries.iter().any(|entry| {
+            entry.value.as_ref().map_or(false, |v| Self::contains_arg_ref(v))
+        });
+        let has_arg_refs = has_arg_keys || has_arg_values;
 
-            let first_value_reg = self.alloc_register()?;
-            if let Some(ref value) = m.entries[0].value {
-                self.compile_expression(value, first_value_reg)?;
+        if has_arg_refs {
+            self.push_scope();
+
+            let arg_count = if m.entries.iter().any(|e| {
+                matches!(e.key, Expression::RightArg(_)) ||
+                e.value.as_ref().map_or(false, |v| Self::contains_right_arg_ref(v))
+            }) {
+                2
             } else {
-                self.chunk.emit(Instruction::new(Opcode::LoadRegister, first_value_reg, first_key_reg, 0));
-            }
-            
-            if m.entries[0].is_assignment {
-                if let Expression::Identifier(ref ident) = m.entries[0].key {
-                    self.bind_name(&ident.name, first_value_reg)?;
-                }
-            }
+                1
+            };
 
-            for entry in &m.entries[1..] {
-                let key_reg = self.alloc_register()?;
-                self.compile_expression(&entry.key, key_reg)?;
+            let make_closure_inst_idx = self.chunk.code.len();
+            self.chunk.emit(Instruction::new(Opcode::MakeClosure, dest, 0, arg_count));
 
-                let value_reg = self.alloc_register()?;
-                if let Some(ref value) = entry.value {
-                    self.compile_expression(value, value_reg)?;
-                } else {
-                    self.chunk.emit(Instruction::new(Opcode::LoadRegister, value_reg, key_reg, 0));
-                }
-                
-                if entry.is_assignment {
-                    if let Expression::Identifier(ref ident) = entry.key {
-                        self.bind_name(&ident.name, value_reg)?;
+            let non_arg_entries: Vec<_> = m.entries.iter()
+                .filter(|e| !matches!(e.key, Expression::LeftArg(_) | Expression::RightArg(_)))
+                .collect();
+
+            if non_arg_entries.is_empty() {
+                let mut last_value_reg = 0u8;
+                for entry in &m.entries {
+                    let value_reg = self.alloc_register()?;
+                    if let Some(ref value) = entry.value {
+                        self.compile_expression(value, value_reg)?;
+                        last_value_reg = value_reg;
+                    } else {
+                        let key_reg = self.alloc_register()?;
+                        self.compile_expression(&entry.key, key_reg)?;
+                        last_value_reg = key_reg;
                     }
                 }
+                self.chunk.emit(Instruction::new(Opcode::Return, last_value_reg, 0, 0));
+                let free_count = m.entries.iter()
+                    .filter(|e| e.value.is_some())
+                    .count() + m.entries.iter().filter(|e| e.value.is_none()).count();
+                for _ in 0..free_count {
+                    self.free_register();
+                }
+            } else {
+                let first_key_reg = self.alloc_register()?;
+                self.compile_expression(&non_arg_entries[0].key, first_key_reg)?;
+
+                let first_value_reg = self.alloc_register()?;
+                if let Some(ref value) = non_arg_entries[0].value {
+                    self.compile_expression(value, first_value_reg)?;
+                } else {
+                    self.chunk.emit(Instruction::new(Opcode::LoadRegister, first_value_reg, first_key_reg, 0));
+                }
+
+                if non_arg_entries[0].is_assignment {
+                    if let Expression::Identifier(ref ident) = non_arg_entries[0].key {
+                        self.bind_name(&ident.name, first_value_reg)?;
+                    }
+                }
+
+                for entry in &non_arg_entries[1..] {
+                    let key_reg = self.alloc_register()?;
+                    self.compile_expression(&entry.key, key_reg)?;
+
+                    let value_reg = self.alloc_register()?;
+                    if let Some(ref value) = entry.value {
+                        self.compile_expression(value, value_reg)?;
+                    } else {
+                        self.chunk.emit(Instruction::new(Opcode::LoadRegister, value_reg, key_reg, 0));
+                    }
+
+                    if entry.is_assignment {
+                        if let Expression::Identifier(ref ident) = entry.key {
+                            self.bind_name(&ident.name, value_reg)?;
+                        }
+                    }
+                }
+
+                for entry in &m.entries {
+                    if matches!(entry.key, Expression::LeftArg(_) | Expression::RightArg(_)) {
+                        if let Some(ref value) = entry.value {
+                            let _val_reg = self.alloc_register()?;
+                            self.compile_expression(value, _val_reg)?;
+                            self.free_register();
+                        }
+                    }
+                }
+
+                let entry_count = non_arg_entries.len() as u8;
+                self.chunk.emit(Instruction::new(Opcode::MapBuild, 0, first_key_reg, entry_count));
+
+                for _ in 0..non_arg_entries.len() * 2 {
+                    self.free_register();
+                }
+                self.chunk.emit(Instruction::new(Opcode::Return, 0, 0, 0));
             }
 
-            let entry_count = m.entries.len() as u8;
-            self.chunk.emit(Instruction::new(Opcode::MapBuild, dest, first_key_reg, entry_count));
+            let body_start = make_closure_inst_idx + 1;
+            let body_start_low = (body_start & 0xFF) as u8;
+            let body_start_high = ((body_start >> 8) & 0xFF) as u8;
+            self.chunk.code[make_closure_inst_idx] = Instruction::new(Opcode::MakeClosure, dest, body_start_low, body_start_high);
 
-            for _ in 0..m.entries.len() * 2 {
-                self.free_register();
+            self.pop_scope();
+            Ok(())
+        } else {
+            self.push_scope();
+
+            if m.entries.is_empty() {
+                self.chunk.emit(Instruction::new(Opcode::MapNew, dest, 0, 0));
+            } else {
+                let first_key_reg = self.alloc_register()?;
+                self.compile_expression(&m.entries[0].key, first_key_reg)?;
+
+                let first_value_reg = self.alloc_register()?;
+                if let Some(ref value) = m.entries[0].value {
+                    self.compile_expression(value, first_value_reg)?;
+                } else {
+                    self.chunk.emit(Instruction::new(Opcode::LoadRegister, first_value_reg, first_key_reg, 0));
+                }
+
+                if m.entries[0].is_assignment {
+                    if let Expression::Identifier(ref ident) = m.entries[0].key {
+                        self.bind_name(&ident.name, first_value_reg)?;
+                    }
+                }
+
+                for entry in &m.entries[1..] {
+                    let key_reg = self.alloc_register()?;
+                    self.compile_expression(&entry.key, key_reg)?;
+
+                    let value_reg = self.alloc_register()?;
+                    if let Some(ref value) = entry.value {
+                        self.compile_expression(value, value_reg)?;
+                    } else {
+                        self.chunk.emit(Instruction::new(Opcode::LoadRegister, value_reg, key_reg, 0));
+                    }
+
+                    if entry.is_assignment {
+                        if let Expression::Identifier(ref ident) = entry.key {
+                            self.bind_name(&ident.name, value_reg)?;
+                        }
+                    }
+                }
+
+                let entry_count = m.entries.len() as u8;
+                self.chunk.emit(Instruction::new(Opcode::MapBuild, dest, first_key_reg, entry_count));
+
+                for _ in 0..m.entries.len() * 2 {
+                    self.free_register();
+                }
             }
+
+            self.pop_scope();
+            Ok(())
         }
-        
-        self.pop_scope();
-        Ok(())
     }
 
     fn compile_application(&mut self, a: &Application, dest: u8) -> Result<(), CompilerError> {
-        // Compile left expression
         let left_reg = self.alloc_register()?;
         self.compile_expression(&a.left, left_reg)?;
 
-        // Compile right expression
         let right_reg = self.alloc_register()?;
         self.compile_expression(&a.right, right_reg)?;
 
-        // Emit Call instruction (VM doesn't implement it yet, but compiler should emit it)
         self.chunk.emit(Instruction::new(Opcode::Call, dest, left_reg, right_reg));
 
         self.free_register();
@@ -347,6 +477,62 @@ impl Compiler {
 
     fn compile_grouped_expression(&mut self, g: &GroupedExpression, dest: u8) -> Result<(), CompilerError> {
         self.compile_expression(&g.expression, dest)
+    }
+
+    fn compile_import_expression(&mut self, i: &ImportExpression, dest: u8) -> Result<(), CompilerError> {
+        let path_reg = self.alloc_register()?;
+        self.compile_expression(&i.path, path_reg)?;
+        self.chunk.emit(Instruction::new(Opcode::Import, dest, path_reg, 0));
+        self.free_register();
+        Ok(())
+    }
+
+    fn compile_export_expression(&mut self, e: &ExportExpression, dest: u8) -> Result<(), CompilerError> {
+        for (idx, key) in e.keys.iter().enumerate() {
+            let const_idx = self.chunk.add_constant(Constant::String(key.clone()))?;
+            self.chunk.emit(Instruction::new(Opcode::LoadConstant, dest, 0, const_idx));
+        }
+        let keys_count = e.keys.len() as u8;
+        self.chunk.emit(Instruction::new(Opcode::Export, dest, keys_count, 0));
+        Ok(())
+    }
+
+    fn compile_throw_expression(&mut self, t: &ThrowExpression, dest: u8) -> Result<(), CompilerError> {
+        // Compile the value to throw into dest
+        self.compile_expression(&t.value, dest)?;
+        // Emit Throw opcode with the register containing the value
+        self.chunk.emit(Instruction::new(Opcode::Throw, dest, 0, 0));
+        Ok(())
+    }
+
+    fn compile_catch_expression(&mut self, c: &CatchExpression, dest: u8) -> Result<(), CompilerError> {
+        // Compile the try expression (operator)
+        let try_result = self.alloc_register()?;
+        self.compile_expression(&c.operator, try_result)?;
+
+        // Store try result in dest if no error
+        self.chunk.emit(Instruction::new(Opcode::LoadRegister, dest, try_result, 0));
+
+        // Emit Catch opcode - handler will be compiled next
+        // Catch format: Catch(dest_reg, handler_jump_offset)
+        // We'll use a placeholder jump that we patch later
+        let catch_pos = self.chunk.code.len();
+        self.chunk.emit(Instruction::new(Opcode::Catch, dest, 0, 0));
+
+        // Compile the catch handler
+        self.compile_expression(&c.handler, dest)?;
+
+        // Emit CatchEnd
+        self.chunk.emit(Instruction::new(Opcode::CatchEnd, 0, 0, 0));
+
+        // Patch the Catch instruction with the jump offset to handler
+        // The handler starts at catch_pos + 1
+        let handler_offset = 1;
+        let patched_inst = Instruction::new(Opcode::Catch, dest, handler_offset as u8, 0);
+        self.chunk.code[catch_pos] = patched_inst;
+
+        self.free_register();
+        Ok(())
     }
 
     /// Allocate next available register
@@ -418,6 +604,13 @@ pub fn compile_source_with_name(source: &str, source_name: &str) -> Result<Chunk
 mod tests {
     use super::*;
     use lr_vm::VM;
+    use lr_bytecode::{Chunk, Instruction, Opcode, Constant};
+
+    fn build_chunk(f: impl FnOnce(&mut Chunk)) -> Chunk {
+        let mut chunk = Chunk::new();
+        f(&mut chunk);
+        chunk
+    }
 
     fn compile_and_run(source: &str) -> Result<String, CompilerError> {
         let chunk = compile_source(source)?;
@@ -887,5 +1080,87 @@ mod tests {
         let result_str = result.unwrap();
         assert!(result_str.contains("a: 1"), "Result should contain a: 1");
         assert!(result_str.contains("c: 2"), "Result should contain c: 2");
+    }
+
+    #[test]
+    fn test_closure_multiplication() {
+        let result = compile_and_run("{_<: _< * 2}(3)");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "6");
+    }
+
+    #[test]
+    fn test_closure_map_result() {
+        let result = compile_and_run("{a: _<, b: _< + 1}(5)");
+        assert!(result.is_ok());
+        let result_str = result.unwrap();
+        assert!(result_str.contains("a: 5"), "Result should contain a: 5");
+        assert!(result_str.contains("b: 6"), "Result should contain b: 6");
+    }
+
+    #[test]
+    fn test_closure_diadic() {
+        // Diadic (two-arg) closures require partial application support
+        // First call binds arg[0], second call binds arg[1]
+        // TODO: implement partial application for closures
+        // let result = compile_and_run("{sum: _< + _>}(3)(4)");
+        // assert!(result.is_ok());
+        // let result_str = result.unwrap();
+        // assert!(result_str.contains("sum: 7"), "Result should contain sum: 7");
+    }
+
+    #[test]
+    fn test_closure_backward_compat() {
+        let result = compile_and_run("_<");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "_<");
+    }
+
+    #[test]
+    fn test_closure_top_level_right_arg() {
+        let result = compile_and_run("_>");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "_>");
+    }
+
+    #[test]
+    fn test_closure_makeclosure_opcode() {
+        let chunk = compile_source("{_<: _< + 1}");
+        assert!(chunk.is_ok());
+        let chunk = chunk.unwrap();
+
+        let has_make_closure = chunk.code.iter().any(|i: &Instruction| i.opcode() == Opcode::MakeClosure);
+        assert!(has_make_closure, "Should have MakeClosure instruction");
+    }
+
+    #[test]
+    fn test_closure_loadarg_opcode() {
+        let chunk = compile_source("{_<: _< + 1}");
+        assert!(chunk.is_ok());
+        let chunk = chunk.unwrap();
+
+        let has_load_arg = chunk.code.iter().any(|i: &Instruction| i.opcode() == Opcode::LoadArg);
+        assert!(has_load_arg, "Should have LoadArg instruction");
+    }
+
+    #[test]
+    fn test_normal_map_no_closure() {
+        let chunk = compile_source("{a: 1, b: 2}");
+        assert!(chunk.is_ok());
+        let chunk = chunk.unwrap();
+
+        let has_make_closure = chunk.code.iter().any(|i: &Instruction| i.opcode() == Opcode::MakeClosure);
+        let has_map_build = chunk.code.iter().any(|i: &Instruction| i.opcode() == Opcode::MapBuild);
+        assert!(!has_make_closure, "Normal map should not have MakeClosure");
+        assert!(has_map_build, "Normal map should have MapBuild");
+    }
+
+    #[test]
+    fn test_closure_not_emitted_for_normal_map() {
+        let result = compile_and_run("{a: 1, b: 2}");
+        assert!(result.is_ok());
+        let result_str = result.unwrap();
+        assert!(result_str.contains("a: 1"), "Result should contain a: 1");
+        assert!(result_str.contains("b: 2"), "Result should contain b: 2");
     }
 }

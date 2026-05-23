@@ -247,7 +247,62 @@ impl Parser {
             }
         }
 
-        Ok(first)
+        Ok(Self::try_parse_import_export(first))
+    }
+
+    fn try_parse_import_export(expr: Expression) -> Expression {
+        if let Expression::Application(app) = &expr {
+            if let Expression::Application(inner_app) = &*app.left {
+                if let Expression::Identifier(ident) = &*inner_app.left {
+                    if ident.name == "+" {
+                        if let Expression::Identifier(right_ident) = &*inner_app.right {
+                            if right_ident.name == ":" {
+                                if let Expression::Application(path_app) = &*app.right {
+                                    if let Expression::Identifier(source_ident) = &*path_app.left {
+                                        if source_ident.name == "@" {
+                                            if let Expression::StringLiteral(path_str) = &*path_app.right {
+                                                return Expression::ImportExpression(ImportExpression {
+                                                    source: Box::new(Expression::Identifier(Identifier {
+                                                        name: "imports".to_string(),
+                                                        span: source_ident.span,
+                                                    })),
+                                                    path: Box::new(Expression::StringLiteral(path_str.clone())),
+                                                    destructuring: None,
+                                                    span: expr.span(),
+                                                });
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Expression::Application(app) = &expr {
+            if let Expression::Identifier(left_ident) = &*app.left {
+                if left_ident.name == "imports" || left_ident.name == "files" {
+                    if let Expression::Application(path_app) = &*app.right {
+                        if let Expression::Identifier(at_ident) = &*path_app.left {
+                            if at_ident.name == "@" {
+                                if let Expression::StringLiteral(path_str) = &*path_app.right {
+                                    return Expression::ImportExpression(ImportExpression {
+                                        source: Box::new(Expression::Identifier(left_ident.clone())),
+                                        path: Box::new(Expression::StringLiteral(path_str.clone())),
+                                        destructuring: None,
+                                        span: expr.span(),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        expr
     }
 
     fn parse_program(&mut self, source_path: String) -> Result<Program, ParseError> {

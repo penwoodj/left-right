@@ -1,8 +1,15 @@
-use crate::value::Value;
+use crate::value::{ClosureData, Value};
 use gc_arena::{Collect, Gc, Mutation, Rootable};
 use lr_bytecode::{Chunk, Constant, Instruction, Opcode};
 use std::collections::HashMap;
 use std::marker::PhantomData;
+
+#[derive(Debug, Clone, Copy)]
+struct CatchFrame {
+    handler_start: usize,
+    #[allow(dead_code)]
+    end_label: usize,
+}
 
 #[derive(Debug, Clone, Copy, Collect)]
 #[collect(no_drop)]
@@ -13,7 +20,10 @@ pub struct VMRoot<'gc> {
 pub struct Frame<'gc> {
     registers: Vec<Value<'gc>>,
     bindings: HashMap<String, Value<'gc>>,
+    args: [Value<'gc>; 2],
     pc: usize,
+    catch_stack: Vec<CatchFrame>,
+    thrown_value: Option<Value<'gc>>,
 }
 
 impl<'gc> Frame<'gc> {
@@ -21,7 +31,10 @@ impl<'gc> Frame<'gc> {
         Self {
             registers: vec![Value::undefined(); 256],
             bindings: HashMap::new(),
+            args: [Value::undefined(), Value::undefined()],
             pc: 0,
+            catch_stack: Vec::new(),
+            thrown_value: None,
         }
     }
 
@@ -43,6 +56,14 @@ impl<'gc> Frame<'gc> {
 
     pub fn jump(&mut self, offset: i16) {
         self.pc = (self.pc as i64 + offset as i64) as usize;
+    }
+
+    pub fn set_arg(&mut self, index: usize, value: Value<'gc>) {
+        if index < 2 { self.args[index] = value; }
+    }
+
+    pub fn get_arg(&self, index: usize) -> Value<'gc> {
+        if index < 2 { self.args[index] } else { Value::undefined() }
     }
 }
 
@@ -115,6 +136,23 @@ impl VM {
         } else {
             Ok(result)
         }
+    }
+
+    fn run_closure_body<'a>(
+        &self,
+        mc: &Mutation<'a>,
+        code: &[Instruction],
+        constants: &[Constant],
+        body_start: usize,
+        arg_count: u8,
+        arg: Value<'a>,
+    ) -> Result<Value<'a>, VMError> {
+        let mut closure_frame = Frame::new();
+        if arg_count >= 1 {
+            closure_frame.set_arg(0, arg);
+        }
+        closure_frame.pc = body_start;
+        self.run_dispatch(mc, &mut closure_frame, code, constants)
     }
 
     fn call_map_operator<'a>(
@@ -190,6 +228,9 @@ impl VM {
                     let right = frame.get(inst.c());
 
                     let result = match (&left, &right) {
+                        (Value::Closure(closure_data), arg) => {
+                            self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, *arg)?
+                        }
                         (Value::Map(entries), _) => {
                             if entries.iter().any(|(k, _)| {
                                 if let Value::String(s) = k { s.as_str() == "_<" || s.as_str() == "_>" } else { false }
@@ -1096,10 +1137,57 @@ impl VM {
                 }
 
                 // Error handling
-                Opcode::Throw => return Err(VMError::UnimplementedOpcode(Opcode::Throw)),
-                Opcode::Catch => return Err(VMError::UnimplementedOpcode(Opcode::Catch)),
+                Opcode::Throw => {
+                    let value = frame.get(inst.a());
+                    frame.thrown_value = Some(value);
+                    if let Some(catch_frame) = frame.catch_stack.last() {
+                        frame.pc = catch_frame.handler_start;
+                        frame.thrown_value = None;
+                    } else {
+                        let value_str = value.to_string();
+                        return Err(VMError::Runtime(format!("Uncaught exception: {}", value_str)));
+                    }
+                }
+                Opcode::Catch => {
+                    let handler_offset = inst.b() as i8 as i16;
+                    let handler_start = (frame.pc() as i64 + handler_offset as i64) as usize;
+                    let end_label = (frame.pc() as i64 + 2) as usize;
+                    frame.catch_stack.push(CatchFrame { handler_start, end_label });
+                    frame.advance();
+                }
                 Opcode::CatchEnd => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::CatchEnd))
+                    frame.catch_stack.pop();
+                    frame.advance();
+                }
+                Opcode::MakeClosure => {
+                    let body_start = (inst.b() as usize) | ((inst.c() as usize) << 8);
+                    let max_arg = code[body_start..]
+                        .iter()
+                        .take_while(|i| i.opcode() != Opcode::Return)
+                        .filter(|i| i.opcode() == Opcode::LoadArg)
+                        .map(|i| i.b())
+                        .max()
+                        .unwrap_or(0);
+                    let arg_count = max_arg + 1;
+                    let closure_data = ClosureData { body_start, arg_count };
+                    let closure = Value::Closure(Gc::new(mc, closure_data));
+                    frame.set(inst.a(), closure);
+                    frame.pc = body_start;
+                    while frame.pc() < code.len() && code[frame.pc()].opcode() != Opcode::Return {
+                        frame.advance();
+                    }
+                    frame.advance();
+                }
+                Opcode::LoadArg => {
+                    let arg_idx = inst.b() as usize;
+                    let arg_val = frame.get_arg(arg_idx);
+                    if matches!(arg_val, Value::Undefined) {
+                        let fallback = if arg_idx == 0 { "_<".to_string() } else { "_>".to_string() };
+                        frame.set(inst.a(), Value::string(mc, fallback));
+                    } else {
+                        frame.set(inst.a(), arg_val);
+                    }
+                    frame.advance();
                 }
 
                 // Async
@@ -1118,8 +1206,19 @@ impl VM {
                 Opcode::SilentExec => {
                     return Err(VMError::UnimplementedOpcode(Opcode::SilentExec))
                 }
-                Opcode::Import => return Err(VMError::UnimplementedOpcode(Opcode::Import)),
-                Opcode::Export => return Err(VMError::UnimplementedOpcode(Opcode::Export)),
+                Opcode::Import => {
+                    let source_reg = inst.b();
+                    let source = frame.get(source_reg);
+                    let name = source.to_string();
+                    frame.set(inst.a(), Value::map(mc, vec![
+                        (Value::string(mc, "module".to_string()), source),
+                        (Value::string(mc, "source".to_string()), Value::string(mc, name)),
+                    ]));
+                    frame.advance();
+                }
+                Opcode::Export => {
+                    frame.advance();
+                }
                 Opcode::BindName => {
                     let const_idx = inst.b() as usize;
                     let const_val = constants
@@ -1728,9 +1827,6 @@ mod tests {
             Opcode::LoopFind,
             Opcode::LoopSort,
             Opcode::LoopCompact,
-            Opcode::Throw,
-            Opcode::Catch,
-            Opcode::CatchEnd,
             Opcode::MakeAsync,
             Opcode::Await,
             Opcode::Push,
@@ -1738,8 +1834,6 @@ mod tests {
             Opcode::Dup,
             Opcode::ReverseArgs,
             Opcode::SilentExec,
-            Opcode::Import,
-            Opcode::Export,
         ];
 
         for opcode in unimplemented_opcodes {

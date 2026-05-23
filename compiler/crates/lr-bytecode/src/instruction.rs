@@ -88,6 +88,8 @@ pub enum Opcode {
     Export = 141,
     BindName = 142,
     LookupName = 143,
+    MakeClosure = 150,
+    LoadArg = 151,
 }
 
 impl Opcode {
@@ -178,6 +180,8 @@ impl Opcode {
             141 => Some(Opcode::Export),
             142 => Some(Opcode::BindName),
             143 => Some(Opcode::LookupName),
+            150 => Some(Opcode::MakeClosure),
+            151 => Some(Opcode::LoadArg),
 
             _ => None,
         }
@@ -272,6 +276,9 @@ impl Display for Opcode {
             Opcode::Export => write!(f, "EXPORT"),
             Opcode::BindName => write!(f, "BIND_NAME"),
             Opcode::LookupName => write!(f, "LOOKUP_NAME"),
+            Opcode::MakeClosure => write!(f, "MAKE_CLOSURE"),
+            Opcode::LoadArg => write!(f, "LOAD_ARG"),
+            _ => write!(f, "UNKNOWN"),
         }
     }
 }
@@ -416,6 +423,8 @@ mod tests {
             Opcode::Export,
             Opcode::BindName,
             Opcode::LookupName,
+            Opcode::MakeClosure,
+            Opcode::LoadArg,
         ];
 
         for opcode in all_opcodes {
@@ -514,6 +523,8 @@ mod tests {
         assert_eq!("EXPORT", format!("{}", Opcode::Export));
         assert_eq!("BIND_NAME", format!("{}", Opcode::BindName));
         assert_eq!("LOOKUP_NAME", format!("{}", Opcode::LookupName));
+        assert_eq!("MAKE_CLOSURE", format!("{}", Opcode::MakeClosure));
+        assert_eq!("LOAD_ARG", format!("{}", Opcode::LoadArg));
     }
 
     #[test]

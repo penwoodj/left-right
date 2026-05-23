@@ -1,6 +1,13 @@
 use gc_arena::{Collect, Gc, Mutation};
 use std::fmt;
 
+#[derive(Debug, Clone, Collect)]
+#[collect(no_drop)]
+pub struct ClosureData {
+    pub body_start: usize,
+    pub arg_count: u8,
+}
+
 #[derive(Debug, Copy, Clone, Collect)]
 #[collect(no_drop)]
 pub enum Value<'gc> {
@@ -12,6 +19,7 @@ pub enum Value<'gc> {
     Map(Gc<'gc, Vec<(Value<'gc>, Value<'gc>)>>),
     Operator(Gc<'gc, OperatorData>),
     PartialOperator(Gc<'gc, PartialOperatorData<'gc>>),
+    Closure(Gc<'gc, ClosureData>),
 }
 
 #[derive(Debug, Clone, Collect)]
@@ -60,6 +68,10 @@ impl<'gc> Value<'gc> {
         Value::PartialOperator(Gc::new(mc, PartialOperatorData { name, left_arg }))
     }
 
+    pub fn closure(mc: &Mutation<'gc>, body_start: usize, arg_count: u8) -> Self {
+        Value::Closure(Gc::new(mc, ClosureData { body_start, arg_count }))
+    }
+
     pub fn is_truthy(&self) -> bool {
         match self {
             Value::Undefined => false,
@@ -70,6 +82,7 @@ impl<'gc> Value<'gc> {
             Value::Map(m) => !m.is_empty(),
             Value::Operator(_) => true,
             Value::PartialOperator(_) => true,
+            Value::Closure(_) => true,
         }
     }
 
@@ -83,6 +96,7 @@ impl<'gc> Value<'gc> {
             Value::Map(_) => "map",
             Value::Operator(_) => "operator",
             Value::PartialOperator(_) => "partial_operator",
+            Value::Closure(_) => "closure",
         }
     }
 
@@ -166,6 +180,7 @@ impl<'gc> fmt::Display for Value<'gc> {
             }
             Value::Operator(op) => write!(f, "<operator:{}>", op.name),
             Value::PartialOperator(op) => write!(f, "<partial_operator:{}>", op.name),
+            Value::Closure(c) => write!(f, "<closure:@{} args={}>", c.body_start, c.arg_count),
         }
     }
 }
