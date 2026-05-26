@@ -1,4 +1,4 @@
-# <img src="docs/logo/logo.svg" alt="Left-Right Logo" /> *Left-Right*
+<h1><img src="docs/logo/logo.svg" alt="Left-Right Logo" width="34" height="45" /> <em>Left-Right</em></h1>
 
 > *Previously known as PenRoScript*
 
