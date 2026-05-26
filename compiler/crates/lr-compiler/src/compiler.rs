@@ -347,6 +347,46 @@ impl Compiler {
                 for _ in 0..free_count {
                     self.free_register();
                 }
+            } else if non_arg_entries.len() == 2
+                && !matches!(non_arg_entries[0].key, Expression::Identifier(_))
+                && non_arg_entries[0].value.is_some()
+            {
+                let cond_reg = self.alloc_register()?;
+                self.compile_expression(&non_arg_entries[0].key, cond_reg)?;
+
+                let jump_if_false_idx = self.chunk.code.len();
+                self.chunk.emit(Instruction::new(Opcode::JumpIfFalse, cond_reg, 0, 0));
+                self.free_register();
+
+                let true_reg = self.alloc_register()?;
+                self.compile_expression(non_arg_entries[0].value.as_ref().unwrap(), true_reg)?;
+
+                let jump_end_idx = self.chunk.code.len();
+                self.chunk.emit(Instruction::new(Opcode::Jump, 0, 0, 0));
+                self.free_register();
+
+                let false_pos = self.chunk.code.len();
+                let false_reg = self.alloc_register()?;
+                if let Some(ref fv) = non_arg_entries[1].value {
+                    self.compile_expression(fv, false_reg)?;
+                } else {
+                    self.compile_expression(&non_arg_entries[1].key, false_reg)?;
+                }
+
+                let end_pos = self.chunk.code.len();
+                self.chunk.emit(Instruction::new(Opcode::Return, true_reg, 0, 0));
+
+                let false_offset = (false_pos - jump_if_false_idx) as u8;
+                self.chunk.code[jump_if_false_idx] = Instruction::new(
+                    Opcode::JumpIfFalse, cond_reg, false_offset, 0,
+                );
+
+                let end_offset = (end_pos - jump_end_idx) as u8;
+                self.chunk.code[jump_end_idx] = Instruction::new(
+                    Opcode::Jump, end_offset, 0, 0,
+                );
+
+                self.free_register();
             } else {
                 let first_key_reg = self.alloc_register()?;
                 self.compile_expression(&non_arg_entries[0].key, first_key_reg)?;
@@ -1172,5 +1212,49 @@ mod tests {
         let result_str = result.unwrap();
         assert!(result_str.contains("a: 1"), "Result should contain a: 1");
         assert!(result_str.contains("b: 2"), "Result should contain b: 2");
+    }
+
+    #[test]
+    fn test_ternary_basic_true() {
+        let result = compile_and_run("5 { _< > 3: `big`, `small` }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "big");
+    }
+
+    #[test]
+    fn test_ternary_basic_false() {
+        let result = compile_and_run("1 { _< > 3: `big`, `small` }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "small");
+    }
+
+    #[test]
+    fn test_ternary_less_than() {
+        let result = compile_and_run("1 { _< < 3: `small`, `big` }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "small");
+    }
+
+    #[test]
+    fn test_ternary_property_check() {
+        let result = compile_and_run("{name: `test`} { _<@name: `has-name`, `no-name` }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "has-name");
+    }
+
+    #[test]
+    fn test_ternary_nested() {
+        let result = compile_and_run("[1, 2, 3] $ { _< > 2: `big`, `small` }");
+        assert!(result.is_ok());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_closure_map_returning_still_works() {
+        let result = compile_and_run("{a: _<, b: _< + 1}(5)");
+        assert!(result.is_ok());
+        let result_str = result.unwrap();
+        assert!(result_str.contains("a: 5"), "Result should contain a: 5");
+        assert!(result_str.contains("b: 6"), "Result should contain b: 6");
     }
 }

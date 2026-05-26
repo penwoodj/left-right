@@ -231,6 +231,9 @@ impl VM {
                         (Value::Closure(closure_data), arg) => {
                             self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, *arg)?
                         }
+                        (arg, Value::Closure(closure_data)) => {
+                            self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, *arg)?
+                        }
                         (Value::Map(entries), _) => {
                             if entries.iter().any(|(k, _)| {
                                 if let Value::String(s) = k { s.as_str() == "_<" || s.as_str() == "_>" } else { false }
