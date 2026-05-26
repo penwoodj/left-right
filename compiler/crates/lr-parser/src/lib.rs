@@ -58,6 +58,21 @@ impl Parser {
         Err(ParseError::UnexpectedEOF(Span::at(self.current as u32)))
     }
 
+    fn contains_arg_tokens(&self, start_pos: usize) -> bool {
+        let mut depth = 1;
+        let mut pos = start_pos;
+        while depth > 0 && pos < self.tokens.len() {
+            match self.tokens[pos].kind {
+                TokenKind::OpenBrace => depth += 1,
+                TokenKind::CloseBrace => depth -= 1,
+                TokenKind::LeftArg | TokenKind::RightArg => return true,
+                _ => {}
+            }
+            pos += 1;
+        }
+        false
+    }
+
     fn parse_primary(&mut self) -> Result<Expression, ParseError> {
         let position = self.current;
         let token = self.next().ok_or_else(|| ParseError::UnexpectedEOF(Span::at(position as u32)))?;
@@ -144,6 +159,8 @@ impl Parser {
             TokenKind::OpenBrace => {
                 let mut entries = Vec::new();
                 let start = token.span.start;
+                
+                let use_expression_keys = self.contains_arg_tokens(self.current);
 
                 loop {
                     if let Some(TokenKind::CloseBrace) = self.peek_kind() {
@@ -155,7 +172,12 @@ impl Parser {
                         self.consume(TokenKind::Comma)?;
                     }
 
-                    let key = self.parse_primary()?;
+                    let key = if use_expression_keys {
+                        self.parse_expression()?
+                    } else {
+                        self.parse_primary()?
+                    };
+
                     let mut is_assignment = false;
                     let mut is_expression_key = false;
 

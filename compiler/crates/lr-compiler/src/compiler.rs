@@ -300,7 +300,8 @@ impl Compiler {
 
     fn compile_map_literal(&mut self, m: &MapLiteral, dest: u8) -> Result<(), CompilerError> {
         let has_arg_keys = m.entries.iter().any(|entry| {
-            matches!(entry.key, Expression::LeftArg(_) | Expression::RightArg(_))
+            matches!(entry.key, Expression::LeftArg(_) | Expression::RightArg(_)) ||
+            Self::contains_arg_ref(&entry.key)
         });
         let has_arg_values = m.entries.iter().any(|entry| {
             entry.value.as_ref().map_or(false, |v| Self::contains_arg_ref(v))
@@ -391,13 +392,22 @@ impl Compiler {
                     }
                 }
 
-                let entry_count = non_arg_entries.len() as u8;
-                self.chunk.emit(Instruction::new(Opcode::MapBuild, 0, first_key_reg, entry_count));
+                let all_expr_keys = non_arg_entries.iter().all(|e| {
+                    !matches!(e.key, Expression::Identifier(_)) && e.value.is_none()
+                });
 
-                for _ in 0..non_arg_entries.len() * 2 {
+                if all_expr_keys {
                     self.free_register();
+                    self.chunk.emit(Instruction::new(Opcode::Return, first_key_reg, 0, 0));
+                } else {
+                    let entry_count = non_arg_entries.len() as u8;
+                    self.chunk.emit(Instruction::new(Opcode::MapBuild, 0, first_key_reg, entry_count));
+
+                    for _ in 0..non_arg_entries.len() * 2 {
+                        self.free_register();
+                    }
+                    self.chunk.emit(Instruction::new(Opcode::Return, 0, 0, 0));
                 }
-                self.chunk.emit(Instruction::new(Opcode::Return, 0, 0, 0));
             }
 
             let body_start = make_closure_inst_idx + 1;
