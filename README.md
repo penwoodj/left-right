@@ -1,4 +1,4 @@
-# <div styles="display: flex; align-items: center;"><img src="docs/logo/logo.svg" alt="Left-Right Logo" styles="height: 45px; padding-top: 3px; padding-bottom: 3px; padding-left: 7px;" /> *Left-Right*</div>
+<div styles="display: flex; font-size: 35px; align-items: center; justify-content: center;"><img src="docs/logo/logo.svg" alt="Left-Right Logo" styles="height: 45px; padding-top: 3px; padding-bottom: 3px; padding-left: 7px;" /> *Left-Right*</div>
 
 > *Previously known as PenRoScript*
 
@@ -26,6 +26,7 @@ Left-Right (`lr`) is a novel programming language designed for clarity and simpl
 - **Type-dependent operator behavior**: Same operator adapts to input types
 - **Auto-currying**: Operator partial application happens automatically
 - **Spatial symbology**: Expressive notation (e.g., `"^` for uppercase, `"^_` for capitalize)
+- **Backtick strings**: All strings use backtick delimiters (`` `like this` ``) — `"` is a reserved operator, not a string delimiter
 - **Compiles to Rust**: Compiled to native Rust
 
 ### Core Operators
@@ -42,12 +43,12 @@ Left-Right provides powerful operators for data transformation:
 - **Await**: `promise \\\\` — awaits promise resolution (like JS await)
 
 **String Operators:**
-- **Uppercase**: `"hello" "^` → "HELLO"
-- **Lowercase**: `"HELLO" "_` → "hello"
-- **Capitalize**: `"hello" "^_` → "Hello"
-- **Replace**: `"hello" "~ ["e","a"]` → "hallo"
-- **Split**: `"a,b,c" <> \`","\`` → ["a","b","c"]
-- **Join**: `["a","b"] >< \`","\`` → "a,b"
+- **Uppercase**: `` `hello` "^ `` → `` `HELLO` ``
+- **Lowercase**: `` `HELLO` "_ `` → `` `hello` ``
+- **Capitalize**: `` `hello` "^_ `` → `` `Hello` ``
+- **Replace**: `` `hello` "~ [`e`, `a`] `` → `` `hallo` ``
+- **Split**: `` `a,b,c` <> `,` `` → `` [`a`, `b`, `c`] ``
+- **Join**: `` [`a`, `b`] >< `,` `` → `` `a,b` ``
 
 **Boolean Operators:**
 - **AND**: `true & false` → false
@@ -73,8 +74,8 @@ Left-Right provides powerful operators for data transformation:
 - **Compact**: `list $?!` — remove undefined/null values
 
 **Control Flow Operators:**
-- **Early Return**: `{ data: fetchResult, data ?: { log "no data" } }` — guard pattern in object context
-- **Throw**: `!!! "error"` — throw error
+- **Early Return**: `` { data: fetchResult, data ?: { log `no data` } } `` — guard pattern in object context
+- **Throw**: `` !!! `error` `` — throw error
 - **Catch**: `!!!? { tryBlock, catchBlock }` — try/catch
 
 **Numeric Operators:**
@@ -93,9 +94,9 @@ Left-Right provides powerful operators for data transformation:
 
 **Type Casting Operators:**
 - **ToBoolean**: `value ?` → truthy check
-- **ToString**: `5 "` → \`5\`
+- **ToString**: `` 5 " `` → `` `5` ``
 - **ToString (operator variant)**: `/?"` — converts to string
-- **JSON Parse**: `"{}" /json` → parse JSON string to value
+- **JSON Parse**: `` `{}` /json `` → parse JSON string to value
 
 ### Defining Operators
 
