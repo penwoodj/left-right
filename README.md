@@ -1,92 +1,120 @@
-# Left-Right
+# <img src="docs/logo/logo.svg" alt="Left-Right Logo" height="120" />
 
-<div align="center">
-  <img src="docs/logo/logo.svg" alt="Left-Right Logo" width="256" />
-</div>
-
-**Left-Right was previously known as PenRoScript**
+> *Previously known as PenRoScript*
 
 ---
 
-A point-free, operator-based, hierarchical-data oriented general-purpose programming language inspired by array-oriented languages. Code as data, taken literally.
+A point-free, operator-based, hierarchical-data oriented general-purpose scripting language inspired by array-oriented languages.
 
 ## Overview
 
-Left-Right (`lr`) is a novel programming language designed for clarity and expressivity in data transformation tasks. It combines the power of functional composition with a syntax that reads naturally left-to-right.
+Left-Right (`lr`) is a novel programming language designed for clarity and simplicity. It combines the power of function composition with a syntax that reads naturally left-to-right.
 
 ### Core Characteristics
 
-- **Point-free syntax**: No named variables in common cases — values flow through operators
+- **Point-free syntax**: No named variables in common cases - values flow through operators
 - **Operator-based**: Operators are first-class values that can be stored, passed, and returned
 - **Hierarchical-Data Oriented**: Inspired by array-oriented languages, optimized for hierarchical data structures (maps, lists)
-- **Loosely typed**: Runtime type inference with optional type checking
+- **Simply loosely typed**: Runtime type inference with optional type checking.
+  > Only types are `Operators`, `Maps`, `Lists`, `Numbers`, `Strings`, `Boolean`, and `Undefined`
 - **Left-to-right evaluation**: Natural reading order, no operator precedence
 
 ### Key Features
 
-- **Transpiles to JavaScript and Rust**: Run in Node.js or compiled to native Rust
+- **JSON-like structure**: Both data and programs use the similar syntax
+- **Operators instead of functions**: Uses closures (maps with `_<` and `_>`) instead
 - **Type-dependent operator behavior**: Same operator adapts to input types
-- **Spatial/compounding symbology**: Expressive notation (e.g., `"^` for uppercase, `"^_` for capitalize)
-- **Auto-currying**: Partial application happens automatically
-- **JSON-like structure**: Both data and programs use the same syntax
-- **No functions**: Uses closures (maps with `_<` and `_>`) instead
+- **Auto-currying**: Operator partial application happens automatically
+- **Spatial symbology**: Expressive notation (e.g., `"^` for uppercase, `"^_` for capitalize)
+- **Compiles to Rust**: Compiled to native Rust
 
 ### Core Operators
 
 Left-Right provides powerful operators for data transformation:
 
-**Loop Operators:**
-- **Iterate**: `list $ { _< * 2 }` — transform each element
-- **Filter**: `list $? { _< > 3 }` — keep elements matching condition
-- **Some/Any**: `list $| { _< > 0 }` — test if any element matches
-- **Every/All**: `list $& { _< > 0 }` — test if all elements match
-- **Find**: `list $?| { _< > 10 }` — find first matching element
-- **Flatmap**: `lists $_` — flatten nested lists
-- **UniqueBy**: `list $~` — remove duplicates
-- **GroupBy**: `list $>` — group elements by key
+**Core Operators:**
+- **Assignment**: `{ a: 1, b: a+2}` -> `{ a: 1, b: 3 }`
+- **Access/Get**: `data@\`keyString\`` or `data@[\`firstKeyString\`, \`nestedKeyString\`]` — access nested properties
+- **Size**: `list #` — length of collection types (*list, map, or string*)
+- **Concat**: `[] + item` — concatenate collection types
+- **Spread**: `{ a: 1, +: { a:3, b:2 }, b: 4 }` -> `{ a:3, b:4 }` — spread into context
+- **Make Async**: `{ ... } ///` — marks closure as async (like JS async function)
+- **Await**: `promise \\\\` — awaits promise resolution (like JS await)
 
 **String Operators:**
 - **Uppercase**: `"hello" "^` → "HELLO"
 - **Lowercase**: `"HELLO" "_` → "hello"
 - **Capitalize**: `"hello" "^_` → "Hello"
 - **Replace**: `"hello" "~ ["e","a"]` → "hallo"
-- **Split**: `"a,b,c" <> ,` → ["a","b","c"]
-- **Join**: `["a","b"] >< ,` → "a,b"
+- **Split**: `"a,b,c" <> \`","\`` → ["a","b","c"]
+- **Join**: `["a","b"] >< \`","\`` → "a,b"
 
-**Core Operators:**
-- **Assignment**: `config: files@`key``
-- **Access**: `data@`key`` or `data@[`key1`, `key2`]` — access nested properties
-- **Size**: `list #` — length of list or string
-- **Concat**: `[] + item` — concatenate lists/strings
-- **Spread**: `... + list` — spread into context
+**Boolean Operators:**
 - **AND**: `true & false` → false
-- **OR/Default**: `true | false` → true, `value | default` → default if falsy
-- **Negate**: `! true` → false
-- **ToBoolean**: `value ?` → truthy check
-- **ToString**: `5 "` → "5"
+- **OR/Default**: `true | false` → true, `value | default` → default if falsy (0, *empty string*, [], {}, undefined)
+- **Negate**: ` true !` → false
 
-**Compound Operators:**
+**Type Checks:**
 - **IsString**: `value ?"` → true if string
 - **IsNumber**: `value ?#` → true if number
-- **Contains**: `list ?> item` → true if item in list
+- **ToBoolean**: `value ?` → truthy check
+- **Contains**: `list ?>< item` → true if item in list
+
+**List Operators:**
+- **Iterate**: `list $ { _< * 2 }` — transform each element
+- **Filter**: `list $? { _<  > 3 }` — keep elements matching condition
+- **Some/Any**: `list $| { _< > 0 }` — test if any element matches
+- **Every/All**: `list $& { _< > 0 }` — test if all elements match
+- **Find**: `list $?| { _< > 10 }` — find first matching element
+- **Flatmap**: `list $_ { _< * 2 }` — map then flatten
+- **UniqueBy**: `list $~ { _< }` — remove duplicates by key
+- **GroupBy**: `list $> { _< }` — group elements by key function
+- **Sort**: `list $%` — sort collection
+- **Compact**: `list $?!` — remove undefined/null values
+
+**Control Flow Operators:**
+- **Early Return**: `{ data: fetchResult, data ?: { log "no data" } }` — guard pattern in object context
 - **Throw**: `!!! "error"` — throw error
 - **Catch**: `!!!? { tryBlock, catchBlock }` — try/catch
-- **Early Return**: `value ?: { returnBlock }` — guard pattern
 
-**Types**: Operator, Map, List, String, Boolean, Number, Undefined
+**Numeric Operators:**
+- **Add**: `5 + 3` → 8
+- **Subtract**: `5 - 3` → 2
+- **Multiply**: `5 * 3` → 15
+- **Divide**: `6 / 3` → 2
+- **Modulo**: `5 % 3` → 2
+- **Power**: `2 ^ 3` → 8
+- **Greater Than**: `5 > 3` → true
+- **Less Than**: `5 < 3` → false
+- **Greater or Equal**: `5 >= 3` → true
+- **Less or Equal**: `5 <= 3` → false
+- **Equal**: `5 = 5` → true
+- **Not Equal**: `5 != 5` → false
 
-**Right Notation**: `{` opens operator context, `_<` left input (first element), `_>` right input (second element), `}` closes
+**Type Casting Operators:**
+- **ToBoolean**: `value ?` → truthy check
+- **ToString**: `5 "` → \`5\`
+- **ToString (operator variant)**: `/?"` — converts to string
+- **JSON Parse**: `"{}" /json` → parse JSON string to value
 
-### The Logo
+### Defining Operators
 
-The logo `{_<_>}` reads as "left right" in Left-Right notation:
+Operators are defined as maps with argument placeholders:
 
-- `{` — opens the left context
-- `_<` — the "left" input operator (takes first element)
-- `_>` — the "right" input operator (takes second element)
-- `}` — closes the right context
+**Monadic** (single argument):
+```lr
+double: { _< * 2 }
+```
 
-So this is an operator that literally reads Left Right. This simple pattern captures the essence of the language: directional flow through operators.
+**Diadic** (two arguments, auto-currying):
+```lr
+add: { _< + _> }
+```
+
+**Multi-argument** (positional via list):
+```lr
+lookup: { key: _<@0, value: _<@1 }
+```
 
 ## Getting Started
 
@@ -113,6 +141,16 @@ cargo build --release
 # Binary at compiler/target/release/lr
 ```
 
+### Running Code
+
+```bash
+# Execute a file
+lr run myfile.lr
+
+# Start the REPL
+lr repl
+```
+
 ### Hello World
 
 ```lr
@@ -137,19 +175,6 @@ name: `Alice`,
 # Chain operations
 [1, 2, 3, 4, 5] $? { _< > 2 } $ { _< * 2 }
 # Output: [6, 8, 10]
-```
-
-### Running Code
-
-```bash
-# Execute a file
-lr myfile.lr
-
-# Run a single expression
-lr -e "[1, 2, 3] $ { _< + 10 }"
-
-# Start the REPL
-lr
 ```
 
 ## Documentation
@@ -204,4 +229,4 @@ MIT License — see LICENSE file for details.
 
 ---
 
-**CLI**: `lr` | **Paradigm**: Point-free, Operator-based, Hierarchical-Data Oriented
+**CLI**: `lr` | **Paradigm**: Point-free, Operator-based, Array-oriented
