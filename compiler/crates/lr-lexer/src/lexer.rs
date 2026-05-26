@@ -236,6 +236,26 @@ impl Lexer<'_> {
                     return self.lex_identifier(start, first);
                 }
 
+                '$' => {
+                    let first = c;
+                    self.next();
+                    if self.peek() == Some(&'@') {
+                        self.next();
+                        return Ok(Some(Token::new(TokenKind::Identifier, "$@".to_string(), Span::new(start, self.position))));
+                    }
+                    return self.lex_identifier(start, first);
+                }
+
+                '+' => {
+                    let first = c;
+                    self.next();
+                    if self.peek() == Some(&':') {
+                        self.next();
+                        return Ok(Some(Token::new(TokenKind::Identifier, "+:".to_string(), Span::new(start, self.position))));
+                    }
+                    return self.lex_identifier(start, first);
+                }
+
                 _ if Self::is_reserved_symbol(c) => {
                     self.next();
                     let kind = match c {
@@ -252,6 +272,19 @@ impl Lexer<'_> {
                         '`' => TokenKind::Backtick,
                         '@' => TokenKind::Identifier,
                         '!' => {
+                            if self.peek() == Some(&'!') {
+                                self.next();
+                                if self.peek() == Some(&'!') {
+                                    self.next();
+                                    if self.peek() == Some(&'?') {
+                                        self.next();
+                                        return Ok(Some(Token::new(TokenKind::Identifier, "!!!?".to_string(), Span::new(start, self.position))));
+                                    }
+                                    return Ok(Some(Token::new(TokenKind::Identifier, "!!!".to_string(), Span::new(start, self.position))));
+                                }
+                                self.position -= 1;
+                                self.chars = self.source[self.position as usize..].chars().peekable();
+                            }
                             if self.peek() == Some(&'=') {
                                 self.next();
                                 return Ok(Some(Token::new(TokenKind::Identifier, "!=".to_string(), Span::new(start, self.position))));
@@ -649,13 +682,75 @@ mod tests {
     fn test_tokenize_triple_bang_question() {
         let source = "!!!?";
         let tokens = tokenize(source).unwrap();
-        assert_eq!(tokens.len(), 5);
+        assert_eq!(tokens.len(), 2);
         assert_eq!(tokens[0].kind, TokenKind::Identifier);
+        assert_eq!(tokens[0].value, "!!!?");
+        assert_eq!(tokens[1].kind, TokenKind::EOF);
+    }
+
+    #[test]
+    fn test_tokenize_triple_bang() {
+        let source = "!!!";
+        let tokens = tokenize(source).unwrap();
+        assert_eq!(tokens.len(), 2);
+        assert_eq!(tokens[0].kind, TokenKind::Identifier);
+        assert_eq!(tokens[0].value, "!!!");
+    }
+
+    #[test]
+    fn test_tokenize_dollar_at() {
+        let source = "$@";
+        let tokens = tokenize(source).unwrap();
+        assert_eq!(tokens.len(), 2);
+        assert_eq!(tokens[0].kind, TokenKind::Identifier);
+        assert_eq!(tokens[0].value, "$@");
+    }
+
+    #[test]
+    fn test_tokenize_plus_colon() {
+        let source = "+:";
+        let tokens = tokenize(source).unwrap();
+        assert_eq!(tokens.len(), 2);
+        assert_eq!(tokens[0].kind, TokenKind::Identifier);
+        assert_eq!(tokens[0].value, "+:");
+    }
+
+    #[test]
+    fn test_tokenize_dollar_still_works() {
+        let source = "$";
+        let tokens = tokenize(source).unwrap();
+        assert_eq!(tokens.len(), 2);
+        assert_eq!(tokens[0].kind, TokenKind::Identifier);
+        assert_eq!(tokens[0].value, "$");
+    }
+
+    #[test]
+    fn test_tokenize_plus_still_works() {
+        let source = "5 + 3";
+        let tokens = tokenize(source).unwrap();
+        assert_eq!(tokens.len(), 4);
+        assert_eq!(tokens[0].value, "5");
+        assert_eq!(tokens[1].value, "+");
+        assert_eq!(tokens[2].value, "3");
+    }
+
+    #[test]
+    fn test_tokenize_bang_still_works() {
+        let source = "! x";
+        let tokens = tokenize(source).unwrap();
+        assert_eq!(tokens.len(), 3);
         assert_eq!(tokens[0].value, "!");
-        assert_eq!(tokens[1].value, "!");
-        assert_eq!(tokens[2].value, "!");
-        assert_eq!(tokens[3].value, "?");
-        assert_eq!(tokens[4].kind, TokenKind::EOF);
+        assert_eq!(tokens[1].value, "x");
+    }
+
+    #[test]
+    fn test_tokenize_not_equals_still_works() {
+        let source = "a != b";
+        let tokens = tokenize(source).unwrap();
+        assert_eq!(tokens.len(), 4);
+        assert_eq!(tokens[0].value, "a");
+        assert_eq!(tokens[1].value, "!=");
+        assert_eq!(tokens[2].value, "b");
     }
 
     #[test]

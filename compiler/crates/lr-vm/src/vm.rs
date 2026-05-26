@@ -244,6 +244,7 @@ impl VM {
                             match op_name.as_str() {
                                 "+" | "_" | "<>" | "><" => Value::partial_operator(mc, op_name.to_string(), Value::string(mc, s.to_string())),
                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::string(mc, s.to_string())),
+                                "|" => Value::partial_operator(mc, "|".to_string(), Value::string(mc, s.to_string())),
                                 "^" => Value::string(mc, s.to_uppercase()),
                                 "^_" => {
                                     let mut chars = s.chars();
@@ -266,6 +267,7 @@ impl VM {
                                 "@" => Value::partial_operator(mc, "@".to_string(), Value::List(*l)),
                                 "#" => Value::number(l.len() as f64),
                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::List(*l)),
+                                "|" => Value::partial_operator(mc, "|".to_string(), Value::List(*l)),
                                  "+" | "_" => Value::partial_operator(mc, op_name.to_string(), Value::list(mc, l.as_ref().clone())),
                                  "<>" | "><" => Value::partial_operator(mc, "<>".to_string(), Value::list(mc, l.as_ref().clone())),
                                 "==" | "=" => Value::partial_operator(mc, op_name.to_string(), Value::List(*l)),
@@ -331,7 +333,7 @@ impl VM {
                                     if let Value::Boolean(left_val) = &partial.left_arg {
                                         match partial.name.as_str() {
                                             "&" => Value::boolean(mc, *left_val && *right_val),
-                                            "|" => Value::boolean(mc, *left_val || *right_val),
+                                            "|" => if *left_val { partial.left_arg } else { right },
                                             "==" | "=" => Value::boolean(mc, *left_val == *right_val),
                                             "!=" => Value::boolean(mc, *left_val != *right_val),
                                             "?" => {
@@ -369,7 +371,7 @@ impl VM {
                                                 "<=" => Value::boolean(mc, lv <= rv),
                                                 ">=" => Value::boolean(mc, lv >= rv),
                                                 "&" => Value::boolean(mc, partial.left_arg.is_truthy() && right.is_truthy()),
-                                                "|" => Value::boolean(mc, partial.left_arg.is_truthy() || right.is_truthy()),
+                                                "|" => if partial.left_arg.is_truthy() { partial.left_arg } else { right },
                                                 _ => return Err(VMError::Runtime(format!("Unknown partial operator: {}", partial.name))),
                                             }
                                         }
@@ -517,6 +519,13 @@ impl VM {
                                         (_, _, "?:else") => {
                                             right
                                         }
+                                        (_, _, "|") => {
+                                            if partial.left_arg.is_truthy() {
+                                                partial.left_arg
+                                            } else {
+                                                right
+                                            }
+                                        }
                                         _ => return Err(VMError::TypeError(format!(
                                             "Cannot apply partial operator {} to {}", partial.name, right.type_name()
                                         ))),
@@ -543,28 +552,37 @@ impl VM {
                                         "|" => Value::partial_operator(mc, "|".to_string(), Value::Number(*n)),
                                         _ => {
                                             return Err(VMError::Runtime(format!(
-                                                "Unknown operator: {}",
-                                                op.name
-                                            )))
-                                        }
-                                    }
-                                }
-                                _ => {
-                                    return Err(VMError::TypeError(format!(
-                                        "Cannot apply operator {} to {}",
-                                        op.name,
-                                        right.type_name()
-                                    )))
-                                }
-                            }
-                        }
-                        _ => {
-                            return Err(VMError::TypeError(format!(
-                                "Cannot call: left={} right={}",
-                                left.type_name(),
-                                right.type_name()
-                            )))
-                        }
+                                                 "Unknown operator: {}",
+                                                 op.name
+                                             )))
+                                         }
+                                     }
+                                 }
+                                 _ => {
+                                     return Err(VMError::TypeError(format!(
+                                         "Cannot apply operator {} to {}",
+                                         op.name,
+                                         right.type_name()
+                                     )))
+                                 }
+                             }
+                         }
+                         (Value::Undefined, Value::String(op_name)) => {
+                             match op_name.as_str() {
+                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::undefined()),
+                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::undefined()),
+                                 _ => return Err(VMError::TypeError(format!(
+                                     "Cannot call: left=undefined right={}", op_name
+                                 ))),
+                             }
+                         }
+                         _ => {
+                             return Err(VMError::TypeError(format!(
+                                 "Cannot call: left={} right={}",
+                                 left.type_name(),
+                                 right.type_name()
+                             )))
+                         }
                     };
 
                     frame.set(inst.a(), result);
@@ -2016,5 +2034,182 @@ mod tests {
         assert_eq!(result.unwrap(), "6");
     }
 
+    #[test]
+    fn test_operator_or_number_truthy_returns_left() {
+        let chunk = build_chunk(|c| {
+            let idx5 = c.add_constant(Constant::Number(5.0)).unwrap();
+            let idx10 = c.add_constant(Constant::Number(10.0)).unwrap();
+            let idx_or = c.add_constant(Constant::String("|".to_string())).unwrap();
 
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx5));
+            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_or));
+            c.emit(Instruction::new(Opcode::Call, 3, 1, 2));
+            c.emit(Instruction::new(Opcode::LoadConstant, 4, 0, idx10));
+            c.emit(Instruction::new(Opcode::Call, 5, 3, 4));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 5, 0));
+            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
+        });
+
+        let mut vm = VM::new();
+        let result = vm.execute(&chunk);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "5");
+    }
+
+    #[test]
+    fn test_operator_or_number_falsy_returns_right() {
+        let chunk = build_chunk(|c| {
+            let idx0 = c.add_constant(Constant::Number(0.0)).unwrap();
+            let idx10 = c.add_constant(Constant::Number(10.0)).unwrap();
+            let idx_or = c.add_constant(Constant::String("|".to_string())).unwrap();
+
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx0));
+            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_or));
+            c.emit(Instruction::new(Opcode::Call, 3, 1, 2));
+            c.emit(Instruction::new(Opcode::LoadConstant, 4, 0, idx10));
+            c.emit(Instruction::new(Opcode::Call, 5, 3, 4));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 5, 0));
+            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
+        });
+
+        let mut vm = VM::new();
+        let result = vm.execute(&chunk);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "10");
+    }
+
+    #[test]
+    fn test_operator_or_undefined_returns_right() {
+        let chunk = build_chunk(|c| {
+            let idx_undef = c.add_constant(Constant::Undefined).unwrap();
+            let idx42 = c.add_constant(Constant::Number(42.0)).unwrap();
+            let idx_or = c.add_constant(Constant::String("|".to_string())).unwrap();
+
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx_undef));
+            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_or));
+            c.emit(Instruction::new(Opcode::Call, 3, 1, 2));
+            c.emit(Instruction::new(Opcode::LoadConstant, 4, 0, idx42));
+            c.emit(Instruction::new(Opcode::Call, 5, 3, 4));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 5, 0));
+            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
+        });
+
+        let mut vm = VM::new();
+        let result = vm.execute(&chunk);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "42");
+    }
+
+    #[test]
+    fn test_operator_or_boolean_true_returns_left() {
+        let chunk = build_chunk(|c| {
+            let idx_true = c.add_constant(Constant::Boolean(true)).unwrap();
+            let idx_false = c.add_constant(Constant::Boolean(false)).unwrap();
+            let idx_or = c.add_constant(Constant::String("|".to_string())).unwrap();
+
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx_true));
+            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_or));
+            c.emit(Instruction::new(Opcode::Call, 3, 1, 2));
+            c.emit(Instruction::new(Opcode::LoadConstant, 4, 0, idx_false));
+            c.emit(Instruction::new(Opcode::Call, 5, 3, 4));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 5, 0));
+            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
+        });
+
+        let mut vm = VM::new();
+        let result = vm.execute(&chunk);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_operator_or_boolean_false_returns_right() {
+        let chunk = build_chunk(|c| {
+            let idx_false = c.add_constant(Constant::Boolean(false)).unwrap();
+            let idx_true = c.add_constant(Constant::Boolean(true)).unwrap();
+            let idx_or = c.add_constant(Constant::String("|".to_string())).unwrap();
+
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx_false));
+            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_or));
+            c.emit(Instruction::new(Opcode::Call, 3, 1, 2));
+            c.emit(Instruction::new(Opcode::LoadConstant, 4, 0, idx_true));
+            c.emit(Instruction::new(Opcode::Call, 5, 3, 4));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 5, 0));
+            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
+        });
+
+        let mut vm = VM::new();
+        let result = vm.execute(&chunk);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_operator_or_string_truthy_returns_left() {
+        let chunk = build_chunk(|c| {
+            let idx_hello = c.add_constant(Constant::String("hello".to_string())).unwrap();
+            let idx_world = c.add_constant(Constant::String("world".to_string())).unwrap();
+            let idx_or = c.add_constant(Constant::String("|".to_string())).unwrap();
+
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx_hello));
+            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_or));
+            c.emit(Instruction::new(Opcode::Call, 3, 1, 2));
+            c.emit(Instruction::new(Opcode::LoadConstant, 4, 0, idx_world));
+            c.emit(Instruction::new(Opcode::Call, 5, 3, 4));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 5, 0));
+            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
+        });
+
+        let mut vm = VM::new();
+        let result = vm.execute(&chunk);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "hello");
+    }
+
+    #[test]
+    fn test_operator_or_string_empty_returns_right() {
+        let chunk = build_chunk(|c| {
+            let idx_empty = c.add_constant(Constant::String("".to_string())).unwrap();
+            let idx_default = c.add_constant(Constant::String("default".to_string())).unwrap();
+            let idx_or = c.add_constant(Constant::String("|".to_string())).unwrap();
+
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx_empty));
+            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_or));
+            c.emit(Instruction::new(Opcode::Call, 3, 1, 2));
+            c.emit(Instruction::new(Opcode::LoadConstant, 4, 0, idx_default));
+            c.emit(Instruction::new(Opcode::Call, 5, 3, 4));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 5, 0));
+            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
+        });
+
+        let mut vm = VM::new();
+        let result = vm.execute(&chunk);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "default");
+    }
+
+    #[test]
+    fn test_operator_or_list_truthy_returns_left() {
+        let chunk = build_chunk(|c| {
+            let idx1 = c.add_constant(Constant::Number(1.0)).unwrap();
+            let idx2 = c.add_constant(Constant::Number(2.0)).unwrap();
+            let idx3 = c.add_constant(Constant::Number(3.0)).unwrap();
+            let idx_or = c.add_constant(Constant::String("|".to_string())).unwrap();
+
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx1));
+            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx2));
+            c.emit(Instruction::new(Opcode::ListBuild, 3, 1, 2));
+            c.emit(Instruction::new(Opcode::LoadConstant, 4, 0, idx_or));
+            c.emit(Instruction::new(Opcode::Call, 5, 3, 4));
+            c.emit(Instruction::new(Opcode::LoadConstant, 6, 0, idx3));
+            c.emit(Instruction::new(Opcode::Call, 7, 5, 6));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 7, 0));
+            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
+        });
+
+        let mut vm = VM::new();
+        let result = vm.execute(&chunk);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[1, 2]");
+    }
 }

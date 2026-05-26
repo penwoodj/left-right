@@ -437,7 +437,8 @@ mod tests {
 
     #[test]
     fn test_parse_import_like_expression() {
-        let source = "{ +: imports@`lodash`@&[`map`] }";
+        // +: is now a single compound token — use non-compound key for this map test
+        let source = "{ config: imports@`lodash`@&[`map`] }";
         let tokens = tokenize(source).unwrap();
         let program = parse(tokens, "test.lr".to_string()).unwrap();
         assert!(matches!(*program.expression, Expression::MapLiteral(_)));
@@ -445,7 +446,8 @@ mod tests {
 
     #[test]
     fn test_parse_map_with_operator_keys() {
-        let source = "{ +: 1, -: 2 }";
+        // +: is now a single compound token — use non-compound operator keys
+        let source = "{ *: 1, /: 2 }";
         let tokens = tokenize(source).unwrap();
         let program = parse(tokens, "test.lr".to_string()).unwrap();
         if let Expression::MapLiteral(map) = &*program.expression {
@@ -538,9 +540,10 @@ mod tests {
 
     #[test]
     fn test_parse_special_operators() {
+        // !!!? is now a single compound token, not an Application chain
         let tokens = tokenize("!!!?").unwrap();
         let program = parse(tokens, "test.lr".to_string()).unwrap();
-        assert!(matches!(*program.expression, Expression::Application(_)));
+        assert!(matches!(*program.expression, Expression::Identifier(_)));
     }
 
     #[test]

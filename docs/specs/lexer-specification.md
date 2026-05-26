@@ -259,7 +259,7 @@ Tokens are separated by:
 | `5+3` | NumberLiteral(`5`), Identifier(`+`), NumberLiteral(`3`) |
 | `_<@0` | LeftArg(`_<`), Identifier(`@`), NumberLiteral(`0`) |
 | `_: expr` | Identifier(`_`), Colon(`:`), ... (three separate tokens) |
-| `+:` | Identifier(`+`), Colon(`:`) — two separate tokens |
+| `+:` | Identifier(`+:`) — single compound token |
 | `!!!?` | Identifier(`!!!?`) — one token, no whitespace |
 | `!!! ?` | Identifier(`!!!`), Identifier(`?`) — two tokens, whitespace breaks them |
 | `entity@`key`` | Identifier(`entity`), Identifier(`@`), StringLiteral(`key`) |
@@ -426,7 +426,7 @@ The lexer tokenizes this the same as any `.lr` file — it's just a map literal.
 | 12 | Left-to-right curried evaluation, NO precedence | Q2 |
 | 13 | `response@value` = 3 tokens | Q13 |
 | 14 | `_:` = 2 tokens (not composite) | Q15 |
-| 15 | `+:` = 2 tokens (not composite) | Q15 |
+| 15 | `+:` = 1 token (compound operator) | Updated implementation |
 | 16 | `!!!` and `!!!?` = single identifiers each | Q15 |
 | 17 | `{}` = always map at lexer level | Q15 |
 | 18 | `.` = always standalone token | Q15 |

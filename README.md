@@ -26,29 +26,54 @@ Left-Right (`lr`) is a novel programming language designed for clarity and expre
 
 - **Transpiles to JavaScript and Rust**: Run in Node.js or compiled to native Rust
 - **Type-dependent operator behavior**: Same operator adapts to input types
-- **Spatial/compounding symbology**: Expressive notation (e.g., `^` for uppercase, `^_` for capitalize)
+- **Spatial/compounding symbology**: Expressive notation (e.g., `"^` for uppercase, `"^_` for capitalize)
 - **Auto-currying**: Partial application happens automatically
 - **JSON-like structure**: Both data and programs use the same syntax
+- **No functions**: Uses closures (maps with `_<` and `_>`) instead
 
 ### Core Operators
 
 Left-Right provides powerful operators for data transformation:
 
-- **Filter**: `list ?{ condition }` — keep elements matching condition
-- **Map**: `list ${ operation }` — transform each element
-- **Some/Any**: `list ?|{ condition }` — test if any element matches
-- **Includes**: `list >< item` — check if item exists in list
-- **Join**: `list >< separator` — join list elements with separator
-- **Unique**: `~list` — remove duplicates
-- **Count**: `list ?{ condition } #,` — count filtered elements
-- **Type Check**: `value ?= \`type\`: trueCase, falseCase` — ternary type check
-- **Path Access**: `data @\`key\`` or `data@[\`key1\`, \`key2\`]` — access nested properties (array path idiomatic)
-- **String Ops**: `text "^` (uppercase), `text "^_` (capitalize)
-- **Conditional Append**: `value & 'template {var}'` — append if truthy
-- **Curry Reversal**: `_` suffix on operator (e.g., `text "^_` vs `text "^`)
-- **List Concat**: `[] + item1 + item2` — concatenate lists
+**Loop Operators:**
+- **Iterate**: `list $ { _< * 2 }` — transform each element
+- **Filter**: `list $? { _< > 3 }` — keep elements matching condition
+- **Some/Any**: `list $| { _< > 0 }` — test if any element matches
+- **Every/All**: `list $& { _< > 0 }` — test if all elements match
+- **Find**: `list $?| { _< > 10 }` — find first matching element
+- **Flatmap**: `lists $_` — flatten nested lists
+- **UniqueBy**: `list $~` — remove duplicates
+- **GroupBy**: `list $>` — group elements by key
 
-**Types**: Operator, Map, List, Text, Number, Boolean, Undefined
+**String Operators:**
+- **Uppercase**: `"hello" "^` → "HELLO"
+- **Lowercase**: `"HELLO" "_` → "hello"
+- **Capitalize**: `"hello" "^_` → "Hello"
+- **Replace**: `"hello" "~ ["e","a"]` → "hallo"
+- **Split**: `"a,b,c" <> ,` → ["a","b","c"]
+- **Join**: `["a","b"] >< ,` → "a,b"
+
+**Core Operators:**
+- **Assignment**: `config: files@`key``
+- **Access**: `data@`key`` or `data@[`key1`, `key2`]` — access nested properties
+- **Size**: `list #` — length of list or string
+- **Concat**: `[] + item` — concatenate lists/strings
+- **Spread**: `... + list` — spread into context
+- **AND**: `true & false` → false
+- **OR/Default**: `true | false` → true, `value | default` → default if falsy
+- **Negate**: `! true` → false
+- **ToBoolean**: `value ?` → truthy check
+- **ToString**: `5 "` → "5"
+
+**Compound Operators:**
+- **IsString**: `value ?"` → true if string
+- **IsNumber**: `value ?#` → true if number
+- **Contains**: `list ?> item` → true if item in list
+- **Throw**: `!!! "error"` — throw error
+- **Catch**: `!!!? { tryBlock, catchBlock }` — try/catch
+- **Early Return**: `value ?: { returnBlock }` — guard pattern
+
+**Types**: Operator, Map, List, String, Boolean, Number, Undefined
 
 **Right Notation**: `{` opens operator context, `_<` left input (first element), `_>` right input (second element), `}` closes
 
@@ -90,17 +115,17 @@ cargo build --release
 
 ### Hello World
 
-```\lr
-# Map over a list — every operator is left-to-right
-[1, 2, 3, 4, 5] $ _< + 10
+```lr
+# Iterate over a list — every operator is left-to-right
+[1, 2, 3, 4, 5] $ { _< + 10 }
 # Output: [11, 12, 13, 14, 15]
 
 # Filter with a condition
-[1, 2, 3, 4, 5] $? _< > 3
+[1, 2, 3, 4, 5] $? { _< > 3 }
 # Output: [4, 5]
 
-# Define and call a closure
-double: {_< * 2},
+# Define and call a closure (not a function)
+double: { _< * 2 }
 double 5
 # Output: 10
 
@@ -108,6 +133,10 @@ double 5
 name: `Alice`,
 `hello {name}`
 # Output: `hello Alice`
+
+# Chain operations
+[1, 2, 3, 4, 5] $? { _< > 2 } $ { _< * 2 }
+# Output: [6, 8, 10]
 ```
 
 ### Running Code
@@ -117,7 +146,7 @@ name: `Alice`,
 lr myfile.lr
 
 # Run a single expression
-lr -e "[1, 2, 3] $ _< + 10"
+lr -e "[1, 2, 3] $ { _< + 10 }"
 
 # Start the REPL
 lr
@@ -139,9 +168,20 @@ Left-Right prioritizes:
 1. **Readability over brevity**: Code should read like a story
 2. **Low ceremony over strictness**: Minimal boilerplate
 3. **Deterministic execution**: Clear semantics, no surprises
-4. **Clean transpilation**: Targets JS/TS and Rust without hacks
+4. **Clean transpilation**: Targets JS and Rust without hacks
 
 The language is inspired by APL, J, K, BQN, Haskell, Clojure, and lodash/FP — but with its own distinct voice.
+
+### Expression Model
+
+Left-Right uses left-hungry curried operators. All operators are left-associative with no operator precedence. Every expression evaluates strictly left-to-right:
+
+```lr
+5 + 3 * 2
+# Evaluates as: ((5 + 3) * 2) → 16, not 11
+```
+
+This eliminates ambiguity and makes code predictably linear.
 
 ## Project Status
 
