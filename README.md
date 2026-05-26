@@ -1,4 +1,4 @@
-# <img src="docs/logo/logo.svg" alt="Left-Right Logo" height="45" /> *Left-Right*
+# <div styles="display: flex; align-items: center;"><img src="docs/logo/logo.svg" alt="Left-Right Logo" styles="height: 45px; padding-top: 3px; padding-bottom: 3px; padding-left: 7px;" /> *Left-Right*</div>
 
 > *Previously known as PenRoScript*
 
