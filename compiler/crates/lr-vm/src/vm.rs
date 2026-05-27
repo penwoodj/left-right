@@ -251,13 +251,9 @@ impl VM {
                     let result = match (&left, &right) {
                         (Value::Closure(closure_data), arg) => {
                             if closure_data.arg_count >= 2 {
-                                // Diadic closure called with one arg → return PartialClosure
-                                // The left operand was already consumed; this is the right operand
-                                Value::PartialClosure(Gc::new(mc, PartialClosureData {
-                                    body_start: closure_data.body_start,
-                                    arg_count: closure_data.arg_count,
-                                    bound_left: *arg,
-                                }))
+                                return Err(VMError::TypeError(
+                                    "Diadic closures must be used in infix position: `2 { _< + _> } 4`, not `{ _< + _> } 2 4`".to_string()
+                                ));
                             } else {
                                 self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, *arg, None)?
                             }
