@@ -26,7 +26,6 @@ pub enum Opcode {
     Mul = 32,
     Div = 33,
     Mod = 34,
-    Neg = 35,
 
     Eq = 40,
     Ne = 41,
@@ -118,7 +117,6 @@ impl Opcode {
             32 => Some(Opcode::Mul),
             33 => Some(Opcode::Div),
             34 => Some(Opcode::Mod),
-            35 => Some(Opcode::Neg),
 
             40 => Some(Opcode::Eq),
             41 => Some(Opcode::Ne),
@@ -214,7 +212,6 @@ impl Display for Opcode {
             Opcode::Mul => write!(f, "MUL"),
             Opcode::Div => write!(f, "DIV"),
             Opcode::Mod => write!(f, "MOD"),
-            Opcode::Neg => write!(f, "NEG"),
 
             Opcode::Eq => write!(f, "EQ"),
             Opcode::Ne => write!(f, "NE"),
@@ -370,7 +367,6 @@ mod tests {
             Opcode::Mul,
             Opcode::Div,
             Opcode::Mod,
-            Opcode::Neg,
             Opcode::Eq,
             Opcode::Ne,
             Opcode::Lt,
@@ -472,7 +468,6 @@ mod tests {
         assert_eq!("MUL", format!("{}", Opcode::Mul));
         assert_eq!("DIV", format!("{}", Opcode::Div));
         assert_eq!("MOD", format!("{}", Opcode::Mod));
-        assert_eq!("NEG", format!("{}", Opcode::Neg));
         assert_eq!("EQ", format!("{}", Opcode::Eq));
         assert_eq!("NE", format!("{}", Opcode::Ne));
         assert_eq!("LT", format!("{}", Opcode::Lt));

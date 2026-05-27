@@ -249,14 +249,10 @@ impl VM {
                     let right = frame.get(inst.c());
 
                     let result = match (&left, &right) {
-                        (Value::Closure(closure_data), arg) => {
-                            if closure_data.arg_count >= 2 {
-                                return Err(VMError::TypeError(
-                                    "Diadic closures must be used in infix position: `2 { _< + _> } 4`, not `{ _< + _> } 2 4`".to_string()
-                                ));
-                            } else {
-                                self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, *arg, None)?
-                            }
+                        (Value::Closure(closure_data), _arg) => {
+                            return Err(VMError::TypeError(
+                                "Closures must be used in infix position (data first): `5 { _< + 1 }`, not `{ _< + 1 } 5`".to_string()
+                            ));
                         }
                         (arg, Value::Closure(closure_data)) => {
                             if closure_data.arg_count >= 2 {
@@ -348,12 +344,6 @@ impl VM {
                         }
                         (Value::String(op_name), _) => {
                             match op_name.as_str() {
-                                "-" => match &right {
-                                    Value::Number(n) => Value::number(-*n),
-                                    _ => return Err(VMError::TypeError(format!(
-                                        "Cannot negate: {}", right.type_name()
-                                    ))),
-                                },
                                 "!" => Value::boolean(mc, !right.is_truthy()),
                                 "?" => Value::partial_operator(mc, "?".to_string(), right),
                                 _ => return Err(VMError::TypeError(format!(
@@ -495,6 +485,34 @@ impl VM {
                                             let mut combined = items.to_vec();
                                             combined.push(right);
                                             Value::list(mc, combined)
+                                        }
+                                        (Value::Number(n), Value::List(items), "+") => {
+                                            let mut combined = vec![Value::number(*n)];
+                                            combined.extend(items.iter());
+                                            Value::list(mc, combined)
+                                        }
+                                        (Value::Map(left_entries), Value::Map(right_entries), "+") => {
+                                            let mut merged = left_entries.to_vec();
+                                            for (k, v) in right_entries.iter() {
+                                                if let Some(pos) = merged.iter().position(|(mk, _)| {
+                                                    if let (Value::String(a), Value::String(b)) = (mk, k) { a == b } else { false }
+                                                }) {
+                                                    merged[pos].1 = *v;
+                                                } else {
+                                                    merged.push((*k, *v));
+                                                }
+                                            }
+                                            Value::map(mc, merged)
+                                        }
+                                        (Value::Number(n), Value::String(s), "+") => {
+                                            let ns = if n.fract() == 0.0 { (*n as i64).to_string() } else { n.to_string() };
+                                            Value::string(mc, format!("{}{}", ns, s))
+                                        }
+                                        (Value::Boolean(b), Value::String(s), "+") => {
+                                            Value::string(mc, format!("{}{}", b, s))
+                                        }
+                                        (_, Value::String(s), "+") => {
+                                            Value::string(mc, format!("{:?}{}", partial.left_arg, s))
                                         }
                                         (Value::List(left_items), Value::List(right_items), "==" | "=") => {
                                             if left_items.len() != right_items.len() {
@@ -684,9 +702,31 @@ impl VM {
                             let combined = format!("{}{}", b, c);
                             Value::string(mc, combined)
                         }
+                        (Value::Number(n), Value::String(s)) => {
+                            let ns = if n.fract() == 0.0 { (*n as i64).to_string() } else { n.to_string() };
+                            Value::string(mc, format!("{}{}", ns, s))
+                        }
+                        (Value::String(s), Value::Number(n)) => {
+                            let ns = if n.fract() == 0.0 { (*n as i64).to_string() } else { n.to_string() };
+                            Value::string(mc, format!("{}{}", s, ns))
+                        }
+                        (Value::List(a), Value::List(b_list)) => {
+                            let mut combined = a.to_vec();
+                            combined.extend(b_list.iter());
+                            Value::list(mc, combined)
+                        }
+                        (Value::Map(a), Value::Map(b_map)) => {
+                            let mut merged = a.to_vec();
+                            for (k, v) in b_map.iter() {
+                                if let Some(pos) = merged.iter().position(|(mk, _)| {
+                                    if let (Value::String(a), Value::String(b)) = (mk, k) { a == b } else { false }
+                                }) { merged[pos].1 = *v; } else { merged.push((*k, *v)); }
+                            }
+                            Value::map(mc, merged)
+                        }
                         _ => {
                             return Err(VMError::TypeError(format!(
-                                "Add requires numbers or strings, got {} and {}",
+                                "Add requires compatible types, got {} and {}",
                                 b.type_name(),
                                 c.type_name()
                             )))
@@ -771,22 +811,6 @@ impl VM {
                                 "Mod requires numbers, got {} and {}",
                                 b.type_name(),
                                 c.type_name()
-                            )))
-                        }
-                    };
-
-                    frame.set(inst.a(), result);
-                    frame.advance();
-                }
-                Opcode::Neg => {
-                    let b = frame.get(inst.b());
-
-                    let result = match &b {
-                        Value::Number(n) => Value::number(-*n),
-                        _ => {
-                            return Err(VMError::TypeError(format!(
-                                "Neg requires a number, got {}",
-                                b.type_name()
                             )))
                         }
                     };
@@ -1479,22 +1503,6 @@ mod tests {
     }
 
     #[test]
-    fn test_vm_arithmetic_neg() {
-        let chunk = build_chunk(|c| {
-            let idx3 = c.add_constant(Constant::Number(3.0)).unwrap();
-            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx3));
-            c.emit(Instruction::new(Opcode::Neg, 2, 1, 0));
-            c.emit(Instruction::new(Opcode::LoadRegister, 0, 2, 0));
-            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
-        });
-
-        let mut vm = VM::new();
-        let result = vm.execute(&chunk);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "-3");
-    }
-
-    #[test]
     fn test_vm_comparison_eq() {
         let chunk = build_chunk(|c| {
             let idx5 = c.add_constant(Constant::Number(5.0)).unwrap();
@@ -1653,10 +1661,10 @@ mod tests {
     fn test_vm_type_error() {
         let chunk = build_chunk(|c| {
             let idx_num = c.add_constant(Constant::Number(42.0)).unwrap();
-            let idx_str = c.add_constant(Constant::String("hello".to_string())).unwrap();
+            let idx_bool = c.add_constant(Constant::Boolean(true)).unwrap();
             c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx_num));
-            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_str));
-            c.emit(Instruction::new(Opcode::Add, 3, 1, 2));
+            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_bool));
+            c.emit(Instruction::new(Opcode::Sub, 3, 1, 2));
             c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
         });
 

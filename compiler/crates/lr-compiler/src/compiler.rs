@@ -989,18 +989,9 @@ mod tests {
     }
 
     #[test]
-    fn test_e2e_negative_number() {
-        let chunk = compile_source("-3");
-        assert!(chunk.is_ok());
-        let chunk = chunk.unwrap();
-
-        let has_call = chunk.code.iter().any(|i| i.opcode() == Opcode::Call);
-        assert!(has_call, "Should have Call instruction for negative number application");
-
-        let has_string_minus = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "-"));
-        let has_number_3 = chunk.constants.iter().any(|c| matches!(c, Constant::Number(n) if *n == 3.0));
-        assert!(has_string_minus, "Should have string constant '-'");
-        assert!(has_number_3, "Should have number constant 3.0");
+    fn test_e2e_subtraction_via_diadic() {
+        let result = compile_and_run("0 - 3").unwrap();
+        assert_eq!(result, "-3");
     }
 
     #[test]
@@ -1191,14 +1182,14 @@ mod tests {
 
     #[test]
     fn test_closure_multiplication() {
-        let result = compile_and_run("{_<: _< * 2}(3)");
+        let result = compile_and_run("3 { _< * 2 }");
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "6");
     }
 
     #[test]
     fn test_closure_map_result() {
-        let result = compile_and_run("{a: _<, b: _< + 1}(5)");
+        let result = compile_and_run("5 {a: _<, b: _< + 1}");
         assert!(result.is_ok());
         let result_str = result.unwrap();
         assert!(result_str.contains("a: 5"), "Result should contain a: 5");
@@ -1308,10 +1299,41 @@ mod tests {
 
     #[test]
     fn test_closure_map_returning_still_works() {
-        let result = compile_and_run("{a: _<, b: _< + 1}(5)");
+        let result = compile_and_run("5 {a: _<, b: _< + 1}");
         assert!(result.is_ok());
         let result_str = result.unwrap();
         assert!(result_str.contains("a: 5"), "Result should contain a: 5");
         assert!(result_str.contains("b: 6"), "Result should contain b: 6");
+    }
+
+    #[test]
+    fn test_at_operator_map_string_key() {
+        let result = compile_and_run("{ a: 1, b: 2 } @ `a`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "1");
+    }
+
+    #[test]
+    fn test_at_operator_map_missing_key() {
+        let result = compile_and_run("{ a: 1 } @ `z`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "undefined");
+    }
+
+    #[test]
+    fn test_at_operator_list_index() {
+        let result = compile_and_run("[10, 20, 30] @ 1");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "20");
+    }
+
+    #[test]
+    fn test_at_operator_map_numeric_index() {
+        let result = compile_and_run("{ a: 1, b: 2 } @ 0");
+        assert!(result.is_ok());
+        let result_str = result.unwrap();
+        // Should return [key, value] pair for first entry
+        assert!(result_str.contains("a"), "Should contain key 'a'");
+        assert!(result_str.contains("1"), "Should contain value 1");
     }
 }
