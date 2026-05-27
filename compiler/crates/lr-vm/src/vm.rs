@@ -78,6 +78,21 @@ pub struct VM {
 }
 
 impl VM {
+    fn find_closure_return(code: &[Instruction], body_start: usize) -> usize {
+        let mut pc = body_start;
+        while pc < code.len() {
+            match code[pc].opcode() {
+                Opcode::MakeClosure => {
+                    let nested_body = (code[pc].b() as usize) | ((code[pc].c() as usize) << 8);
+                    pc = Self::find_closure_return(code, nested_body) + 1;
+                }
+                Opcode::Return => return pc,
+                _ => pc += 1,
+            }
+        }
+        pc
+    }
+
     pub fn new() -> Self {
         Self {
             arena: gc_arena::Arena::<Rootable![VMRoot<'_>]>::new(|_| VMRoot {
@@ -1211,9 +1226,10 @@ impl VM {
                 }
                 Opcode::MakeClosure => {
                     let body_start = (inst.b() as usize) | ((inst.c() as usize) << 8);
-                    let max_arg = code[body_start..]
+                    let closure_end = Self::find_closure_return(code, body_start);
+
+                    let max_arg = code[body_start..closure_end]
                         .iter()
-                        .take_while(|i| i.opcode() != Opcode::Return)
                         .filter(|i| i.opcode() == Opcode::LoadArg)
                         .map(|i| i.b())
                         .max()
@@ -1222,11 +1238,7 @@ impl VM {
                     let closure_data = ClosureData { body_start, arg_count };
                     let closure = Value::Closure(Gc::new(mc, closure_data));
                     frame.set(inst.a(), closure);
-                    frame.pc = body_start;
-                    while frame.pc() < code.len() && code[frame.pc()].opcode() != Opcode::Return {
-                        frame.advance();
-                    }
-                    frame.advance();
+                    frame.pc = closure_end + 1;
                 }
                 Opcode::LoadArg => {
                     let arg_idx = inst.b() as usize;
