@@ -308,7 +308,19 @@ impl Compiler {
         });
         let has_arg_refs = has_arg_keys || has_arg_values;
 
-        if has_arg_refs {
+        let non_arg_entries: Vec<_> = m.entries.iter()
+            .filter(|e| !matches!(e.key, Expression::LeftArg(_) | Expression::RightArg(_)))
+            .collect();
+        let is_program = if !non_arg_entries.is_empty() {
+            let last_idx = non_arg_entries.len() - 1;
+            non_arg_entries[last_idx].is_expression_key
+                && non_arg_entries[last_idx].value.is_none()
+                && non_arg_entries[..last_idx].iter().any(|e| e.is_assignment)
+        } else {
+            false
+        };
+
+        if has_arg_refs && !is_program {
             self.push_scope();
 
             let arg_count = if m.entries.iter().any(|e| {
@@ -322,10 +334,6 @@ impl Compiler {
 
             let make_closure_inst_idx = self.chunk.code.len();
             self.chunk.emit(Instruction::new(Opcode::MakeClosure, dest, 0, arg_count));
-
-            let non_arg_entries: Vec<_> = m.entries.iter()
-                .filter(|e| !matches!(e.key, Expression::LeftArg(_) | Expression::RightArg(_)))
-                .collect();
 
             if non_arg_entries.is_empty() {
                 let mut last_value_reg = 0u8;
@@ -388,6 +396,11 @@ impl Compiler {
 
                 self.free_register();
             } else {
+                let last_non_arg_idx = non_arg_entries.len() - 1;
+                let is_program = non_arg_entries[last_non_arg_idx].is_expression_key
+                    && non_arg_entries[last_non_arg_idx].value.is_none()
+                    && non_arg_entries[..last_non_arg_idx].iter().any(|e| e.is_assignment);
+
                 let first_key_reg = self.alloc_register()?;
                 self.compile_expression(&non_arg_entries[0].key, first_key_reg)?;
 
@@ -404,7 +417,13 @@ impl Compiler {
                     }
                 }
 
-                for entry in &non_arg_entries[1..] {
+                let entries_to_compile = if is_program {
+                    &non_arg_entries[1..last_non_arg_idx]
+                } else {
+                    &non_arg_entries[1..]
+                };
+
+                for entry in entries_to_compile {
                     let key_reg = self.alloc_register()?;
                     self.compile_expression(&entry.key, key_reg)?;
 
@@ -432,21 +451,28 @@ impl Compiler {
                     }
                 }
 
-                let all_expr_keys = non_arg_entries.iter().all(|e| {
-                    !matches!(e.key, Expression::Identifier(_)) && e.value.is_none()
-                });
-
-                if all_expr_keys {
+                if is_program {
+                    let last_reg = self.alloc_register()?;
+                    self.compile_expression(&non_arg_entries[last_non_arg_idx].key, last_reg)?;
+                    self.chunk.emit(Instruction::new(Opcode::Return, last_reg, 0, 0));
                     self.free_register();
-                    self.chunk.emit(Instruction::new(Opcode::Return, first_key_reg, 0, 0));
                 } else {
-                    let entry_count = non_arg_entries.len() as u8;
-                    self.chunk.emit(Instruction::new(Opcode::MapBuild, 0, first_key_reg, entry_count));
+                    let all_expr_keys = non_arg_entries.iter().all(|e| {
+                        !matches!(e.key, Expression::Identifier(_)) && e.value.is_none()
+                    });
 
-                    for _ in 0..non_arg_entries.len() * 2 {
+                    if all_expr_keys {
                         self.free_register();
+                        self.chunk.emit(Instruction::new(Opcode::Return, first_key_reg, 0, 0));
+                    } else {
+                        let entry_count = non_arg_entries.len() as u8;
+                        self.chunk.emit(Instruction::new(Opcode::MapBuild, 0, first_key_reg, entry_count));
+
+                        for _ in 0..non_arg_entries.len() * 2 {
+                            self.free_register();
+                        }
+                        self.chunk.emit(Instruction::new(Opcode::Return, 0, 0, 0));
                     }
-                    self.chunk.emit(Instruction::new(Opcode::Return, 0, 0, 0));
                 }
             }
 
@@ -463,45 +489,76 @@ impl Compiler {
             if m.entries.is_empty() {
                 self.chunk.emit(Instruction::new(Opcode::MapNew, dest, 0, 0));
             } else {
-                let first_key_reg = self.alloc_register()?;
-                self.compile_expression(&m.entries[0].key, first_key_reg)?;
+                let last_idx = m.entries.len() - 1;
+                let is_program = m.entries[last_idx].is_expression_key
+                    && m.entries[last_idx].value.is_none()
+                    && m.entries[..last_idx].iter().any(|e| e.is_assignment);
 
-                let first_value_reg = self.alloc_register()?;
-                if let Some(ref value) = m.entries[0].value {
-                    self.compile_expression(value, first_value_reg)?;
-                } else {
-                    self.chunk.emit(Instruction::new(Opcode::LoadRegister, first_value_reg, first_key_reg, 0));
-                }
+                if is_program {
+                    let mut last_reg = 0u8;
+                    for entry in &m.entries {
+                        if let Some(ref value) = entry.value {
+                            let key_reg = self.alloc_register()?;
+                            self.compile_expression(&entry.key, key_reg)?;
+                            let value_reg = self.alloc_register()?;
+                            self.compile_expression(value, value_reg)?;
 
-                if m.entries[0].is_assignment {
-                    if let Expression::Identifier(ref ident) = m.entries[0].key {
-                        self.bind_name(&ident.name, first_value_reg)?;
-                    }
-                }
-
-                for entry in &m.entries[1..] {
-                    let key_reg = self.alloc_register()?;
-                    self.compile_expression(&entry.key, key_reg)?;
-
-                    let value_reg = self.alloc_register()?;
-                    if let Some(ref value) = entry.value {
-                        self.compile_expression(value, value_reg)?;
-                    } else {
-                        self.chunk.emit(Instruction::new(Opcode::LoadRegister, value_reg, key_reg, 0));
-                    }
-
-                    if entry.is_assignment {
-                        if let Expression::Identifier(ref ident) = entry.key {
-                            self.bind_name(&ident.name, value_reg)?;
+                            if entry.is_assignment {
+                                if let Expression::Identifier(ref ident) = entry.key {
+                                    self.bind_name(&ident.name, value_reg)?;
+                                }
+                            }
+                            last_reg = value_reg;
+                        } else {
+                            let key_reg = self.alloc_register()?;
+                            self.compile_expression(&entry.key, key_reg)?;
+                            last_reg = key_reg;
                         }
                     }
-                }
+                    if last_reg != dest {
+                        self.chunk.emit(Instruction::new(Opcode::LoadRegister, dest, last_reg, 0));
+                    }
+                } else {
+                    let first_key_reg = self.alloc_register()?;
+                    self.compile_expression(&m.entries[0].key, first_key_reg)?;
 
-                let entry_count = m.entries.len() as u8;
-                self.chunk.emit(Instruction::new(Opcode::MapBuild, dest, first_key_reg, entry_count));
+                    let first_value_reg = self.alloc_register()?;
+                    if let Some(ref value) = m.entries[0].value {
+                        self.compile_expression(value, first_value_reg)?;
+                    } else {
+                        self.chunk.emit(Instruction::new(Opcode::LoadRegister, first_value_reg, first_key_reg, 0));
+                    }
 
-                for _ in 0..m.entries.len() * 2 {
-                    self.free_register();
+                    if m.entries[0].is_assignment {
+                        if let Expression::Identifier(ref ident) = m.entries[0].key {
+                            self.bind_name(&ident.name, first_value_reg)?;
+                        }
+                    }
+
+                    for entry in &m.entries[1..] {
+                        let key_reg = self.alloc_register()?;
+                        self.compile_expression(&entry.key, key_reg)?;
+
+                        let value_reg = self.alloc_register()?;
+                        if let Some(ref value) = entry.value {
+                            self.compile_expression(value, value_reg)?;
+                        } else {
+                            self.chunk.emit(Instruction::new(Opcode::LoadRegister, value_reg, key_reg, 0));
+                        }
+
+                        if entry.is_assignment {
+                            if let Expression::Identifier(ref ident) = entry.key {
+                                self.bind_name(&ident.name, value_reg)?;
+                            }
+                        }
+                    }
+
+                    let entry_count = m.entries.len() as u8;
+                    self.chunk.emit(Instruction::new(Opcode::MapBuild, dest, first_key_reg, entry_count));
+
+                    for _ in 0..m.entries.len() * 2 {
+                        self.free_register();
+                    }
                 }
             }
 
