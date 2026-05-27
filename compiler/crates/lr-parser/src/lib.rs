@@ -159,8 +159,6 @@ impl Parser {
             TokenKind::OpenBrace => {
                 let mut entries = Vec::new();
                 let start = token.span.start;
-                
-                let use_expression_keys = self.contains_arg_tokens(self.current);
 
                 loop {
                     if let Some(TokenKind::CloseBrace) = self.peek_kind() {
@@ -172,11 +170,7 @@ impl Parser {
                         self.consume(TokenKind::Comma)?;
                     }
 
-                    let key = if use_expression_keys {
-                        self.parse_expression()?
-                    } else {
-                        self.parse_primary()?
-                    };
+                    let key = self.parse_expression()?;
 
                     let mut is_assignment = false;
                     let mut is_expression_key = false;
