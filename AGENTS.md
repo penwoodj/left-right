@@ -39,3 +39,15 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 - **Paradigm**: Point-free, operator-based, array-oriented, loosely typed
 - **Targets**: Transpiles to both JavaScript and Rust
 - **Transpiler**: Written in Rust
+
+## Design Rules (MUST follow)
+
+**Source of truth**: `docs/translations/javascript/` — 4 files (2 .lr + 2 .js). When in doubt, check these. Full rules at `docs/specs/implementation-corrections.md`.
+
+1. **No unary negation** — `-5` is invalid. Use `0 - 5`. `-` is diadic only.
+2. **`_<` = value from the left** — Closures with `_<` must have data to their left. `{ _< + 1 } 5` errors. `5 { _< + 1 }` works.
+3. **Data-first** — Data appears left, operators right. `entities removePrivateIps` not `removePrivateIps(entities)`.
+4. **Strict left-to-right** — No operator precedence. `1 + 2 * 3` = `(1 + 2) * 3` = 9.
+5. **`+` is polymorphic** — Adds numbers, concats strings/lists, merges maps. No `++` operator. Either operand being string triggers toString coercion.
+6. **`@` is get** — Property access requires `@`: `options@`key`` or `{ a: 1 } @ `a``. No bare key access.
+7. **Program maps data-first** — `{ double: { _< * 2 }, 7 double }` not `{ double: { _< * 2 }, double 7 }`.
