@@ -1,4 +1,4 @@
-use crate::value::{ClosureData, Value};
+use crate::value::{ClosureData, PartialClosureData, Value};
 use gc_arena::{Collect, Gc, Mutation, Rootable};
 use lr_bytecode::{Chunk, Constant, Instruction, Opcode};
 use std::collections::HashMap;
@@ -146,10 +146,16 @@ impl VM {
         body_start: usize,
         arg_count: u8,
         arg: Value<'a>,
+        right_arg: Option<Value<'a>>,
     ) -> Result<Value<'a>, VMError> {
         let mut closure_frame = Frame::new();
         if arg_count >= 1 {
             closure_frame.set_arg(0, arg);
+        }
+        if arg_count >= 2 {
+            if let Some(ra) = right_arg {
+                closure_frame.set_arg(1, ra);
+            }
         }
         closure_frame.pc = body_start;
         self.run_dispatch(mc, &mut closure_frame, code, constants)
@@ -229,10 +235,33 @@ impl VM {
 
                     let result = match (&left, &right) {
                         (Value::Closure(closure_data), arg) => {
-                            self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, *arg)?
+                            if closure_data.arg_count >= 2 {
+                                // Diadic closure called with one arg → return PartialClosure
+                                // The left operand was already consumed; this is the right operand
+                                Value::PartialClosure(Gc::new(mc, PartialClosureData {
+                                    body_start: closure_data.body_start,
+                                    arg_count: closure_data.arg_count,
+                                    bound_left: *arg,
+                                }))
+                            } else {
+                                self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, *arg, None)?
+                            }
                         }
                         (arg, Value::Closure(closure_data)) => {
-                            self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, *arg)?
+                            if closure_data.arg_count >= 2 {
+                                // Diadic closure: left arg is bound, awaiting right arg
+                                Value::PartialClosure(Gc::new(mc, PartialClosureData {
+                                    body_start: closure_data.body_start,
+                                    arg_count: closure_data.arg_count,
+                                    bound_left: *arg,
+                                }))
+                            } else {
+                                self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, *arg, None)?
+                            }
+                        }
+                        (Value::PartialClosure(pc), right_arg) => {
+                            // Execute body with both args: bound_left as arg[0], right_arg as arg[1]
+                            self.run_closure_body(mc, code, constants, pc.body_start, pc.arg_count, pc.bound_left, Some(*right_arg))?
                         }
                         (Value::Map(entries), _) => {
                             if entries.iter().any(|(k, _)| {

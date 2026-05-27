@@ -8,6 +8,14 @@ pub struct ClosureData {
     pub arg_count: u8,
 }
 
+#[derive(Debug, Clone, Collect)]
+#[collect(no_drop)]
+pub struct PartialClosureData<'gc> {
+    pub body_start: usize,
+    pub arg_count: u8,
+    pub bound_left: Value<'gc>,
+}
+
 #[derive(Debug, Copy, Clone, Collect)]
 #[collect(no_drop)]
 pub enum Value<'gc> {
@@ -20,6 +28,7 @@ pub enum Value<'gc> {
     Operator(Gc<'gc, OperatorData>),
     PartialOperator(Gc<'gc, PartialOperatorData<'gc>>),
     Closure(Gc<'gc, ClosureData>),
+    PartialClosure(Gc<'gc, PartialClosureData<'gc>>),
 }
 
 #[derive(Debug, Clone, Collect)]
@@ -83,6 +92,7 @@ impl<'gc> Value<'gc> {
             Value::Operator(_) => true,
             Value::PartialOperator(_) => true,
             Value::Closure(_) => true,
+            Value::PartialClosure(_) => true,
         }
     }
 
@@ -97,6 +107,7 @@ impl<'gc> Value<'gc> {
             Value::Operator(_) => "operator",
             Value::PartialOperator(_) => "partial_operator",
             Value::Closure(_) => "closure",
+            Value::PartialClosure(_) => "partial_closure",
         }
     }
 
@@ -181,6 +192,7 @@ impl<'gc> fmt::Display for Value<'gc> {
             Value::Operator(op) => write!(f, "<operator:{}>", op.name),
             Value::PartialOperator(op) => write!(f, "<partial_operator:{}>", op.name),
             Value::Closure(c) => write!(f, "<closure:@{} args={}>", c.body_start, c.arg_count),
+            Value::PartialClosure(pc) => write!(f, "<partial_closure:@{} args={}>", pc.body_start, pc.arg_count),
         }
     }
 }
