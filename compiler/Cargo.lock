@@ -542,6 +542,7 @@ dependencies = [
  "gc-arena",
  "lr-bytecode",
  "proptest",
+ "serde_json",
  "thiserror",
 ]
 

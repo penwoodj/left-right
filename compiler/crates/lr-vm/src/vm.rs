@@ -476,6 +476,12 @@ impl VM {
                                 }
                                 "?\"" => Value::boolean(mc, true),
                                 "?#" => Value::boolean(mc, false),
+                                "/json" => {
+                                    match serde_json::from_str::<serde_json::Value>(&s) {
+                                        Ok(json_val) => json_to_lr_value(mc, &json_val),
+                                        Err(e) => return Err(VMError::Runtime(format!("JSON parse error: {}", e))),
+                                    }
+                                }
                                 _ => {
                                     return Err(VMError::Runtime(format!(
                                         "Unknown operator for strings: {}",
@@ -1903,6 +1909,32 @@ pub enum VMError {
     Runtime(String),
 }
 
+fn json_to_lr_value<'gc>(mc: &Mutation<'gc>, val: &serde_json::Value) -> Value<'gc> {
+    match val {
+        serde_json::Value::Null => Value::undefined(),
+        serde_json::Value::Bool(b) => Value::boolean(mc, *b),
+        serde_json::Value::Number(n) => {
+            if let Some(f) = n.as_f64() {
+                Value::number(f)
+            } else {
+                Value::number(0.0)
+            }
+        }
+        serde_json::Value::String(s) => Value::string(mc, s.clone()),
+        serde_json::Value::Array(arr) => {
+            let items: Vec<Value<'gc>> = arr.iter().map(|v| json_to_lr_value(mc, v)).collect();
+            Value::list(mc, items)
+        }
+        serde_json::Value::Object(map) => {
+            let entries: Vec<(Value<'gc>, Value<'gc>)> = map
+                .iter()
+                .map(|(k, v)| (Value::string(mc, k.to_string()), json_to_lr_value(mc, v)))
+                .collect();
+            Value::map(mc, entries)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2856,5 +2888,80 @@ mod tests {
         let result = vm.execute(&chunk);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "[1, 2]");
+    }
+
+    #[test]
+    fn test_json_parse_object() {
+        let chunk = build_chunk(|c| {
+            let idx_json_str = c.add_constant(Constant::String(r#"{"a":1,"b":"hello"}"#.to_string())).unwrap();
+            let idx_json_op = c.add_constant(Constant::String("/json".to_string())).unwrap();
+
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx_json_str));
+            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_json_op));
+            c.emit(Instruction::new(Opcode::Call, 3, 1, 2));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 3, 0));
+            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
+        });
+
+        let mut vm = VM::new();
+        let result = vm.execute(&chunk);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "{a: 1, b: hello}");
+    }
+
+    #[test]
+    fn test_json_parse_array() {
+        let chunk = build_chunk(|c| {
+            let idx_json_str = c.add_constant(Constant::String("[1,2,3]".to_string())).unwrap();
+            let idx_json_op = c.add_constant(Constant::String("/json".to_string())).unwrap();
+
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx_json_str));
+            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_json_op));
+            c.emit(Instruction::new(Opcode::Call, 3, 1, 2));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 3, 0));
+            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
+        });
+
+        let mut vm = VM::new();
+        let result = vm.execute(&chunk);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[1, 2, 3]");
+    }
+
+    #[test]
+    fn test_json_parse_nested() {
+        let chunk = build_chunk(|c| {
+            let idx_json_str = c.add_constant(Constant::String(r#"{"users":[{"name":"alice"},{"name":"bob"}]}"#.to_string())).unwrap();
+            let idx_json_op = c.add_constant(Constant::String("/json".to_string())).unwrap();
+
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx_json_str));
+            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_json_op));
+            c.emit(Instruction::new(Opcode::Call, 3, 1, 2));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 3, 0));
+            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
+        });
+
+        let mut vm = VM::new();
+        let result = vm.execute(&chunk);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "{users: [{name: alice}, {name: bob}]}");
+    }
+
+    #[test]
+    fn test_json_parse_error() {
+        let chunk = build_chunk(|c| {
+            let idx_json_str = c.add_constant(Constant::String("not json".to_string())).unwrap();
+            let idx_json_op = c.add_constant(Constant::String("/json".to_string())).unwrap();
+
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx_json_str));
+            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_json_op));
+            c.emit(Instruction::new(Opcode::Call, 3, 1, 2));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 3, 0));
+            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
+        });
+
+        let mut vm = VM::new();
+        let result = vm.execute(&chunk);
+        assert!(result.is_err());
     }
 }

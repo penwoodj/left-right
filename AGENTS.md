@@ -60,10 +60,10 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 
 | Layer | Count | Runner |
 |-------|-------|--------|
-| Rust unit/e2e | 373 (2 ignored) | `cargo test` in `compiler/` |
+| Rust unit/e2e | 377 (2 ignored) | `cargo test` in `compiler/` |
 | CLI integration | 86 | `lr test` from `crates/lr-cli/` |
 | Live system | 125 | `compiler/tests/live_runner.sh` |
-| **Total** | **584** | |
+| **Total** | **588** | |
 
 ### Fully Verified Features (all 3 layers)
 
@@ -132,7 +132,7 @@ These are spec features with no runtime implementation:
 | `}@&[...]` export | Parser recognizes pattern | No export runtime |
 | Method calls `obj method [args]` | No infrastructure | No parser AST, no VM dispatch |
 | Constructor `Type[args]` | Partial (Error[] works) | No general constructor dispatch |
-| JSON parse `/json` | No infrastructure | No JSON parser in VM |
+| JSON parse `/json` | Implemented | serde_json in lr-vm, VM String operator dispatch, 4 unit tests. No CLI/live tests — LR string literals can't contain `"` (triggers interpolation). Works with runtime strings only (e.g., HTTP response bodies). |
 | `?:` early return | Guards work for truthiness | Early return from program not implemented |
 
 ### Test Infrastructure
