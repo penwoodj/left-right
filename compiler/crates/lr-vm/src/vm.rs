@@ -193,6 +193,8 @@ impl VM {
                     "!!" => Ok(Value::partial_operator(mc, "!!".to_string(), *left)),
                     "-" => Ok(Value::partial_operator(mc, "-".to_string(), *left)),
                     "+" => Ok(Value::partial_operator(mc, "+".to_string(), *left)),
+                    "==" | "=" => Ok(Value::partial_operator(mc, op_name.to_string(), *left)),
+                    "!=" => Ok(Value::partial_operator(mc, "!=".to_string(), *left)),
                     _ => Err(VMError::TypeError(format!(
                         "Unknown map operator: {}", op_name
                     ))),
@@ -893,6 +895,52 @@ impl VM {
                                                 Value::boolean(mc, eq)
                                             }
                                         }
+                                        (Value::Map(left_entries), Value::Map(right_entries), "==" | "=") => {
+                                            if left_entries.len() != right_entries.len() {
+                                                Value::boolean(mc, false)
+                                            } else {
+                                                let eq = left_entries.iter().all(|(k, v)| {
+                                                    right_entries.iter().any(|(rk, rv)| {
+                                                        let keys_match = match (k, rk) {
+                                                            (Value::String(a), Value::String(b)) => a == b,
+                                                            _ => false,
+                                                        };
+                                                        if !keys_match { return false; }
+                                                        match (v, rv) {
+                                                            (Value::Number(a), Value::Number(b)) => a == b,
+                                                            (Value::Boolean(a), Value::Boolean(b)) => a == b,
+                                                            (Value::String(a), Value::String(b)) => a == b,
+                                                            (Value::Undefined, Value::Undefined) => true,
+                                                            _ => false,
+                                                        }
+                                                    })
+                                                });
+                                                Value::boolean(mc, eq)
+                                            }
+                                        }
+                                        (Value::Map(left_entries), Value::Map(right_entries), "!=") => {
+                                            if left_entries.len() != right_entries.len() {
+                                                Value::boolean(mc, true)
+                                            } else {
+                                                let eq = left_entries.iter().all(|(k, v)| {
+                                                    right_entries.iter().any(|(rk, rv)| {
+                                                        let keys_match = match (k, rk) {
+                                                            (Value::String(a), Value::String(b)) => a == b,
+                                                            _ => false,
+                                                        };
+                                                        if !keys_match { return false; }
+                                                        match (v, rv) {
+                                                            (Value::Number(a), Value::Number(b)) => a == b,
+                                                            (Value::Boolean(a), Value::Boolean(b)) => a == b,
+                                                            (Value::String(a), Value::String(b)) => a == b,
+                                                            (Value::Undefined, Value::Undefined) => true,
+                                                            _ => false,
+                                                        }
+                                                    })
+                                                });
+                                                Value::boolean(mc, !eq)
+                                            }
+                                        }
                                         (Value::List(items), value, "?><") => {
                                             let contains = items.iter().any(|item| item.deep_eq(&value));
                                             Value::boolean(mc, contains)
@@ -937,6 +985,8 @@ impl VM {
                                                 (Value::Number(v), "<=") => *v <= *n,
                                                 (Value::Number(v), "=" | "==") => *v == *n,
                                                 (Value::Number(v), "!=") => *v != *n,
+                                                (Value::Number(v), "+") => *v > *n,  // $?+ = filter where > n
+                                                (Value::Number(v), "-") => *v < *n,  // $?- = filter where < n
                                                 _ => false,
                                             }).copied().collect();
                                             Value::list(mc, result)

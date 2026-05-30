@@ -843,30 +843,27 @@ impl Compiler {
     }
 
     fn compile_catch_expression(&mut self, c: &CatchExpression, dest: u8) -> Result<(), CompilerError> {
-        // Compile the try expression (operator)
-        let try_result = self.alloc_register()?;
-        self.compile_expression(&c.operator, try_result)?;
-
-        // Store try result in dest if no error
-        self.chunk.emit(Instruction::new(Opcode::LoadRegister, dest, try_result, 0));
-
-        // Emit Catch opcode - handler will be compiled next
-        // Catch format: Catch(dest_reg, handler_jump_offset)
-        // We'll use a placeholder jump that we patch later
         let catch_pos = self.chunk.code.len();
         self.chunk.emit(Instruction::new(Opcode::Catch, dest, 0, 0));
 
-        // Compile the catch handler
-        self.compile_expression(&c.handler, dest)?;
+        let try_result = self.alloc_register()?;
+        self.compile_expression(&c.operator, try_result)?;
 
-        // Emit CatchEnd
+        self.chunk.emit(Instruction::new(Opcode::LoadRegister, dest, try_result, 0));
+
+        let jump_past_pos = self.chunk.code.len();
+        self.chunk.emit(Instruction::new(Opcode::Jump, 0, 0, 0));
+
         self.chunk.emit(Instruction::new(Opcode::CatchEnd, 0, 0, 0));
 
-        // Patch the Catch instruction with the jump offset to handler
-        // The handler starts at catch_pos + 1
-        let handler_offset = 1;
-        let patched_inst = Instruction::new(Opcode::Catch, dest, handler_offset as u8, 0);
-        self.chunk.code[catch_pos] = patched_inst;
+        let handler_start_pos = self.chunk.code.len();
+        self.compile_expression(&c.handler, dest)?;
+
+        let handler_offset = (handler_start_pos - catch_pos) as u8;
+        self.chunk.code[catch_pos] = Instruction::new(Opcode::Catch, dest, handler_offset, 0);
+
+        let jump_distance = self.chunk.code.len() - jump_past_pos;
+        self.chunk.code[jump_past_pos] = Instruction::new(Opcode::Jump, jump_distance as u8, 0, 0);
 
         self.free_register();
         Ok(())
@@ -2381,5 +2378,53 @@ mod tests {
         let result = compile_and_run("6 <= 5");
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_map_equality_same() {
+        let result = compile_and_run("{ a: 1, b: 2 } = { a: 1, b: 2 }").unwrap();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_map_equality_different() {
+        let result = compile_and_run("{ a: 1 } = { a: 2 }").unwrap();
+        assert_eq!(result, "false");
+    }
+
+    #[test]
+    fn test_map_equality_different_keys() {
+        let result = compile_and_run("{ a: 1 } = { b: 1 }").unwrap();
+        assert_eq!(result, "false");
+    }
+
+    #[test]
+    fn test_map_inequality() {
+        let result = compile_and_run("{ a: 1 } != { a: 2 }").unwrap();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_catch_runtime() {
+        let result = compile_and_run("`hello` !!! !!!? `caught`").unwrap();
+        assert_eq!(result, "caught");
+    }
+
+    #[test]
+    fn test_catch_no_error() {
+        let result = compile_and_run("5 !!!? `caught`").unwrap();
+        assert_eq!(result, "5");
+    }
+
+    #[test]
+    fn test_filter_plus() {
+        let result = compile_and_run("[1, 2, 3, 4, 5] $?+ 3").unwrap();
+        assert_eq!(result, "[4, 5]");
+    }
+
+    #[test]
+    fn test_filter_minus() {
+        let result = compile_and_run("[1, 2, 3, 4, 5] $?- 3").unwrap();
+        assert_eq!(result, "[1, 2]");
     }
 }

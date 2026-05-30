@@ -24,9 +24,21 @@
 - `$`, `$?`, `$|`, `$&`, `$_`, `$~`, `$>`, `$%` — map, filter, some, every, flatmap, uniqueBy, groupBy, sort
 - `"^`, `"_`, `"^_`, `"~`, `<>`, `><` — uppercase, lowercase, capitalize, replace, split, join
 - `&`, `|`, `!`, `?` — AND, OR/default, negate, truthy
-- `!!!`, `!!!?`, `?:` — throw, try/catch, early return
-- `///`, `\\\` — async, await
+- `!!!`, `!!!?`, `?:` — throw, try/catch, guard
+- `!!`, `#:` — optional apply, size conditional
+- `?:`, `$?+`, `$?-`, `$?>`, `$?<` — guards, filter comparisons
+- `$@`, `$"` — map-each-property, each-to-string
+- `+:` — spread/merge into maps
+- `Error[expr]` — error value constructor
 - Standard arithmetic: `+`, `-`, `*`, `/`, `%`, `^`, `>`, `<`, `>=`, `<=`, `=`, `!=`
+
+### Not Yet Implemented
+
+- `///`, `\\\` — async/await (stub only)
+- Import/export system (`imports@`, `files@`, `}@&`)
+- Method calls (`obj method [args]`)
+- Constructor syntax (`Type[args]`)
+- JSON parsing (`/json`)
 
 ### Closures
 
