@@ -58,7 +58,7 @@ impl Parser {
         Err(ParseError::UnexpectedEOF(Span::at(self.current as u32)))
     }
 
-    fn contains_arg_tokens(&self, start_pos: usize) -> bool {
+    fn _contains_arg_tokens(&self, start_pos: usize) -> bool {
         let mut depth = 1;
         let mut pos = start_pos;
         while depth > 0 && pos < self.tokens.len() {

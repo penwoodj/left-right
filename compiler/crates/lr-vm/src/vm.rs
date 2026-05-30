@@ -189,6 +189,7 @@ impl VM {
                     "@" => Ok(Value::partial_operator(mc, "@".to_string(), *left)),
                     "#" => Ok(Value::number(entries.len() as f64)),
                     "?" => Ok(Value::partial_operator(mc, "?".to_string(), *left)),
+                    "!" => Ok(Value::boolean(mc, !left.is_truthy())),
                     "!!" => Ok(Value::partial_operator(mc, "!!".to_string(), *left)),
                     "-" => Ok(Value::partial_operator(mc, "-".to_string(), *left)),
                     "+" => Ok(Value::partial_operator(mc, "+".to_string(), *left)),
@@ -456,6 +457,7 @@ impl VM {
                                 "+" | "<>" | "><" | "~" | "==" | "=" | "!=" | "?><" => Value::partial_operator(mc, op_name.to_string(), Value::string(mc, s.to_string())),
                                 "_" => Value::string(mc, s.to_lowercase()),
                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::string(mc, s.to_string())),
+                                "!" => Value::boolean(mc, !Value::string(mc, s.to_string()).is_truthy()),
                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::string(mc, s.to_string())),
                                 "!!" => Value::partial_operator(mc, "!!".to_string(), Value::string(mc, s.to_string())),
                                 "^" => Value::string(mc, s.to_uppercase()),
@@ -482,6 +484,7 @@ impl VM {
                                 "@" => Value::partial_operator(mc, "@".to_string(), Value::List(*l)),
                                 "#" => Value::number(l.len() as f64),
                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::List(*l)),
+                                "!" => Value::boolean(mc, !Value::List(*l).is_truthy()),
                                 "!!" => Value::partial_operator(mc, "!!".to_string(), Value::List(*l)),
                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::List(*l)),
                                 "+" | "_" => Value::partial_operator(mc, op_name.to_string(), Value::list(mc, l.as_ref().clone())),
@@ -498,7 +501,7 @@ impl VM {
                                 "$>" => Value::partial_operator(mc, "$>".to_string(), Value::List(*l)),
                                 "$%" => Value::partial_operator(mc, "$%".to_string(), Value::List(*l)),
                                 "$@" => Value::partial_operator(mc, "$@".to_string(), Value::List(*l)),
-                                "$+" | "$-" | "$*" | "$/" | "$%" => Value::partial_operator(mc, op_name.to_string(), Value::List(*l)),
+                                "$+" | "$-" | "$*" | "$/" => Value::partial_operator(mc, op_name.to_string(), Value::List(*l)),
                                 "$?>" | "$?<" | "$?>=" | "$?<=" | "$?+" | "$?-" => Value::partial_operator(mc, op_name.to_string(), Value::List(*l)),
                                 "$?!" => {
                                     let filtered: Vec<Value<'a>> = l.iter().filter(|v| !matches!(v, Value::Undefined)).copied().collect();
@@ -543,6 +546,7 @@ impl VM {
                                 "&" => Value::partial_operator(mc, "&".to_string(), Value::Number(*n)),
                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::Number(*n)),
                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::Number(*n)),
+                                "!" => Value::boolean(mc, !Value::Number(*n).is_truthy()),
                                 "!!" => Value::partial_operator(mc, "!!".to_string(), Value::Number(*n)),
                                 "?\"" => Value::boolean(mc, false),
                                 "?#" => Value::boolean(mc, true),
@@ -568,6 +572,7 @@ impl VM {
                         }
                         (Value::Boolean(b), Value::String(op_name)) => {
                             match op_name.as_str() {
+                                "!" => Value::boolean(mc, !Value::boolean(mc, *b).is_truthy()),
                                 "&" | "|" | "?" | "!!" => Value::partial_operator(mc, op_name.to_string(), Value::boolean(mc, *b)),
                                 "?\"" => Value::boolean(mc, false), // booleans are not strings
                                 "?#" => Value::boolean(mc, false), // booleans are not numbers

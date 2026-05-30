@@ -825,7 +825,7 @@ impl Compiler {
     }
 
     fn compile_export_expression(&mut self, e: &ExportExpression, dest: u8) -> Result<(), CompilerError> {
-        for (idx, key) in e.keys.iter().enumerate() {
+        for (_idx, key) in e.keys.iter().enumerate() {
             let const_idx = self.chunk.add_constant(Constant::String(key.clone()))?;
             self.chunk.emit(Instruction::new(Opcode::LoadConstant, dest, 0, const_idx));
         }
@@ -2251,6 +2251,134 @@ mod tests {
     #[test]
     fn test_list_contains_missing() {
         let result = compile_and_run("[1, 2, 3] ?>< 99");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    // === Additional coverage: arithmetic, boolean, default, negation ===
+
+    #[test]
+    fn test_power_operator() {
+        let result = compile_and_run("2 ^ 3");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "8");
+    }
+
+    #[test]
+    fn test_negation_operator() {
+        let result = compile_and_run("true !");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_negation_false() {
+        let result = compile_and_run("false !");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_negation_number_truthy() {
+        let result = compile_and_run("5 !");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_negation_number_zero() {
+        let result = compile_and_run("0 !");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_negation_string() {
+        let result = compile_and_run("`hello` !");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_negation_empty_string() {
+        let result = compile_and_run("`` !");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_negation_list() {
+        let result = compile_and_run("[1, 2] !");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_negation_empty_list() {
+        let result = compile_and_run("[] !");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_default_operator_truthy() {
+        let result = compile_and_run("5 | 10");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "5");
+    }
+
+    #[test]
+    fn test_default_operator_falsey() {
+        let result = compile_and_run("0 | 10");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "10");
+    }
+
+    #[test]
+    fn test_boolean_and_true() {
+        let result = compile_and_run("true & true");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_boolean_and_false() {
+        let result = compile_and_run("true & false");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_boolean_or_true() {
+        let result = compile_and_run("false | true");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_boolean_or_false() {
+        let result = compile_and_run("false | false");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_greater_than_equal() {
+        let result = compile_and_run("5 >= 5");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_less_than_equal() {
+        let result = compile_and_run("3 <= 5");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_less_than_equal_false() {
+        let result = compile_and_run("6 <= 5");
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "false");
     }
