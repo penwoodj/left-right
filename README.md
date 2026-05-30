@@ -39,8 +39,6 @@ Left-Right provides powerful operators for data transformation:
 - **Size**: `list #` — length of collection types (*list, map, or string*)
 - **Concat**: `[] + item` — concatenate collection types
 - **Spread**: `{ a: 1, +: { a:3, b:2 }, b: 4 }` -> `{ a:3, b:4 }` — spread into context
-- **Make Async**: `{ ... } ///` — marks closure as async (like JS async function)
-- **Await**: `promise \\\` — awaits promise resolution (like JS await)
 
 **String Operators:**
 - **Uppercase**: `` `hello` "^ `` → `` `HELLO` ``
@@ -61,6 +59,35 @@ Left-Right provides powerful operators for data transformation:
 - **ToBoolean**: `value ?` → truthy check
 - **Contains**: `list ?>< item` → true if item in list
 
+**Filter Comparison Operators:**
+- **Filter Greater**: `[1,2,3] $?> 2` → `[3]`
+- **Filter Less**: `[1,2,3] $?< 2` → `[1]`
+- **Filter Plus/Minus**: `[1,2,3] $?+ 2` → `[3]`, `[1,2,3] $?- 2` → `[1]`
+
+**Element-wise Operators:**
+- **Add**: `[1,2] $+ 3` → `[4,5]`
+- **Subtract**: `[5,6] $- 2` → `[3,4]`
+- **Multiply**: `[1,2] $* 3` → `[3,6]`
+- **Divide**: `[6,8] $/ 2` → `[3,4]`
+
+**Map-Each-Property:**
+- **Pluck**: `[{a:1},{a:2}] $@ \`a\`` → `[1,2]`
+
+**Error Handling:**
+- **Throw**: `` `error` !!! `` — throw error
+- **Catch**: `` `error` !!! !!!? `caught` `` — try/catch
+- **Error Constructor**: `` Error[\`message\`] `` — create error value
+
+**Optional Apply:**
+- **`!!`**: `value !!` — apply if truthy, return undefined if falsy
+
+**Guards:**
+- **`?:`**: `{ a: 1, a?: { 99 } }` — guard pattern, execute if truthy
+
+**Map Equality:**
+- **Equal**: `{ a: 1 } = { a: 1 }` → true
+- **Not Equal**: `{ a: 1 } != { a: 2 }` → true
+
 **List Operators:**
 - **Iterate**: `list $ { _< * 2 }` — transform each element
 - **Filter**: `list $? { _<  > 3 }` — keep elements matching condition
@@ -74,29 +101,6 @@ Left-Right provides powerful operators for data transformation:
 - **Compact**: `list $?!` — remove undefined/null values
 
 **Control Flow Operators:**
-- **Early Return**: `` { data: fetchResult, data ?: { log `no data` } } `` — guard pattern in object context
-- **Throw**: `` !!! `error` `` — throw error
-- **Catch**: `!!!? { tryBlock, catchBlock }` — try/catch
-
-**Numeric Operators:**
-- **Add**: `5 + 3` → 8
-- **Subtract**: `5 - 3` → 2
-- **Multiply**: `5 * 3` → 15
-- **Divide**: `6 / 3` → 2
-- **Modulo**: `5 % 3` → 2
-- **Power**: `2 ^ 3` → 8
-- **Greater Than**: `5 > 3` → true
-- **Less Than**: `5 < 3` → false
-- **Greater or Equal**: `5 >= 3` → true
-- **Less or Equal**: `5 <= 3` → false
-- **Equal**: `5 = 5` → true
-- **Not Equal**: `5 != 5` → false
-
-**Type Casting Operators:**
-- **ToBoolean**: `value ?` → truthy check
-- **ToString**: `` 5 " `` → `` `5` ``
-- **ToString (operator variant)**: `/?"` — converts to string
-- **JSON Parse**: `` `{}` /json `` → parse JSON string to value
 
 ### Defining Operators
 
