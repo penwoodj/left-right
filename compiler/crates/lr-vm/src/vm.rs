@@ -195,6 +195,7 @@ impl VM {
                     "+" => Ok(Value::partial_operator(mc, "+".to_string(), *left)),
                     "==" | "=" => Ok(Value::partial_operator(mc, op_name.to_string(), *left)),
                     "!=" => Ok(Value::partial_operator(mc, "!=".to_string(), *left)),
+                    "@&" => Ok(Value::partial_operator(mc, "@&".to_string(), *left)),
                     _ => Err(VMError::TypeError(format!(
                         "Unknown map operator: {}", op_name
                     ))),
@@ -974,6 +975,15 @@ impl VM {
                                                 });
                                                 Value::boolean(mc, !eq)
                                             }
+                                        }
+                                        (Value::Map(entries), Value::List(keys), "@&") => {
+                                            let picked: Vec<(Value<'a>, Value<'a>)> = entries.iter().filter(|(k, _)| {
+                                                keys.iter().any(|key| match (k, key) {
+                                                    (Value::String(a), Value::String(b)) => a == b,
+                                                    _ => false,
+                                                })
+                                            }).map(|(k, v)| (*k, *v)).collect();
+                                            Value::map(mc, picked)
                                         }
                                         (Value::List(items), value, "?><") => {
                                             let contains = items.iter().any(|item| item.deep_eq(&value));

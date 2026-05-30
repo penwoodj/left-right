@@ -2501,4 +2501,18 @@ mod tests {
         let result = compile_and_run("`hello` ? `yes`").unwrap();
         assert_eq!(result, "yes");
     }
+
+    #[test]
+    fn test_map_pick() {
+        let result = compile_and_run("{ a: 1, b: 2, c: 3 } @& [`a`, `c`]");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "{a: 1, c: 3}");
+    }
+
+    #[test]
+    fn test_map_pick_missing_key() {
+        let result = compile_and_run("{ a: 1, b: 2 } @& [`a`, `z`]");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "{a: 1}");
+    }
 }

@@ -270,7 +270,13 @@ impl Lexer<'_> {
                         '{' => TokenKind::OpenBrace,
                         '}' => TokenKind::CloseBrace,
                         '`' => TokenKind::Backtick,
-                        '@' => TokenKind::Identifier,
+                        '@' => {
+                            if self.peek() == Some(&'&') {
+                                self.next();
+                                return Ok(Some(Token::new(TokenKind::Identifier, "@&".to_string(), Span::new(start, self.position))));
+                            }
+                            TokenKind::Identifier
+                        }
                         '!' => {
                             if self.peek() == Some(&'!') {
                                 self.next();
