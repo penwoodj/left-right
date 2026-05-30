@@ -1210,9 +1210,15 @@ mod tests {
     }
 
     #[test]
-    fn test_e2e_basic_string() {
-        let result = compile_and_run("`hello`").unwrap();
-        assert_eq!(result, "hello");
+    fn test_negation_string_hello() {
+        let result = compile_and_run("`hello` !").unwrap();
+        assert_eq!(result, "false");
+    }
+
+    #[test]
+    fn test_negation_list_data_first() {
+        let result = compile_and_run("[1, 2] !").unwrap();
+        assert_eq!(result, "false");
     }
 
     #[test]
@@ -2464,5 +2470,35 @@ mod tests {
     fn test_string_remove() {
         let result = compile_and_run("`hello world` - `l`").unwrap();
         assert_eq!(result, "heo word");
+    }
+
+    #[test]
+    fn test_default_string_trivial() {
+        let result = compile_and_run("`hello` | `fallback`").unwrap();
+        assert_eq!(result, "hello");
+    }
+
+    #[test]
+    fn test_default_empty_string_fallback() {
+        let result = compile_and_run("`` | `fallback`").unwrap();
+        assert_eq!(result, "fallback");
+    }
+
+    #[test]
+    fn test_default_list_trivial() {
+        let result = compile_and_run("[1] | [2]").unwrap();
+        assert_eq!(result, "[1]");
+    }
+
+    #[test]
+    fn test_default_empty_list_fallback() {
+        let result = compile_and_run("[] | [2]").unwrap();
+        assert_eq!(result, "[2]");
+    }
+
+    #[test]
+    fn test_ternary_string_truthy() {
+        let result = compile_and_run("`hello` ? `yes`").unwrap();
+        assert_eq!(result, "yes");
     }
 }
