@@ -440,6 +440,7 @@ impl VM {
                                 "$~" => Value::partial_operator(mc, "$~".to_string(), Value::List(*l)),
                                 "$>" => Value::partial_operator(mc, "$>".to_string(), Value::List(*l)),
                                 "$%" => Value::partial_operator(mc, "$%".to_string(), Value::List(*l)),
+                                "$@" => Value::partial_operator(mc, "$@".to_string(), Value::List(*l)),
                                 "$?!" => {
                                     let filtered: Vec<Value<'a>> = l.iter().filter(|v| !matches!(v, Value::Undefined)).copied().collect();
                                     Value::list(mc, filtered)
@@ -637,6 +638,48 @@ impl VM {
                                             }).collect();
                                             Value::string(mc, joined)
                                         }
+                                        // $@ map-each-property: pluck single key from each map in list
+                                        (Value::List(items), Value::String(key), "$@") => {
+                                            let results: Vec<Value<'a>> = items.iter().map(|item| {
+                                                match item {
+                                                    Value::Map(entries) => {
+                                                        entries.iter()
+                                                            .find(|(k, _)| {
+                                                                if let Value::String(ks) = k { ks == key } else { false }
+                                                            })
+                                                            .map(|(_, v)| *v)
+                                                            .unwrap_or(Value::undefined())
+                                                    }
+                                                    _ => Value::undefined(),
+                                                }
+                                            }).collect();
+                                            Value::list(mc, results)
+                                        }
+                                        // $@ map-each-property: pluck multiple keys from each map in list
+                                        (Value::List(items), Value::List(keys), "$@") => {
+                                            let results: Vec<Value<'a>> = items.iter().map(|item| {
+                                                match item {
+                                                    Value::Map(entries) => {
+                                                        let filtered: Vec<(Value<'a>, Value<'a>)> = keys.iter()
+                                                            .filter_map(|key| {
+                                                                if let Value::String(ks) = key {
+                                                                    entries.iter()
+                                                                        .find(|(k, _)| {
+                                                                            if let Value::String(ek) = k { ek == ks } else { false }
+                                                                        })
+                                                                        .map(|(k, v)| (*k, *v))
+                                                                } else {
+                                                                    None
+                                                                }
+                                                            })
+                                                            .collect();
+                                                        Value::map(mc, filtered)
+                                                    }
+                                                    _ => Value::map(mc, vec![]),
+                                                }
+                                            }).collect();
+                                            Value::list(mc, results)
+                                        }
                                         (Value::Map(entries), Value::String(key), "@") => {
                                             entries.iter()
                                                 .find(|(k, _)| {
@@ -654,6 +697,28 @@ impl VM {
                                                 .collect();
                                             Value::map(mc, filtered)
                                         }
+                                        (Value::Map(entries), Value::List(keys), "@") => {
+                                            let mut current = Value::Map(*entries);
+                                            for key in keys.iter() {
+                                                current = match (&current, key) {
+                                                    (Value::Map(map_entries), Value::String(key_name)) => {
+                                                        map_entries.iter()
+                                                            .find(|(k, _)| {
+                                                                if let Value::String(ks) = k { ks == key_name } else { false }
+                                                            })
+                                                            .map(|(_, v)| *v)
+                                                            .unwrap_or(Value::undefined())
+                                                    }
+                                                    (Value::List(items), Value::Number(idx)) => {
+                                                        items.iter().nth(*idx as usize)
+                                                            .copied()
+                                                            .unwrap_or(Value::undefined())
+                                                    }
+                                                    _ => Value::undefined(),
+                                                };
+                                            }
+                                            current
+                                        }
                                         (Value::Map(entries), Value::Number(idx), "@") => {
                                             let pair = entries.iter().nth(*idx as usize);
                                             pair.map(|(k, v)| {
@@ -668,6 +733,28 @@ impl VM {
                                             items.iter().nth(*idx as usize)
                                                 .copied()
                                                 .unwrap_or(Value::undefined())
+                                        }
+                                        (Value::List(items), Value::List(indices), "@") => {
+                                            let mut current = Value::List(*items);
+                                            for idx in indices.iter() {
+                                                current = match (&current, idx) {
+                                                    (Value::List(list_items), Value::Number(n)) => {
+                                                        list_items.iter().nth(*n as usize)
+                                                            .copied()
+                                                            .unwrap_or(Value::undefined())
+                                                    }
+                                                    (Value::Map(map_entries), Value::String(key)) => {
+                                                        map_entries.iter()
+                                                            .find(|(k, _)| {
+                                                                if let Value::String(ks) = k { ks == key } else { false }
+                                                            })
+                                                            .map(|(_, v)| *v)
+                                                            .unwrap_or(Value::undefined())
+                                                    }
+                                                    _ => Value::undefined(),
+                                                };
+                                            }
+                                            current
                                         }
                                         (Value::List(left_items), Value::List(right_items), "+") => {
                                             let mut combined = left_items.to_vec();
