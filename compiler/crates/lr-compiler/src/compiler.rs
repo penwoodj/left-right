@@ -2441,4 +2441,28 @@ mod tests {
         let result = compile_and_run("2 > 5").unwrap();
         assert_eq!(result, "false");
     }
+
+    #[test]
+    fn test_string_length() {
+        let result = compile_and_run("`hello` #").unwrap();
+        assert_eq!(result, "5");
+    }
+
+    #[test]
+    fn test_list_remove_single() {
+        let result = compile_and_run("[1, 2, 3, 2] - 2").unwrap();
+        assert_eq!(result, "[1, 3]");
+    }
+
+    #[test]
+    fn test_list_remove_list() {
+        let result = compile_and_run("[1, 2, 3, 4, 5] - [2, 4]").unwrap();
+        assert_eq!(result, "[1, 3, 5]");
+    }
+
+    #[test]
+    fn test_string_remove() {
+        let result = compile_and_run("`hello world` - `l`").unwrap();
+        assert_eq!(result, "heo word");
+    }
 }

@@ -457,6 +457,8 @@ impl VM {
                         (Value::String(s), Value::String(op_name)) => {
                             match op_name.as_str() {
                                 "+" | "<>" | "><" | "~" | "==" | "=" | "!=" | "?><" => Value::partial_operator(mc, op_name.to_string(), Value::string(mc, s.to_string())),
+                                "#" => Value::number(s.len() as f64),
+                                "-" => Value::partial_operator(mc, "-".to_string(), Value::string(mc, s.to_string())),
                                 "_" => Value::string(mc, s.to_lowercase()),
                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::string(mc, s.to_string())),
                                 "!" => Value::boolean(mc, !Value::string(mc, s.to_string()).is_truthy()),
@@ -490,6 +492,7 @@ impl VM {
                                 "!!" => Value::partial_operator(mc, "!!".to_string(), Value::List(*l)),
                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::List(*l)),
                                 "+" | "_" => Value::partial_operator(mc, op_name.to_string(), Value::list(mc, l.as_ref().clone())),
+                                "-" => Value::partial_operator(mc, "-".to_string(), Value::list(mc, l.as_ref().clone())),
                                 "<>" | "><" => Value::partial_operator(mc, op_name.to_string(), Value::list(mc, l.as_ref().clone())),
                                 "?><" => Value::partial_operator(mc, "?><".to_string(), Value::list(mc, l.as_ref().clone())),
                                 "==" | "=" => Value::partial_operator(mc, op_name.to_string(), Value::List(*l)),
@@ -856,6 +859,37 @@ impl VM {
                                             let mut combined = vec![Value::number(*n)];
                                             combined.extend(items.iter());
                                             Value::list(mc, combined)
+                                        }
+                                        (Value::List(items), Value::List(removals), "-") => {
+                                            let filtered: Vec<Value<'a>> = items.iter()
+                                                .filter(|item| !removals.iter().any(|r| {
+                                                    match (item, r) {
+                                                        (Value::Number(a), Value::Number(b)) => (a - b).abs() < f64::EPSILON,
+                                                        (Value::String(a), Value::String(b)) => a == b,
+                                                        (Value::Boolean(a), Value::Boolean(b)) => a == b,
+                                                        _ => false,
+                                                    }
+                                                }))
+                                                .copied()
+                                                .collect();
+                                            Value::list(mc, filtered)
+                                        }
+                                        (Value::List(items), value, "-") => {
+                                            let filtered: Vec<Value<'a>> = items.iter()
+                                                .filter(|item| {
+                                                    match (item, &value) {
+                                                        (Value::Number(a), Value::Number(b)) => (a - b).abs() >= f64::EPSILON,
+                                                        (Value::String(a), Value::String(b)) => a != b,
+                                                        (Value::Boolean(a), Value::Boolean(b)) => a != b,
+                                                        _ => true,
+                                                    }
+                                                })
+                                                .copied()
+                                                .collect();
+                                            Value::list(mc, filtered)
+                                        }
+                                        (Value::String(s), Value::String(remove), "-") => {
+                                            Value::string(mc, s.replace(remove.as_str(), ""))
                                         }
                                         (Value::Map(left_entries), Value::Map(right_entries), "+") => {
                                             let mut merged = left_entries.to_vec();
