@@ -254,7 +254,16 @@ impl VM {
                     // `!!!` throw operator: value !!! throws value as exception
                     if let Value::String(op) = &right {
                         if op.as_str() == "!!!" {
-                            return Err(VMError::Runtime(format!("Uncaught exception: {}", left)));
+                            frame.thrown_value = Some(left);
+                            if let Some(catch_frame) = frame.catch_stack.last().cloned() {
+                                let thrown = frame.thrown_value.take();
+                                frame.set(inst.a(), thrown.unwrap_or(Value::undefined()));
+                                frame.pc = catch_frame.handler_start;
+                                continue;
+                            } else {
+                                let value_str = left.to_string();
+                                return Err(VMError::Runtime(format!("Uncaught exception: {}", value_str)));
+                            }
                         }
                     }
 
@@ -444,7 +453,7 @@ impl VM {
                         }
                         (Value::String(s), Value::String(op_name)) => {
                             match op_name.as_str() {
-                                "+" | "<>" | "><" | "~" => Value::partial_operator(mc, op_name.to_string(), Value::string(mc, s.to_string())),
+                                "+" | "<>" | "><" | "~" | "==" | "=" | "!=" | "?><" => Value::partial_operator(mc, op_name.to_string(), Value::string(mc, s.to_string())),
                                 "_" => Value::string(mc, s.to_lowercase()),
                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::string(mc, s.to_string())),
                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::string(mc, s.to_string())),
@@ -489,6 +498,8 @@ impl VM {
                                 "$>" => Value::partial_operator(mc, "$>".to_string(), Value::List(*l)),
                                 "$%" => Value::partial_operator(mc, "$%".to_string(), Value::List(*l)),
                                 "$@" => Value::partial_operator(mc, "$@".to_string(), Value::List(*l)),
+                                "$+" | "$-" | "$*" | "$/" | "$%" => Value::partial_operator(mc, op_name.to_string(), Value::List(*l)),
+                                "$?>" | "$?<" | "$?>=" | "$?<=" | "$?+" | "$?-" => Value::partial_operator(mc, op_name.to_string(), Value::List(*l)),
                                 "$?!" => {
                                     let filtered: Vec<Value<'a>> = l.iter().filter(|v| !matches!(v, Value::Undefined)).copied().collect();
                                     Value::list(mc, filtered)
@@ -619,6 +630,12 @@ impl VM {
                                             let combined = format!("{}{}", ls, rs);
                                             Value::string(mc, combined)
                                         }
+                                        (Value::String(ls), Value::String(rs), "==" | "=") => {
+                                            Value::boolean(mc, ls == rs)
+                                        }
+                                        (Value::String(ls), Value::String(rs), "!=") => {
+                                            Value::boolean(mc, ls != rs)
+                                        }
                                         (Value::String(ls), Value::Number(n), "+") => {
                                             let s = if n.fract() == 0.0 {
                                                 (*n as i64).to_string()
@@ -737,6 +754,18 @@ impl VM {
                                                 })
                                                 .map(|(_, v)| *v)
                                                 .unwrap_or(Value::undefined())
+                                        }
+                                        (Value::Error(err_data), Value::String(key), "@") => {
+                                            if key.as_str() == "message" {
+                                                err_data.message
+                                            } else {
+                                                err_data.properties.iter()
+                                                    .find(|(k, _)| {
+                                                        if let Value::String(ks) = k { ks == key } else { false }
+                                                    })
+                                                    .map(|(_, v)| *v)
+                                                    .unwrap_or(Value::undefined())
+                                            }
                                         }
                                         (Value::Map(entries), Value::String(key), "-") => {
                                             let filtered: Vec<(Value<'a>, Value<'a>)> = entries.iter()
@@ -982,13 +1011,23 @@ impl VM {
                                   ))),
                               }
                           }
-                         _ => {
-                             return Err(VMError::TypeError(format!(
-                                 "Cannot call: left={} right={}",
-                                 left.type_name(),
-                                 right.type_name()
-                             )))
-                         }
+                          _ => {
+                              if let Value::Error(_) = &left {
+                                  if let Value::String(op) = &right {
+                                      if op.as_str() == "@" {
+                                          let po = Value::partial_operator(mc, "@".to_string(), left);
+                                          frame.set(inst.a(), po);
+                                          frame.advance();
+                                          continue;
+                                      }
+                                  }
+                              }
+                              return Err(VMError::TypeError(format!(
+                                  "Cannot call: left={} right={}",
+                                  left.type_name(),
+                                  right.type_name()
+                              )))
+                          }
                     };
 
                     frame.set(inst.a(), result);

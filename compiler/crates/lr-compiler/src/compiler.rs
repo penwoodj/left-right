@@ -2069,4 +2069,189 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "true");
     }
+
+    // === String Equality Tests ===
+
+    #[test]
+    fn test_string_equality_true() {
+        let result = compile_and_run("`hello` = `hello`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_string_equality_false() {
+        let result = compile_and_run("`hello` = `world`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_string_double_eq() {
+        let result = compile_and_run("`abc` == `abc`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_string_not_equal() {
+        let result = compile_and_run("`abc` != `xyz`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_string_not_equal_false() {
+        let result = compile_and_run("`abc` != `abc`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    // === Error Property Access Tests ===
+
+    #[test]
+    fn test_error_message_access() {
+        let result = compile_and_run("Error[`something failed`] @ `message`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "something failed");
+    }
+
+    #[test]
+    fn test_error_message_string_equality() {
+        let result = compile_and_run("Error[`test`] @ `message` = `test`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    // === Element-wise Arithmetic Tests ===
+
+    #[test]
+    fn test_element_wise_add() {
+        let result = compile_and_run("[1, 2, 3] $+ 10");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[11, 12, 13]");
+    }
+
+    #[test]
+    fn test_element_wise_multiply() {
+        let result = compile_and_run("[1, 2, 3] $* 2");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[2, 4, 6]");
+    }
+
+    #[test]
+    fn test_element_wise_subtract() {
+        let result = compile_and_run("[10, 20, 30] $- 5");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[5, 15, 25]");
+    }
+
+    #[test]
+    fn test_element_wise_divide() {
+        let result = compile_and_run("[10, 20, 30] $/ 2");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[5, 10, 15]");
+    }
+
+    #[test]
+    fn test_element_wise_modulo() {
+        let result = compile_and_run("[10, 20, 30] $% 3");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[1, 2, 0]");
+    }
+
+    #[test]
+    fn test_throw_number_runtime() {
+        let result = compile_and_run("42 !!!");
+        assert!(result.is_err());
+    }
+
+    // === Catch Runtime Tests ===
+
+    #[test]
+    fn test_catch_compiles() {
+        let result = compile_source("`boom` !!! !!!? { _< }");
+        assert!(result.is_ok());
+        let chunk = result.unwrap();
+        let has_catch = chunk.code.iter().any(|i| i.opcode() == Opcode::Catch);
+        assert!(has_catch);
+    }
+
+    #[test]
+    fn test_catch_returns_alternative_compile() {
+        let result = compile_source("42 !!! !!!? { 0 }");
+        assert!(result.is_ok());
+        let chunk = result.unwrap();
+        let has_catch = chunk.code.iter().any(|i| i.opcode() == Opcode::Catch);
+        assert!(has_catch);
+    }
+
+    // === Filter Comparison Tests ===
+
+    #[test]
+    fn test_filter_greater_than() {
+        let result = compile_and_run("[1, 5, 3, 8, 2] $?> 4");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[5, 8]");
+    }
+
+    #[test]
+    fn test_filter_less_than() {
+        let result = compile_and_run("[1, 5, 3, 8, 2] $?< 4");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[1, 3, 2]");
+    }
+
+    #[test]
+    fn test_filter_greater_equal() {
+        let result = compile_and_run("[1, 4, 5, 3] $?>= 4");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[4, 5]");
+    }
+
+    #[test]
+    fn test_filter_less_equal() {
+        let result = compile_and_run("[1, 4, 5, 3] $?<= 3");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[1, 3]");
+    }
+
+    // === String Contains with Type Check ===
+
+    #[test]
+    fn test_string_contains_true() {
+        let result = compile_and_run("`hello world` ?>< `world`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_string_contains_false() {
+        let result = compile_and_run("`hello world` ?>< `xyz`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    // === List Contains Tests ===
+
+    #[test]
+    fn test_list_contains_number() {
+        let result = compile_and_run("[1, 2, 3] ?>< 2");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_list_contains_string() {
+        let result = compile_and_run("[`a`, `b`, `c`] ?>< `b`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_list_contains_missing() {
+        let result = compile_and_run("[1, 2, 3] ?>< 99");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false");
+    }
 }
