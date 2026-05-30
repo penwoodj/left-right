@@ -2515,4 +2515,18 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "{a: 1}");
     }
+
+    #[test]
+    fn test_named_destructuring() {
+        let result = compile_and_run("{ user: `alice`, years: 30 } { name: _<@`user`, age: _<@`years` }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "{name: alice, age: 30}");
+    }
+
+    #[test]
+    fn test_named_destructuring_missing_key() {
+        let result = compile_and_run("{ user: `alice` } { name: _<@`user`, age: _<@`years` }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "{name: alice, age: undefined}");
+    }
 }
