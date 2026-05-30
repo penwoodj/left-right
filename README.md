@@ -40,7 +40,7 @@ Left-Right provides powerful operators for data transformation:
 - **Concat**: `[] + item` — concatenate collection types
 - **Spread**: `{ a: 1, +: { a:3, b:2 }, b: 4 }` -> `{ a:3, b:4 }` — spread into context
 - **Make Async**: `{ ... } ///` — marks closure as async (like JS async function)
-- **Await**: `promise \\\\` — awaits promise resolution (like JS await)
+- **Await**: `promise \\\` — awaits promise resolution (like JS await)
 
 **String Operators:**
 - **Uppercase**: `` `hello` "^ `` → `` `HELLO` ``

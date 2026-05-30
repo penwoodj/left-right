@@ -430,6 +430,7 @@ impl Compiler {
 
                 for entry in entries_to_compile {
                     let is_guard = matches!(&entry.key, Expression::Identifier(i) if i.name.ends_with('?'));
+                    let is_size_cond = matches!(&entry.key, Expression::Identifier(i) if i.name == "#" && entry.value.is_some());
 
                     if is_guard && entry.value.is_some() {
                         let (base_name, base_span) = if let Expression::Identifier(i) = &entry.key {
@@ -462,6 +463,32 @@ impl Compiler {
                         let skip_offset = (skip_pos - jump_if_false_idx) as u8;
                         self.chunk.code[jump_if_false_idx] = Instruction::new(
                             Opcode::JumpIfFalse, guard_cond_reg, skip_offset, 0,
+                        );
+                        self.free_register();
+                    } else if is_size_cond {
+                        let size_reg = self.alloc_register()?;
+                        let const_idx = self.chunk.add_constant(Constant::String("#".to_string()))?;
+                        self.chunk.emit(Instruction::new(Opcode::LoadConstant, size_reg, const_idx, 0));
+                        self.chunk.emit(Instruction::new(Opcode::Call, size_reg, 0, 0));
+
+                        let cond_reg = self.alloc_register()?;
+                        let q_idx = self.chunk.add_constant(Constant::String("?".to_string()))?;
+                        self.chunk.emit(Instruction::new(Opcode::LoadConstant, cond_reg, q_idx, 0));
+                        self.chunk.emit(Instruction::new(Opcode::Call, cond_reg, size_reg, 0));
+                        self.free_register();
+
+                        let jump_if_false_idx = self.chunk.code.len();
+                        self.chunk.emit(Instruction::new(Opcode::JumpIfFalse, cond_reg, 0, 0));
+                        self.free_register();
+
+                        let body_reg = self.alloc_register()?;
+                        self.compile_expression(entry.value.as_ref().unwrap(), body_reg)?;
+                        self.chunk.emit(Instruction::new(Opcode::Return, body_reg, 0, 0));
+
+                        let skip_pos = self.chunk.code.len();
+                        let skip_offset = (skip_pos - jump_if_false_idx) as u8;
+                        self.chunk.code[jump_if_false_idx] = Instruction::new(
+                            Opcode::JumpIfFalse, cond_reg, skip_offset, 0,
                         );
                         self.free_register();
                     } else {
