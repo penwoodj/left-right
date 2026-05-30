@@ -263,7 +263,26 @@ impl Parser {
             }
         }
 
-        Ok(Self::try_parse_import_export(first))
+        Ok(Self::try_parse_import_export(Self::try_parse_catch(first)))
+    }
+
+    fn try_parse_catch(expr: Expression) -> Expression {
+        // Look for: Application(Application(left, Identifier("!!!?")), handler)
+        // Rewrite as: CatchExpression { operator: left, handler }
+        if let Expression::Application(outer) = &expr {
+            if let Expression::Application(inner) = &*outer.left {
+                if let Expression::Identifier(ident) = &*inner.right {
+                    if ident.name == "!!!?" {
+                        return Expression::CatchExpression(CatchExpression {
+                            operator: inner.left.clone(),
+                            handler: outer.right.clone(),
+                            span: expr.span(),
+                        });
+                    }
+                }
+            }
+        }
+        expr
     }
 
     fn try_parse_import_export(expr: Expression) -> Expression {
@@ -555,8 +574,14 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_special_operators() {
-        // !!!? is now a single compound token, not an Application chain
+    fn test_parse_catch_expression() {
+        let tokens = tokenize("value !!!? handler").unwrap();
+        let program = parse(tokens, "test.lr".to_string()).unwrap();
+        assert!(matches!(*program.expression, Expression::CatchExpression(_)));
+    }
+
+    #[test]
+    fn test_parse_standalone_catch_operator() {
         let tokens = tokenize("!!!?").unwrap();
         let program = parse(tokens, "test.lr".to_string()).unwrap();
         assert!(matches!(*program.expression, Expression::Identifier(_)));
