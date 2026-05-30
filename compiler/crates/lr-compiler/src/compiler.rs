@@ -604,7 +604,11 @@ impl Compiler {
                     };
 
                     if let Some(spread_expr) = spread_value {
-                        // Build map from non-spread entries, then merge
+                        // Compile spread FIRST (before bindings) to avoid scope leak
+                        let spread_reg = self.alloc_register()?;
+                        self.compile_expression(spread_expr, spread_reg)?;
+
+                        // Then build map from non-spread entries with bindings
                         let non_spread = &m.entries[..last_idx];
                         if non_spread.is_empty() {
                             self.chunk.emit(Instruction::new(Opcode::MapNew, dest, 0, 0));
@@ -643,8 +647,6 @@ impl Compiler {
                                 self.free_register();
                             }
                         }
-                        let spread_reg = self.alloc_register()?;
-                        self.compile_expression(spread_expr, spread_reg)?;
                         self.chunk.emit(Instruction::new(Opcode::MapMerge, dest, dest, spread_reg));
                         self.free_register();
                         self.chunk.emit(Instruction::new(Opcode::Return, dest, 0, 0));

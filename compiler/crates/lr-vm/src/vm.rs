@@ -506,7 +506,7 @@ impl VM {
                                 "$+" | "$-" | "$*" | "$/" => Value::partial_operator(mc, op_name.to_string(), Value::List(*l)),
                                 "$?>" | "$?<" | "$?>=" | "$?<=" | "$?+" | "$?-" => Value::partial_operator(mc, op_name.to_string(), Value::List(*l)),
                                 "$?!" => {
-                                    let filtered: Vec<Value<'a>> = l.iter().filter(|v| !matches!(v, Value::Undefined)).copied().collect();
+                                    let filtered: Vec<Value<'a>> = l.iter().filter(|v| v.is_truthy()).copied().collect();
                                     Value::list(mc, filtered)
                                 }
                                 "$\"" => {
