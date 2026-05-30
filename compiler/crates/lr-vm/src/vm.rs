@@ -256,6 +256,20 @@ impl VM {
                         }
                     }
 
+                    // Error[expr] constructor
+                    if let Value::String(name) = &left {
+                        if name.as_str() == "Error" {
+                            if let Value::List(args) = &right {
+                                if !args.is_empty() {
+                                    let message = args[0];
+                                    frame.set(inst.a(), Value::error(mc, message));
+                                    frame.advance();
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+
                     let result = match (&left, &right) {
                         (Value::Closure(_closure_data), _arg) => {
                             return Err(VMError::TypeError(
@@ -2310,6 +2324,28 @@ mod tests {
         assert!(s.contains("a"), "merged map should contain key 'a': {}", s);
         assert!(s.contains("b"), "merged map should contain key 'b': {}", s);
         assert!(s.contains("c"), "merged map should contain key 'c': {}", s);
+    }
+
+    #[test]
+    fn test_vm_error_constructor() {
+        let chunk = build_chunk(|c| {
+            let idx_err = c.add_constant(Constant::String("Error".to_string())).unwrap();
+            let idx_msg = c.add_constant(Constant::String("something went wrong".to_string())).unwrap();
+
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx_err));
+            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_msg));
+            c.emit(Instruction::new(Opcode::ListBuild, 3, 2, 1));
+            c.emit(Instruction::new(Opcode::Call, 4, 1, 3));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 4, 0));
+            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
+        });
+
+        let mut vm = VM::new();
+        let result = vm.execute(&chunk);
+        assert!(result.is_ok());
+        let s = result.unwrap();
+        assert!(s.contains("Error"), "Should contain 'Error': {}", s);
+        assert!(s.contains("something went wrong"), "Should contain message: {}", s);
     }
 
     #[test]

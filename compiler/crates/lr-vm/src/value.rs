@@ -29,6 +29,14 @@ pub enum Value<'gc> {
     PartialOperator(Gc<'gc, PartialOperatorData<'gc>>),
     Closure(Gc<'gc, ClosureData>),
     PartialClosure(Gc<'gc, PartialClosureData<'gc>>),
+    Error(Gc<'gc, ErrorData<'gc>>),
+}
+
+#[derive(Debug, Clone, Collect)]
+#[collect(no_drop)]
+pub struct ErrorData<'gc> {
+    pub message: Value<'gc>,
+    pub properties: Gc<'gc, Vec<(Value<'gc>, Value<'gc>)>>,
 }
 
 #[derive(Debug, Clone, Collect)]
@@ -81,6 +89,13 @@ impl<'gc> Value<'gc> {
         Value::Closure(Gc::new(mc, ClosureData { body_start, arg_count }))
     }
 
+    pub fn error(mc: &Mutation<'gc>, message: Value<'gc>) -> Self {
+        Value::Error(Gc::new(mc, ErrorData {
+            message,
+            properties: Gc::new(mc, vec![]),
+        }))
+    }
+
     pub fn is_truthy(&self) -> bool {
         match self {
             Value::Undefined => false,
@@ -93,6 +108,7 @@ impl<'gc> Value<'gc> {
             Value::PartialOperator(_) => true,
             Value::Closure(_) => true,
             Value::PartialClosure(_) => true,
+            Value::Error(_) => true,
         }
     }
 
@@ -108,6 +124,7 @@ impl<'gc> Value<'gc> {
             Value::PartialOperator(_) => "partial_operator",
             Value::Closure(_) => "closure",
             Value::PartialClosure(_) => "partial_closure",
+            Value::Error(_) => "error",
         }
     }
 
@@ -193,6 +210,7 @@ impl<'gc> fmt::Display for Value<'gc> {
             Value::PartialOperator(op) => write!(f, "<partial_operator:{}>", op.name),
             Value::Closure(c) => write!(f, "<closure:@{} args={}>", c.body_start, c.arg_count),
             Value::PartialClosure(pc) => write!(f, "<partial_closure:@{} args={}>", pc.body_start, pc.arg_count),
+            Value::Error(e) => write!(f, "Error: {}", e.message),
         }
     }
 }
