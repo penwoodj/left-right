@@ -2529,4 +2529,82 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "{name: alice, age: undefined}");
     }
+
+    #[test]
+    fn test_ternary_else_clause() {
+        let result = compile_and_run("true ?: false ??: 5");
+        if result.is_ok() {
+            assert_eq!(result.unwrap(), "5");
+        }
+    }
+
+    #[test]
+    fn test_boolean_equality_true() {
+        let result = compile_and_run("true == true");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_boolean_equality_false() {
+        let result = compile_and_run("true == false");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_boolean_inequality() {
+        let result = compile_and_run("true != false");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_list_negation_nonempty() {
+        let result = compile_and_run("[1, 2] !");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_list_negation_empty() {
+        let result = compile_and_run("[] !");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_map_negation_nonempty() {
+        let result = compile_and_run("{ a: 1 } !");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_map_negation_empty() {
+        let result = compile_and_run("{} !");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_map_at_numeric_index_size() {
+        let result = compile_and_run("{ a: 1, b: 2 } @ 0 #");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "2");
+    }
+
+    #[test]
+    fn test_list_at_list_indices_nested() {
+        let result = compile_and_run("[[1, 2, 3], [4, 5, 6]] @ [0, 1]");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "2");
+    }
+
+    #[test]
+    fn test_error_property_access_message() {
+        let result = compile_and_run("Error[`test`] @ `message`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "test");
+    }
 }

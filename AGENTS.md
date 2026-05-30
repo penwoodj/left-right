@@ -60,10 +60,10 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 
 | Layer | Count | Runner |
 |-------|-------|--------|
-| Rust unit/e2e | 377 (2 ignored) | `cargo test` in `compiler/` |
-| CLI integration | 86 | `lr test` from `crates/lr-cli/` |
-| Live system | 125 | `compiler/tests/live_runner.sh` |
-| **Total** | **588** | |
+| Rust unit/e2e | 388 (2 ignored) | `cargo test` in `compiler/` |
+| CLI integration | 94 | `lr test` from `crates/lr-cli/` |
+| Live system | 136 | `compiler/tests/live_runner.sh` |
+| **Total** | **618** | |
 
 ### Fully Verified Features (all 3 layers)
 
@@ -90,35 +90,23 @@ These are IMPLEMENTED but missing coverage in one or more test layers:
 
 #### Missing from Rust Unit/E2e Tests (compiler.rs / vm.rs)
 
-1. **`?:else` ternary else clause** — VM dispatch at vm.rs ~line 1007. No e2e test.
-2. **Boolean `==`/`!=`/`=` equality** — PartialOperator creation for Boolean+String at vm.rs line 581. No dedicated test.
-3. **`!` negation on all types** — Verified on Boolean, Number, String. Missing: List negation as PartialOperator creation, Map negation as PartialOperator creation.
-4. **`!!` optional apply on all types** — Verified on Number/String. Missing: Boolean, List, Map optional apply as PartialOperator creation.
-5. **Map `@` with numeric index** — vm.rs line 808 returns `[key, value]` pair. Has live test but no Rust e2e test.
-6. **List `@` with list of indices** (nested path) — vm.rs line 823. Has live test but no Rust e2e test.
-7. **Error `@` property access** — vm.rs line 1072. Has live test but no Rust e2e test.
+1. **`?:else` ternary else clause** — VM dispatch exists (`(_, _, "?:else") => right`) but no LR syntax generates it. Test confirms it doesn't crash, but can't assert behavior.
 
 #### Missing from CLI Integration Tests (crates/lr-cli/tests/*.lr)
 
-1. **`?` ternary with non-Boolean left** — Only tested with Boolean. No test for Number/String/List ternary.
-2. **`!!` optional apply on String/List/Map/Boolean** — Only tested with Number.
-3. **`$?>`/`$?<`/`$?>=`/`$?<=` filter with Number arg** — Only `$?+`/`$?-` variants tested. `$?>`/`$?<`/`$?>=`/`$?<=` with direct Number missing.
-4. **`?` as PartialOperator on Number/String/List/Map** — Ternary variant tested, but `?` as truthy-check PartialOperator not tested.
-5. **`|` default on String/List/Map** — Only tested with Number.
-6. **`!"`/`?#` as operator dispatch** — Tested as prefix, not as data-first operator form.
-7. **`_` list concat variant** — `_` is concat alias for `+` on lists. No dedicated test.
-8. **`<>`/`><` on List** — These create PartialOperators for List. No dedicated test for list split/join via these ops.
-9. **Map `@` with numeric index** — Returns `[key, value]` pair at index. No CLI test.
+1. **`?` ternary with Number left** — Only tested with Boolean/String/List/Map. Number ternary not tested.
+2. **`?` as PartialOperator on Number/String/List/Map** — Ternary variant tested, but `?` as truthy-check PartialOperator not tested.
+3. **`|` default on Map** — Number/Boolean/String/List tested. Map default VM error.
+4. **`!"`/`?#` as operator dispatch** — Tested as prefix, not as data-first operator form.
+5. **`_` list concat variant** — `_` is concat alias for `+` on lists. No dedicated test.
+6. **`<>`/`><` on List** — These create PartialOperators for List. No dedicated test for list split/join via these ops.
+7. **Map `@` with numeric index** — Returns `[key, value]` pair at index. No CLI test.
 
 #### Missing from Live System Tests (compiler/tests/live/*.lr)
 
-1. **`?:else` ternary else clause** — Not tested at all in any layer.
-2. **`!!` optional apply on String, List, Map, Boolean** — Only Number tested.
-3. **`?` ternary with String, List, Map** — Only Boolean/Number tested.
-4. **`|` default with String, List, Map** — Only Number/zero tested.
-5. **`!` negation operator form** — Only truthiness-tested, not `value !` operator form on all types.
-6. **Boolean `&`/`|` with non-Boolean values** — Number AND/OR works, but String/List/Map not tested.
-7. **`?"`/`?#` as data-first operator** — Only prefix form tested.
+1. **`?` ternary with non-Boolean** — `?` with String/List/Map returns unexpected results (returns right, not left). Needs investigation.
+2. **`|` default with Map** — VM error: "Unknown map operator: |". Runtime gap.
+3. **`<>`/`><` on List** — No live test for list split/join via these ops.
 
 ### Unimplemented Features (NOT testable)
 
