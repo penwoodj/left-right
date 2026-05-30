@@ -250,7 +250,7 @@ impl VM {
                     let right = frame.get(inst.c());
 
                     let result = match (&left, &right) {
-                        (Value::Closure(closure_data), _arg) => {
+                        (Value::Closure(_closure_data), _arg) => {
                             return Err(VMError::TypeError(
                                 "Closures must be used in infix position (data first): `5 { _< + 1 }`, not `{ _< + 1 } 5`".to_string()
                             ));
@@ -399,7 +399,8 @@ impl VM {
                         }
                         (Value::String(s), Value::String(op_name)) => {
                             match op_name.as_str() {
-                                "+" | "_" | "<>" | "><" | "~" => Value::partial_operator(mc, op_name.to_string(), Value::string(mc, s.to_string())),
+                                "+" | "<>" | "><" | "~" => Value::partial_operator(mc, op_name.to_string(), Value::string(mc, s.to_string())),
+                                "_" => Value::string(mc, s.to_lowercase()),
                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::string(mc, s.to_string())),
                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::string(mc, s.to_string())),
                                 "!!" => Value::partial_operator(mc, "!!".to_string(), Value::string(mc, s.to_string())),
@@ -442,6 +443,23 @@ impl VM {
                                 "$?!" => {
                                     let filtered: Vec<Value<'a>> = l.iter().filter(|v| !matches!(v, Value::Undefined)).copied().collect();
                                     Value::list(mc, filtered)
+                                }
+                                "$\"" => {
+                                    let strings: Vec<Value<'a>> = l.iter().map(|v| {
+                                        match v {
+                                            Value::String(s) => Value::string(mc, s.to_string()),
+                                            Value::Number(n) => {
+                                                if n.fract() == 0.0 {
+                                                    Value::string(mc, (*n as i64).to_string())
+                                                } else {
+                                                    Value::string(mc, n.to_string())
+                                                }
+                                            }
+                                            Value::Boolean(b) => Value::string(mc, b.to_string()),
+                                            _ => Value::string(mc, format!("{}", v)),
+                                        }
+                                    }).collect();
+                                    Value::list(mc, strings)
                                 }
                                 _ => return Err(VMError::TypeError(format!(
                                     "Unknown list operator: {}", op_name
@@ -582,6 +600,9 @@ impl VM {
                                                 Some(first) => Value::string(mc, format!("{}{}", first.to_uppercase(), chars.as_str().to_lowercase())),
                                             }
                                         }
+                                        (Value::String(ls), _, "_") => {
+                                            Value::string(mc, ls.to_lowercase())
+                                        }
                                         (Value::String(ls), Value::String(rs), "<>") => {
                                             let parts: Vec<Value<'a>> = ls.split(rs.as_str())
                                                 .map(|s| Value::string(mc, s.to_string()))
@@ -589,6 +610,20 @@ impl VM {
                                             Value::list(mc, parts)
                                         }
                                         (Value::List(items), Value::String(sep), "<>") => {
+                                            let joined: String = items.iter().enumerate().map(|(i, v)| {
+                                                let s = match v {
+                                                    Value::String(s) => s.to_string(),
+                                                    Value::Number(n) => {
+                                                        if n.fract() == 0.0 { (*n as i64).to_string() } else { n.to_string() }
+                                                    }
+                                                    Value::Boolean(b) => b.to_string(),
+                                                    _ => format!("{}", v),
+                                                };
+                                                if i > 0 { format!("{}{}", sep, s) } else { s }
+                                            }).collect();
+                                            Value::string(mc, joined)
+                                        }
+                                        (Value::List(items), Value::String(sep), "><") => {
                                             let joined: String = items.iter().enumerate().map(|(i, v)| {
                                                 let s = match v {
                                                     Value::String(s) => s.to_string(),
@@ -1376,7 +1411,31 @@ impl VM {
                     return Err(VMError::UnimplementedOpcode(Opcode::LoopGroupBy))
                 }
                 Opcode::LoopEachToString => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::LoopEachToString))
+                    let list_reg = inst.a();
+                    let dest_reg = inst.b();
+                    let list_val = frame.get(list_reg);
+                    if let Value::List(items) = list_val {
+                        let strings: Vec<Value<'a>> = items.iter().map(|v| {
+                            match v {
+                                Value::String(s) => Value::string(mc, s.to_string()),
+                                Value::Number(n) => {
+                                    if n.fract() == 0.0 {
+                                        Value::string(mc, (*n as i64).to_string())
+                                    } else {
+                                        Value::string(mc, n.to_string())
+                                    }
+                                }
+                                Value::Boolean(b) => Value::string(mc, b.to_string()),
+                                _ => Value::string(mc, format!("{}", v)),
+                            }
+                        }).collect();
+                        frame.set(dest_reg, Value::list(mc, strings));
+                    } else {
+                        return Err(VMError::TypeError(format!(
+                            "LoopEachToString requires a list, got {}", list_val.type_name()
+                        )));
+                    }
+                    frame.advance();
                 }
                 Opcode::LoopEvery => {
                     return Err(VMError::UnimplementedOpcode(Opcode::LoopEvery))
@@ -1456,7 +1515,15 @@ impl VM {
                 Opcode::Pop => return Err(VMError::UnimplementedOpcode(Opcode::Pop)),
                 Opcode::Dup => return Err(VMError::UnimplementedOpcode(Opcode::Dup)),
                 Opcode::ReverseArgs => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::ReverseArgs))
+                    let a = inst.a();
+                    let b = inst.b();
+                    if a != b {
+                        let va = frame.get(a);
+                        let vb = frame.get(b);
+                        frame.set(a, vb);
+                        frame.set(b, va);
+                    }
+                    frame.advance();
                 }
                 Opcode::SilentExec => {
                     return Err(VMError::UnimplementedOpcode(Opcode::SilentExec))
@@ -2060,7 +2127,6 @@ mod tests {
             Opcode::LoopFlatMap,
             Opcode::LoopUniqueBy,
             Opcode::LoopGroupBy,
-            Opcode::LoopEachToString,
             Opcode::LoopEvery,
             Opcode::LoopSome,
             Opcode::LoopFind,
@@ -2071,7 +2137,6 @@ mod tests {
             Opcode::Push,
             Opcode::Pop,
             Opcode::Dup,
-            Opcode::ReverseArgs,
             Opcode::SilentExec,
         ];
 
