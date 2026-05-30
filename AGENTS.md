@@ -62,8 +62,8 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 |-------|-------|--------|
 | Rust unit/e2e | 388 (2 ignored) | `cargo test` in `compiler/` |
 | CLI integration | 98 | `lr test` from `crates/lr-cli/` |
-| Live system | 142 | `compiler/tests/live_runner.sh` |
-| **Total** | **628** | |
+| Live system | 155 | `compiler/tests/live_runner.sh` |
+| **Total** | **641** | |
 
 ### Fully Verified Features (all 3 layers)
 
