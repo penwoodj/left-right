@@ -53,6 +53,13 @@ pub fn op_mod<'gc>(_mc: &Mutation<'gc>, left: Value<'gc>, right: Value<'gc>) -> 
     }
 }
 
+pub fn op_pow<'gc>(_mc: &Mutation<'gc>, left: Value<'gc>, right: Value<'gc>) -> Value<'gc> {
+    match (left, right) {
+        (Value::Number(a), Value::Number(b)) => Value::number(a.powf(b)),
+        _ => Value::undefined(),
+    }
+}
+
 pub fn op_neg<'gc>(_mc: &Mutation<'gc>, left: Value<'gc>, _right: Value<'gc>) -> Value<'gc> {
     match left {
         Value::Number(n) => Value::number(-n),
@@ -200,6 +207,59 @@ pub fn op_to_lowercase<'gc>(_mc: &Mutation<'gc>, left: Value<'gc>, _right: Value
 pub fn op_to_uppercase<'gc>(_mc: &Mutation<'gc>, left: Value<'gc>, _right: Value<'gc>) -> Value<'gc> {
     match left {
         Value::String(s) => Value::string(_mc, s.to_uppercase()),
+        _ => Value::undefined(),
+    }
+}
+
+pub fn op_map_omit<'gc>(mc: &Mutation<'gc>, left: Value<'gc>, right: Value<'gc>) -> Value<'gc> {
+    match (left, right) {
+        (Value::Map(entries), Value::String(key)) => {
+            let filtered: Vec<(Value<'gc>, Value<'gc>)> = entries.iter()
+                .filter(|(k, _)| {
+                    if let Value::String(ks) = k { ks.as_str() != key.as_str() } else { true }
+                })
+                .map(|(k, v)| (*k, *v))
+                .collect();
+            Value::Map(Gc::new(mc, filtered))
+        }
+        _ => Value::undefined(),
+    }
+}
+
+pub fn op_string_replace<'gc>(mc: &Mutation<'gc>, left: Value<'gc>, right: Value<'gc>) -> Value<'gc> {
+    match (left, right) {
+        (Value::String(s), Value::List(args)) => {
+            if args.len() >= 2 {
+                if let (Value::String(old), Value::String(new)) = (&args[0], &args[1]) {
+                    Value::string(mc, s.replace(old.as_str(), new.as_str()))
+                } else {
+                    Value::undefined()
+                }
+            } else {
+                Value::undefined()
+            }
+        }
+        _ => Value::undefined(),
+    }
+}
+
+pub fn op_is_string<'gc>(mc: &Mutation<'gc>, left: Value<'gc>, _right: Value<'gc>) -> Value<'gc> {
+    Value::boolean(mc, matches!(left, Value::String(_)))
+}
+
+pub fn op_is_number<'gc>(mc: &Mutation<'gc>, left: Value<'gc>, _right: Value<'gc>) -> Value<'gc> {
+    Value::boolean(mc, matches!(left, Value::Number(_)))
+}
+
+pub fn op_contains<'gc>(mc: &Mutation<'gc>, left: Value<'gc>, right: Value<'gc>) -> Value<'gc> {
+    match (left, right) {
+        (Value::List(items), value) => {
+            let contains = items.iter().any(|item| item.deep_eq(&value));
+            Value::boolean(mc, contains)
+        }
+        (Value::String(s), Value::String(sub)) => {
+            Value::boolean(mc, s.contains(sub.as_str()))
+        }
         _ => Value::undefined(),
     }
 }
@@ -634,16 +694,152 @@ mod tests {
     }
 
     #[test]
-    fn test_op_to_lowercase() {
+    fn test_op_reverse_args() {
         with_arena(|mc, _| {
-            let left = Value::string(mc, "HELLO".to_string());
-            let right = Value::undefined();
-            let result = op_to_lowercase(mc, left, right);
+            let left = Value::string(mc, "_>".to_string());
+            let right = Value::number(5.0);
+            let result = op_reverse_args(mc, left, right);
+            assert!(matches!(result, Value::Undefined));
+        });
+    }
+
+    #[test]
+    fn test_op_power_numbers() {
+        with_arena(|mc, _| {
+            let left = Value::number(2.0);
+            let right = Value::number(3.0);
+            let result = op_pow(mc, left, right);
+            assert!(matches!(result, Value::Number(8.0)));
+        });
+    }
+
+    #[test]
+    fn test_op_power_numbers_float() {
+        with_arena(|mc, _| {
+            let left = Value::number(4.0);
+            let right = Value::number(0.5);
+            let result = op_pow(mc, left, right);
+            if let Value::Number(n) = result {
+                assert!((n - 2.0).abs() < 0.001);
+            } else {
+                panic!("Expected number");
+            }
+        });
+    }
+
+    #[test]
+    fn test_op_map_omit() {
+        with_arena(|mc, _| {
+            let key1 = Value::string(mc, "a".to_string());
+            let val1 = Value::number(1.0);
+            let key2 = Value::string(mc, "b".to_string());
+            let val2 = Value::number(2.0);
+            let map = Value::map(mc, vec![(key1, val1), (key2, val2)]);
+            let key_to_remove = Value::string(mc, "a".to_string());
+            let result = op_map_omit(mc, map, key_to_remove);
+            if let Value::Map(m) = result {
+                assert_eq!(m.len(), 1);
+                assert!(!m.iter().any(|(k, _)| matches!(k, Value::String(s) if s.as_str() == "a")));
+            } else {
+                panic!("Expected map");
+            }
+        });
+    }
+
+    #[test]
+    fn test_op_string_replace() {
+        with_arena(|mc, _| {
+            let left = Value::string(mc, "hello world".to_string());
+            let args = Value::list(mc, vec![
+                Value::string(mc, "world".to_string()),
+                Value::string(mc, "rust".to_string())
+            ]);
+            let result = op_string_replace(mc, left, args);
             if let Value::String(s) = result {
-                assert_eq!(&*s, "hello");
+                assert_eq!(&*s, "hello rust");
             } else {
                 panic!("Expected string");
             }
+        });
+    }
+
+    #[test]
+    fn test_op_is_string() {
+        with_arena(|mc, _| {
+            let left = Value::string(mc, "hello".to_string());
+            let right = Value::undefined();
+            let result = op_is_string(mc, left, right);
+            assert!(matches!(result, Value::Boolean(true)));
+        });
+    }
+
+    #[test]
+    fn test_op_is_string_false() {
+        with_arena(|mc, _| {
+            let left = Value::number(5.0);
+            let right = Value::undefined();
+            let result = op_is_string(mc, left, right);
+            assert!(matches!(result, Value::Boolean(false)));
+        });
+    }
+
+    #[test]
+    fn test_op_is_number() {
+        with_arena(|mc, _| {
+            let left = Value::number(5.0);
+            let right = Value::undefined();
+            let result = op_is_number(mc, left, right);
+            assert!(matches!(result, Value::Boolean(true)));
+        });
+    }
+
+    #[test]
+    fn test_op_is_number_false() {
+        with_arena(|mc, _| {
+            let left = Value::string(mc, "hello".to_string());
+            let right = Value::undefined();
+            let result = op_is_number(mc, left, right);
+            assert!(matches!(result, Value::Boolean(false)));
+        });
+    }
+
+    #[test]
+    fn test_op_contains_list() {
+        with_arena(|mc, _| {
+            let left = Value::list(mc, vec![Value::number(1.0), Value::number(2.0), Value::number(3.0)]);
+            let right = Value::number(2.0);
+            let result = op_contains(mc, left, right);
+            assert!(matches!(result, Value::Boolean(true)));
+        });
+    }
+
+    #[test]
+    fn test_op_contains_list_false() {
+        with_arena(|mc, _| {
+            let left = Value::list(mc, vec![Value::number(1.0), Value::number(2.0), Value::number(3.0)]);
+            let right = Value::number(5.0);
+            let result = op_contains(mc, left, right);
+            assert!(matches!(result, Value::Boolean(false)));
+        });
+    }
+
+    #[test]
+    fn test_op_contains_string() {
+        with_arena(|mc, _| {
+            let left = Value::string(mc, "hello world".to_string());
+            let right = Value::string(mc, "world".to_string());
+            let result = op_contains(mc, left, right);
+            assert!(matches!(result, Value::Boolean(true)));
+        });
+    }
+
+    #[test]
+    fn test_op_contains_string_false() {
+        with_arena(|mc, _| {
+            let left = Value::string(mc, "hello world".to_string());
+            let right = Value::string(mc, "foo".to_string());
+            let result = op_contains(mc, left, right);
+            assert!(matches!(result, Value::Boolean(false)));
         });
     }
 
@@ -658,16 +854,6 @@ mod tests {
             } else {
                 panic!("Expected string");
             }
-        });
-    }
-
-    #[test]
-    fn test_op_reverse_args() {
-        with_arena(|mc, _| {
-            let left = Value::undefined();
-            let right = Value::undefined();
-            let result = op_reverse_args(mc, left, right);
-            assert!(matches!(result, Value::Undefined));
         });
     }
 

@@ -189,6 +189,7 @@ impl VM {
                     "@" => Ok(Value::partial_operator(mc, "@".to_string(), *left)),
                     "#" => Ok(Value::number(entries.len() as f64)),
                     "?" => Ok(Value::partial_operator(mc, "?".to_string(), *left)),
+                    "!!" => Ok(Value::partial_operator(mc, "!!".to_string(), *left)),
                     _ => Err(VMError::TypeError(format!(
                         "Unknown map operator: {}", op_name
                     ))),
@@ -254,6 +255,123 @@ impl VM {
                                 "Closures must be used in infix position (data first): `5 { _< + 1 }`, not `{ _< + 1 } 5`".to_string()
                             ));
                         }
+                        (Value::PartialOperator(partial), Value::Closure(closure_data)) => {
+                            // PartialOperator with Closure right — handle loop ops ($|, $&, $, $?, etc.)
+                            match (&partial.left_arg, partial.name.as_str()) {
+                                (Value::List(items), "$") => {
+                                    let mut results = Vec::with_capacity(items.len());
+                                    for item in items.iter() {
+                                        let mapped = self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, *item, None)?;
+                                        results.push(mapped);
+                                    }
+                                    Value::list(mc, results)
+                                }
+                                (Value::List(items), "$?") => {
+                                    let mut results = Vec::with_capacity(items.len());
+                                    for item in items.iter() {
+                                        let check = self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, *item, None)?;
+                                        if check.is_truthy() {
+                                            results.push(*item);
+                                        }
+                                    }
+                                    Value::list(mc, results)
+                                }
+                                (Value::List(items), "$_") => {
+                                    let mut results = Vec::with_capacity(items.len());
+                                    for item in items.iter() {
+                                        let mapped = self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, *item, None)?;
+                                        match mapped {
+                                            Value::List(sub_items) => results.extend(sub_items.iter().copied()),
+                                            other => results.push(other),
+                                        }
+                                    }
+                                    Value::list(mc, results)
+                                }
+                                (Value::List(items), "$|") => {
+                                    let mut result = Value::boolean(mc, false);
+                                    for item in items.iter() {
+                                        let check = self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, *item, None)?;
+                                        if check.is_truthy() {
+                                            result = Value::boolean(mc, true);
+                                            break;
+                                        }
+                                    }
+                                    result
+                                }
+                                (Value::List(items), "$&") => {
+                                    let mut result = Value::boolean(mc, true);
+                                    for item in items.iter() {
+                                        let check = self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, *item, None)?;
+                                        if !check.is_truthy() {
+                                            result = Value::boolean(mc, false);
+                                            break;
+                                        }
+                                    }
+                                    result
+                                }
+                                (Value::List(items), "$?|") => {
+                                    for item in items.iter() {
+                                        let check = self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, *item, None)?;
+                                        if check.is_truthy() {
+                                            return Ok(*item);
+                                        }
+                                    }
+                                    Value::undefined()
+                                }
+                                (Value::List(items), "$~") => {
+                                    use std::collections::HashSet;
+                                    let mut seen = HashSet::new();
+                                    let mut result = Vec::new();
+                                    for item in items.iter() {
+                                        let key = self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, *item, None)?;
+                                        let key_str = key.to_string();
+                                        if seen.insert(key_str) {
+                                            result.push(*item);
+                                        }
+                                    }
+                                    Value::list(mc, result)
+                                }
+                                (Value::List(items), "$>") => {
+                                    use std::collections::HashMap;
+                                    let mut groups: HashMap<String, Vec<Value<'a>>> = HashMap::new();
+                                    for item in items.iter() {
+                                        let key = self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, *item, None)?;
+                                        let key_str = key.to_string();
+                                        groups.entry(key_str).or_insert_with(Vec::new).push(*item);
+                                    }
+                                    let result: Vec<(Value<'a>, Value<'a>)> = groups.into_iter().map(|(k, v)| {
+                                        (Value::string(mc, k), Value::list(mc, v))
+                                    }).collect();
+                                    Value::map(mc, result)
+                                }
+                                (Value::List(items), "$%") => {
+                                    let mut pairs: Vec<(Value<'a>, Value<'a>)> = Vec::new();
+                                    for item in items.iter() {
+                                        let key = self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, *item, None)?;
+                                        pairs.push((key, *item));
+                                    }
+                                    pairs.sort_by(|a, b| {
+                                        match (&a.0, &b.0) {
+                                            (Value::Number(an), Value::Number(bn)) => an.partial_cmp(bn).unwrap_or(std::cmp::Ordering::Equal),
+                                            (Value::String(as_), Value::String(bs)) => as_.cmp(bs),
+                                            _ => std::cmp::Ordering::Equal,
+                                        }
+                                    });
+                                    let result: Vec<Value<'a>> = pairs.into_iter().map(|(_, item)| item).collect();
+                                    Value::list(mc, result)
+                                }
+                                (_, "!!") => {
+                                    if partial.left_arg.is_truthy() {
+                                        self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, partial.left_arg, None)?
+                                    } else {
+                                        Value::undefined()
+                                    }
+                                }
+                                _ => return Err(VMError::TypeError(format!(
+                                    "Cannot apply partial operator {} to closure", partial.name
+                                ))),
+                            }
+                        }
                         (arg, Value::Closure(closure_data)) => {
                             if closure_data.arg_count >= 2 {
                                 // Diadic closure: left arg is bound, awaiting right arg
@@ -281,9 +399,10 @@ impl VM {
                         }
                         (Value::String(s), Value::String(op_name)) => {
                             match op_name.as_str() {
-                                "+" | "_" | "<>" | "><" => Value::partial_operator(mc, op_name.to_string(), Value::string(mc, s.to_string())),
+                                "+" | "_" | "<>" | "><" | "~" => Value::partial_operator(mc, op_name.to_string(), Value::string(mc, s.to_string())),
                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::string(mc, s.to_string())),
                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::string(mc, s.to_string())),
+                                "!!" => Value::partial_operator(mc, "!!".to_string(), Value::string(mc, s.to_string())),
                                 "^" => Value::string(mc, s.to_uppercase()),
                                 "^_" => {
                                     let mut chars = s.chars();
@@ -306,13 +425,24 @@ impl VM {
                                 "@" => Value::partial_operator(mc, "@".to_string(), Value::List(*l)),
                                 "#" => Value::number(l.len() as f64),
                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::List(*l)),
+                                "!!" => Value::partial_operator(mc, "!!".to_string(), Value::List(*l)),
                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::List(*l)),
-                                 "+" | "_" => Value::partial_operator(mc, op_name.to_string(), Value::list(mc, l.as_ref().clone())),
-                                 "<>" | "><" => Value::partial_operator(mc, "<>".to_string(), Value::list(mc, l.as_ref().clone())),
+                                "+" | "_" => Value::partial_operator(mc, op_name.to_string(), Value::list(mc, l.as_ref().clone())),
+                                "<>" | "><" | "?><" => Value::partial_operator(mc, "<>".to_string(), Value::list(mc, l.as_ref().clone())),
                                 "==" | "=" => Value::partial_operator(mc, op_name.to_string(), Value::List(*l)),
                                 "$" => Value::partial_operator(mc, "$".to_string(), Value::List(*l)),
                                 "$?" => Value::partial_operator(mc, "$?".to_string(), Value::List(*l)),
                                 "$_" => Value::partial_operator(mc, "$_".to_string(), Value::List(*l)),
+                                "$|" => Value::partial_operator(mc, "$|".to_string(), Value::List(*l)),
+                                "$&" => Value::partial_operator(mc, "$&".to_string(), Value::List(*l)),
+                                "$?|" => Value::partial_operator(mc, "$?|".to_string(), Value::List(*l)),
+                                "$~" => Value::partial_operator(mc, "$~".to_string(), Value::List(*l)),
+                                "$>" => Value::partial_operator(mc, "$>".to_string(), Value::List(*l)),
+                                "$%" => Value::partial_operator(mc, "$%".to_string(), Value::List(*l)),
+                                "$?!" => {
+                                    let filtered: Vec<Value<'a>> = l.iter().filter(|v| !matches!(v, Value::Undefined)).copied().collect();
+                                    Value::list(mc, filtered)
+                                }
                                 _ => return Err(VMError::TypeError(format!(
                                     "Unknown list operator: {}", op_name
                                 ))),
@@ -325,6 +455,7 @@ impl VM {
                                 "*" => Value::partial_operator(mc, "*".to_string(), Value::Number(*n)),
                                 "/" => Value::partial_operator(mc, "/".to_string(), Value::Number(*n)),
                                 "%" => Value::partial_operator(mc, "%".to_string(), Value::Number(*n)),
+                                "^" => Value::partial_operator(mc, "^".to_string(), Value::Number(*n)),
                                 "==" | "=" => Value::partial_operator(mc, op_name.to_string(), Value::Number(*n)),
                                 "!=" => Value::partial_operator(mc, "!=".to_string(), Value::Number(*n)),
                                 "<" => Value::partial_operator(mc, "<".to_string(), Value::Number(*n)),
@@ -334,6 +465,7 @@ impl VM {
                                 "&" => Value::partial_operator(mc, "&".to_string(), Value::Number(*n)),
                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::Number(*n)),
                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::Number(*n)),
+                                "!!" => Value::partial_operator(mc, "!!".to_string(), Value::Number(*n)),
                                 _ => {
                                     return Err(VMError::Runtime(format!(
                                         "Unknown operator: {}",
@@ -346,6 +478,9 @@ impl VM {
                             match op_name.as_str() {
                                 "!" => Value::boolean(mc, !right.is_truthy()),
                                 "?" => Value::partial_operator(mc, "?".to_string(), right),
+                                "?\"" => Value::partial_operator(mc, "?\"".to_string(), right),
+                                "?#" => Value::partial_operator(mc, "?#".to_string(), right),
+                                "!!" => Value::partial_operator(mc, "!!".to_string(), right),
                                 _ => return Err(VMError::TypeError(format!(
                                     "Cannot call: left=string right={}", right.type_name()
                                 ))),
@@ -353,7 +488,9 @@ impl VM {
                         }
                         (Value::Boolean(b), Value::String(op_name)) => {
                             match op_name.as_str() {
-                                "&" | "|" | "?" => Value::partial_operator(mc, op_name.to_string(), Value::boolean(mc, *b)),
+                                "&" | "|" | "?" | "!!" => Value::partial_operator(mc, op_name.to_string(), Value::boolean(mc, *b)),
+                                "?\"" => Value::partial_operator(mc, "?\"".to_string(), Value::boolean(mc, *b)),
+                                "?#" => Value::partial_operator(mc, "?#".to_string(), Value::boolean(mc, *b)),
                                 "==" | "!=" | "=" => Value::partial_operator(mc, op_name.to_string(), Value::boolean(mc, *b)),
                                 _ => return Err(VMError::TypeError(format!(
                                     "Unknown boolean operator: {}", op_name
@@ -397,6 +534,7 @@ impl VM {
                                                     if *rv == 0.0 { return Err(VMError::Runtime("Division by zero".to_string())); }
                                                     Value::number(*lv % *rv)
                                                 }
+                                                "^" => Value::number(lv.powf(*rv)),
                                                 "==" | "=" => Value::boolean(mc, lv == rv),
                                                 "!=" => Value::boolean(mc, lv != rv),
                                                 "<" => Value::boolean(mc, lv < rv),
@@ -422,6 +560,17 @@ impl VM {
                                         }
                                         (Value::String(ls), Value::Boolean(b), "+") => {
                                             Value::string(mc, format!("{}{}", ls, b))
+                                        }
+                                        (Value::String(s), Value::List(args), "~") => {
+                                            if args.len() >= 2 {
+                                                if let (Value::String(old), Value::String(new)) = (&args[0], &args[1]) {
+                                                    Value::string(mc, s.replace(old.as_str(), new.as_str()))
+                                                } else {
+                                                    return Err(VMError::Runtime("~ operator requires [old_string, new_string]".to_string()));
+                                                }
+                                            } else {
+                                                return Err(VMError::Runtime("~ operator requires [old_string, new_string]".to_string()));
+                                            }
                                         }
                                         (Value::String(ls), _, "^") => {
                                             Value::string(mc, ls.to_uppercase())
@@ -460,6 +609,15 @@ impl VM {
                                                 })
                                                 .map(|(_, v)| *v)
                                                 .unwrap_or(Value::undefined())
+                                        }
+                                        (Value::Map(entries), Value::String(key), "-") => {
+                                            let filtered: Vec<(Value<'a>, Value<'a>)> = entries.iter()
+                                                .filter(|(k, _)| {
+                                                    if let Value::String(ks) = k { ks != key } else { true }
+                                                })
+                                                .map(|(k, v)| (*k, *v))
+                                                .collect();
+                                            Value::map(mc, filtered)
                                         }
                                         (Value::Map(entries), Value::Number(idx), "@") => {
                                             let pair = entries.iter().nth(*idx as usize);
@@ -529,6 +687,13 @@ impl VM {
                                                 Value::boolean(mc, eq)
                                             }
                                         }
+                                        (Value::List(items), value, "?><") => {
+                                            let contains = items.iter().any(|item| item.deep_eq(&value));
+                                            Value::boolean(mc, contains)
+                                        }
+                                        (Value::String(s), Value::String(sub), "?><") => {
+                                            Value::boolean(mc, s.contains(sub.as_str()))
+                                        }
                                         (Value::List(items), Value::String(map_op), "$") => {
                                             Value::partial_operator(mc, format!("${}", map_op), Value::List(*items))
                                         }
@@ -577,6 +742,12 @@ impl VM {
                                                 *left
                                             }
                                         }
+                                        (left, _, "?\"") => {
+                                            Value::boolean(mc, matches!(left, Value::String(_)))
+                                        }
+                                        (left, _, "?#") => {
+                                            Value::boolean(mc, matches!(left, Value::Number(_)))
+                                        }
                                         (_, _, "?:else") => {
                                             right
                                         }
@@ -603,6 +774,7 @@ impl VM {
                                         "*" => Value::partial_operator(mc, "*".to_string(), Value::Number(*n)),
                                         "/" => Value::partial_operator(mc, "/".to_string(), Value::Number(*n)),
                                         "%" => Value::partial_operator(mc, "%".to_string(), Value::Number(*n)),
+                                        "^" => Value::partial_operator(mc, "^".to_string(), Value::Number(*n)),
                                         "==" | "=" => Value::partial_operator(mc, op.name.to_string(), Value::Number(*n)),
                                         "!=" => Value::partial_operator(mc, "!=".to_string(), Value::Number(*n)),
                                         "<" => Value::partial_operator(mc, "<".to_string(), Value::Number(*n)),
@@ -628,15 +800,16 @@ impl VM {
                                  }
                              }
                          }
-                         (Value::Undefined, Value::String(op_name)) => {
-                             match op_name.as_str() {
-                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::undefined()),
-                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::undefined()),
-                                 _ => return Err(VMError::TypeError(format!(
-                                     "Cannot call: left=undefined right={}", op_name
-                                 ))),
-                             }
-                         }
+                          (Value::Undefined, Value::String(op_name)) => {
+                              match op_name.as_str() {
+                                  "|" => Value::partial_operator(mc, "|".to_string(), Value::undefined()),
+                                  "?" => Value::partial_operator(mc, "?".to_string(), Value::undefined()),
+                                  "!!" => Value::partial_operator(mc, "!!".to_string(), Value::undefined()),
+                                  _ => return Err(VMError::TypeError(format!(
+                                      "Cannot call: left=undefined right={}", op_name
+                                  ))),
+                              }
+                          }
                          _ => {
                              return Err(VMError::TypeError(format!(
                                  "Cannot call: left={} right={}",

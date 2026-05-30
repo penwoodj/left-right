@@ -282,8 +282,7 @@ impl Lexer<'_> {
                                     }
                                     return Ok(Some(Token::new(TokenKind::Identifier, "!!!".to_string(), Span::new(start, self.position))));
                                 }
-                                self.position -= 1;
-                                self.chars = self.source[self.position as usize..].chars().peekable();
+                                return Ok(Some(Token::new(TokenKind::Identifier, "!!".to_string(), Span::new(start, self.position))));
                             }
                             if self.peek() == Some(&'=') {
                                 self.next();
@@ -316,6 +315,11 @@ impl Lexer<'_> {
                 break;
             }
             if Self::is_reserved_symbol(c) {
+                if value == "$?" && c == '!' {
+                    self.next();
+                    value.push(c);
+                    continue;
+                }
                 break;
             }
             if Self::is_digit(c) {

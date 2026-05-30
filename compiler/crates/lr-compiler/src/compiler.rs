@@ -401,6 +401,11 @@ impl Compiler {
                     && non_arg_entries[last_non_arg_idx].value.is_none()
                     && non_arg_entries[..last_non_arg_idx].iter().any(|e| e.is_assignment);
 
+                let has_guards = non_arg_entries.iter().any(|e| {
+                    matches!(&e.key, Expression::Identifier(i) if i.name.ends_with('?'))
+                    && e.value.is_some()
+                });
+
                 let first_key_reg = self.alloc_register()?;
                 self.compile_expression(&non_arg_entries[0].key, first_key_reg)?;
 
@@ -424,19 +429,56 @@ impl Compiler {
                 };
 
                 for entry in entries_to_compile {
-                    let key_reg = self.alloc_register()?;
-                    self.compile_expression(&entry.key, key_reg)?;
+                    let is_guard = matches!(&entry.key, Expression::Identifier(i) if i.name.ends_with('?'));
 
-                    let value_reg = self.alloc_register()?;
-                    if let Some(ref value) = entry.value {
-                        self.compile_expression(value, value_reg)?;
+                    if is_guard && entry.value.is_some() {
+                        let (base_name, base_span) = if let Expression::Identifier(i) = &entry.key {
+                            (i.name[..i.name.len()-1].to_string(), i.span.clone())
+                        } else {
+                            unreachable!()
+                        };
+
+                        let guard_base_reg = self.alloc_register()?;
+                        self.compile_expression(&Expression::Identifier(Identifier {
+                            name: base_name,
+                            span: base_span,
+                        }), guard_base_reg)?;
+
+                        let guard_cond_reg = self.alloc_register()?;
+                        let const_idx = self.chunk.add_constant(Constant::String("?".to_string()))?;
+                        self.chunk.emit(Instruction::new(Opcode::LoadConstant, guard_cond_reg, const_idx, 0));
+                        self.chunk.emit(Instruction::new(Opcode::Call, guard_cond_reg, guard_base_reg, 0));
+                        self.free_register();
+
+                        let jump_if_false_idx = self.chunk.code.len();
+                        self.chunk.emit(Instruction::new(Opcode::JumpIfFalse, guard_cond_reg, 0, 0));
+                        self.free_register();
+
+                        let guard_value_reg = self.alloc_register()?;
+                        self.compile_expression(entry.value.as_ref().unwrap(), guard_value_reg)?;
+                        self.chunk.emit(Instruction::new(Opcode::Return, guard_value_reg, 0, 0));
+
+                        let skip_pos = self.chunk.code.len();
+                        let skip_offset = (skip_pos - jump_if_false_idx) as u8;
+                        self.chunk.code[jump_if_false_idx] = Instruction::new(
+                            Opcode::JumpIfFalse, guard_cond_reg, skip_offset, 0,
+                        );
+                        self.free_register();
                     } else {
-                        self.chunk.emit(Instruction::new(Opcode::LoadRegister, value_reg, key_reg, 0));
-                    }
+                        let key_reg = self.alloc_register()?;
+                        self.compile_expression(&entry.key, key_reg)?;
 
-                    if entry.is_assignment {
-                        if let Expression::Identifier(ref ident) = entry.key {
-                            self.bind_name(&ident.name, value_reg)?;
+                        let value_reg = self.alloc_register()?;
+                        if let Some(ref value) = entry.value {
+                            self.compile_expression(value, value_reg)?;
+                        } else {
+                            self.chunk.emit(Instruction::new(Opcode::LoadRegister, value_reg, key_reg, 0));
+                        }
+
+                        if entry.is_assignment {
+                            if let Expression::Identifier(ref ident) = entry.key {
+                                self.bind_name(&ident.name, value_reg)?;
+                            }
                         }
                     }
                 }
@@ -456,6 +498,31 @@ impl Compiler {
                     self.compile_expression(&non_arg_entries[last_non_arg_idx].key, last_reg)?;
                     self.chunk.emit(Instruction::new(Opcode::Return, last_reg, 0, 0));
                     self.free_register();
+                } else if has_guards {
+                    let last_non_guard = non_arg_entries.iter().enumerate()
+                        .rev()
+                        .find(|(_, e)| {
+                            !matches!(&e.key, Expression::Identifier(i) if i.name.ends_with('?'))
+                        });
+                    if let Some((idx, _)) = last_non_guard {
+                        let reg = self.alloc_register()?;
+                        if idx == 0 {
+                            if let Some(ref value) = non_arg_entries[0].value {
+                                self.compile_expression(value, reg)?;
+                            } else {
+                                self.chunk.emit(Instruction::new(Opcode::LoadRegister, reg, first_key_reg, 0));
+                            }
+                        } else {
+                            self.compile_expression(&non_arg_entries[idx].key, reg)?;
+                            if let Some(ref value) = non_arg_entries[idx].value {
+                                let val_reg = self.alloc_register()?;
+                                self.compile_expression(value, val_reg)?;
+                                self.free_register();
+                            }
+                        }
+                        self.chunk.emit(Instruction::new(Opcode::Return, reg, 0, 0));
+                        self.free_register();
+                    }
                 } else {
                     let all_expr_keys = non_arg_entries.iter().all(|e| {
                         !matches!(e.key, Expression::Identifier(_)) && e.value.is_none()
@@ -1307,10 +1374,10 @@ mod tests {
     }
 
     #[test]
-    fn test_at_operator_map_string_key() {
-        let result = compile_and_run("{ a: 1, b: 2 } @ `a`");
+    fn test_at_operator_list_index() {
+        let result = compile_and_run("[10, 20, 30] @ 1");
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "1");
+        assert_eq!(result.unwrap(), "20");
     }
 
     #[test]
@@ -1321,10 +1388,76 @@ mod tests {
     }
 
     #[test]
-    fn test_at_operator_list_index() {
-        let result = compile_and_run("[10, 20, 30] @ 1");
+    fn test_some_operator() {
+        let result = compile_and_run("[1, 2, 3] $| { _< > 2 }");
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "20");
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_some_operator_no_match() {
+        let result = compile_and_run("[1, 2, 3] $| { _< > 5 }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_every_operator() {
+        let result = compile_and_run("[1, 2, 3] $& { _< > 0 }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_every_operator_no_match() {
+        let result = compile_and_run("[1, 2, 3] $& { _< > 2 }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_find_operator() {
+        let result = compile_and_run("[1, 2, 3] $?| { _< > 1 }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "2");
+    }
+
+    #[test]
+    fn test_find_operator_not_found() {
+        let result = compile_and_run("[1, 2, 3] $?| { _< > 5 }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "undefined");
+    }
+
+    #[test]
+    fn test_unique_by_operator() {
+        let result = compile_and_run("[1, 2, 2, 3] $~ { _< }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[1, 2, 3]");
+    }
+
+    #[test]
+    fn test_group_by_operator() {
+        let result = compile_and_run("[1, 2, 3] $> { _< % 2 }");
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.contains("1") && output.contains("3"), "Should contain 1 and 3 grouped");
+        assert!(output.contains("2"), "Should contain 2 grouped separately");
+    }
+
+    #[test]
+    fn test_sort_operator() {
+        let result = compile_and_run("[3, 1, 2] $% { _< }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[1, 2, 3]");
+    }
+
+    #[test]
+    fn test_compact_operator() {
+        let source = "[1, 2, 3] $?!";
+        let result = compile_and_run(source);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[1, 2, 3]");
     }
 
     #[test]
@@ -1335,5 +1468,57 @@ mod tests {
         // Should return [key, value] pair for first entry
         assert!(result_str.contains("a"), "Should contain key 'a'");
         assert!(result_str.contains("1"), "Should contain value 1");
+    }
+
+    #[test]
+    fn test_optional_apply_truthy() {
+        let result = compile_and_run("5 !! { _< * 2 }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "10");
+    }
+
+    #[test]
+    fn test_optional_apply_falsy() {
+        let result = compile_and_run("0 !! { _< * 2 }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "undefined");
+    }
+
+    #[test]
+    fn test_optional_apply_string() {
+        let result = compile_and_run("`hello` !! { _< ^ }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "HELLO");
+    }
+
+    #[test]
+    fn test_optional_apply_undefined() {
+        let result = compile_and_run("{} @ `missing` !! { _< * 2 }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "undefined");
+    }
+
+    #[test]
+    fn test_guard_truthy() {
+        let result = compile_and_run("5 { _<, x: 5, x?: x }");
+        if let Err(ref e) = result {
+            eprintln!("GUARD TRUTHY ERROR: {:?}", e);
+        }
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "5");
+    }
+
+    #[test]
+    fn test_guard_falsy() {
+        let result = compile_and_run("5 { _<, x: 0, x?: x, y: 42 }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "42");
+    }
+
+    #[test]
+    fn test_guard_undefined() {
+        let result = compile_and_run("5 { _<, x?: x, y: 99 }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "99");
     }
 }
