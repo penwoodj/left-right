@@ -61,9 +61,9 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 | Layer | Count | Runner |
 |-------|-------|--------|
 | Rust unit/e2e | 388 (2 ignored) | `cargo test` in `compiler/` |
-| CLI integration | 94 | `lr test` from `crates/lr-cli/` |
-| Live system | 136 | `compiler/tests/live_runner.sh` |
-| **Total** | **618** | |
+| CLI integration | 98 | `lr test` from `crates/lr-cli/` |
+| Live system | 142 | `compiler/tests/live_runner.sh` |
+| **Total** | **628** | |
 
 ### Fully Verified Features (all 3 layers)
 
@@ -94,19 +94,15 @@ These are IMPLEMENTED but missing coverage in one or more test layers:
 
 #### Missing from CLI Integration Tests (crates/lr-cli/tests/*.lr)
 
-1. **`?` ternary with Number left** — Only tested with Boolean/String/List/Map. Number ternary not tested.
-2. **`?` as PartialOperator on Number/String/List/Map** — Ternary variant tested, but `?` as truthy-check PartialOperator not tested.
-3. **`|` default on Map** — Number/Boolean/String/List tested. Map default VM error.
-4. **`!"`/`?#` as operator dispatch** — Tested as prefix, not as data-first operator form.
-5. **`_` list concat variant** — `_` is concat alias for `+` on lists. No dedicated test.
-6. **`<>`/`><` on List** — These create PartialOperators for List. No dedicated test for list split/join via these ops.
-7. **Map `@` with numeric index** — Returns `[key, value]` pair at index. No CLI test.
+1. **`?` as PartialOperator on Number/String/List/Map** — Ternary variant tested, but `?` as truthy-check PartialOperator not tested.
+2. **`|` default on Map** — Number/Boolean/String/List tested. Map default VM error: "Unknown map operator: |". Runtime gap.
+3. **`_` list concat variant** — Runtime error: "Cannot apply partial operator _ to list". `_` is NOT a concat alias for `+` on lists — spec mismatch.
+4. **`<>`/`><` on List** — Runtime error: "Cannot apply partial operator <> to number". These operators create PartialOperators that can't be applied to lists. Runtime gap.
 
 #### Missing from Live System Tests (compiler/tests/live/*.lr)
 
-1. **`?` ternary with non-Boolean** — `?` with String/List/Map returns unexpected results (returns right, not left). Needs investigation.
-2. **`|` default with Map** — VM error: "Unknown map operator: |". Runtime gap.
-3. **`<>`/`><` on List** — No live test for list split/join via these ops.
+1. **`|` default with Map** — VM error: "Unknown map operator: |". Runtime gap.
+2. **`<>`/`><` on List** — Runtime error when trying list split/join. Runtime gap.
 
 ### Unimplemented Features (NOT testable)
 
