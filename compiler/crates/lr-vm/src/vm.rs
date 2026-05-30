@@ -1307,7 +1307,34 @@ impl VM {
                     }
                 }
                 Opcode::MapMerge => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::MapMerge))
+                    let dest = inst.a();
+                    let left_reg = inst.b();
+                    let right_reg = inst.c();
+                    let left_val = frame.get(left_reg);
+                    let right_val = frame.get(right_reg);
+
+                    match (left_val, right_val) {
+                        (Value::Map(left_entries), Value::Map(right_entries)) => {
+                            let mut merged = left_entries.to_vec();
+                            for (k, v) in right_entries.iter() {
+                                if let Some(pos) = merged.iter().position(|(mk, _)| {
+                                    if let (Value::String(a), Value::String(b)) = (mk, k) { a == b } else { false }
+                                }) {
+                                    merged[pos].1 = *v;
+                                } else {
+                                    merged.push((*k, *v));
+                                }
+                            }
+                            frame.set(dest, Value::map(mc, merged));
+                            frame.advance();
+                        }
+                        _ => {
+                            return Err(VMError::TypeError(format!(
+                                "MapMerge requires two maps, got {} and {}",
+                                left_val.type_name(), right_val.type_name()
+                            )))
+                        }
+                    }
                 }
                 Opcode::MapPick => {
                     return Err(VMError::UnimplementedOpcode(Opcode::MapPick))
@@ -2209,7 +2236,6 @@ mod tests {
     #[test]
     fn test_vm_unimplemented_opcodes() {
         let unimplemented_opcodes = vec![
-            Opcode::MapMerge,
             Opcode::MapPick,
             Opcode::MapOmit,
             Opcode::StringSlice,
@@ -2248,6 +2274,42 @@ mod tests {
                 opcode
             );
         }
+    }
+
+    #[test]
+    fn test_vm_map_merge() {
+        let chunk = build_chunk(|c| {
+            let idx_a = c.add_constant(Constant::String("a".to_string())).unwrap();
+            let idx_1 = c.add_constant(Constant::Number(1.0)).unwrap();
+            let idx_b = c.add_constant(Constant::String("b".to_string())).unwrap();
+            let idx_2 = c.add_constant(Constant::Number(2.0)).unwrap();
+            let idx_c = c.add_constant(Constant::String("c".to_string())).unwrap();
+            let idx_3 = c.add_constant(Constant::Number(3.0)).unwrap();
+
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx_a));
+            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_1));
+            c.emit(Instruction::new(Opcode::LoadConstant, 3, 0, idx_b));
+            c.emit(Instruction::new(Opcode::LoadConstant, 4, 0, idx_2));
+            c.emit(Instruction::new(Opcode::MapBuild, 5, 1, 2));
+
+            c.emit(Instruction::new(Opcode::LoadConstant, 6, 0, idx_b));
+            c.emit(Instruction::new(Opcode::LoadConstant, 7, 0, idx_3));
+            c.emit(Instruction::new(Opcode::LoadConstant, 8, 0, idx_c));
+            c.emit(Instruction::new(Opcode::LoadConstant, 9, 0, idx_3));
+            c.emit(Instruction::new(Opcode::MapBuild, 10, 6, 2));
+
+            c.emit(Instruction::new(Opcode::MapMerge, 11, 5, 10));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 11, 0));
+            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
+        });
+
+        let mut vm = VM::new();
+        let result = vm.execute(&chunk);
+        assert!(result.is_ok());
+        let s = result.unwrap();
+        assert!(s.contains("a"), "merged map should contain key 'a': {}", s);
+        assert!(s.contains("b"), "merged map should contain key 'b': {}", s);
+        assert!(s.contains("c"), "merged map should contain key 'c': {}", s);
     }
 
     #[test]

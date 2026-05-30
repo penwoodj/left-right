@@ -1,8 +1,8 @@
 use lr_ast::{
     Application, BooleanLiteral, CatchExpression, Expression, ExportExpression,
-    GroupedExpression, Identifier, ImportExpression, LeftArg, ListLiteral, MapLiteral,
-    NumberLiteral, Program, RightArg, StringLiteral, StringPart, ThrowExpression,
-    UndefinedLiteral,
+    GroupedExpression, Identifier, ImportExpression, LeftArg, ListLiteral, MapEntry,
+    MapLiteral, NumberLiteral, Program, RightArg, StringLiteral, StringPart,
+    ThrowExpression, UndefinedLiteral,
 };
 use lr_bytecode::{Chunk, Constant, Instruction, Opcode};
 use std::collections::HashMap;
@@ -589,69 +589,205 @@ impl Compiler {
                     && m.entries[..last_idx].iter().any(|e| e.is_assignment);
 
                 if is_program {
-                    let mut last_reg = 0u8;
-                    for entry in &m.entries {
-                        if let Some(ref value) = entry.value {
+                    // Check if last entry is a spread (+:)
+                    let last_entry = &m.entries[last_idx];
+                    let spread_value = if last_entry.value.is_none() {
+                        if let Expression::Application(ref app) = last_entry.key {
+                            if let Expression::Identifier(ref ident) = *app.left {
+                                if ident.name == "+:" {
+                                    Some(&*app.right)
+                                } else { None }
+                            } else { None }
+                        } else { None }
+                    } else {
+                        None
+                    };
+
+                    if let Some(spread_expr) = spread_value {
+                        // Build map from non-spread entries, then merge
+                        let non_spread = &m.entries[..last_idx];
+                        if non_spread.is_empty() {
+                            self.chunk.emit(Instruction::new(Opcode::MapNew, dest, 0, 0));
+                        } else {
+                            let first_key_reg = self.alloc_register()?;
+                            self.compile_expression(&non_spread[0].key, first_key_reg)?;
+                            let first_value_reg = self.alloc_register()?;
+                            if let Some(ref value) = non_spread[0].value {
+                                self.compile_expression(value, first_value_reg)?;
+                            } else {
+                                self.chunk.emit(Instruction::new(Opcode::LoadRegister, first_value_reg, first_key_reg, 0));
+                            }
+                            if non_spread[0].is_assignment {
+                                if let Expression::Identifier(ref ident) = non_spread[0].key {
+                                    self.bind_name(&ident.name, first_value_reg)?;
+                                }
+                            }
+                            for entry in &non_spread[1..] {
+                                let key_reg = self.alloc_register()?;
+                                self.compile_expression(&entry.key, key_reg)?;
+                                let value_reg = self.alloc_register()?;
+                                if let Some(ref value) = entry.value {
+                                    self.compile_expression(value, value_reg)?;
+                                } else {
+                                    self.chunk.emit(Instruction::new(Opcode::LoadRegister, value_reg, key_reg, 0));
+                                }
+                                if entry.is_assignment {
+                                    if let Expression::Identifier(ref ident) = entry.key {
+                                        self.bind_name(&ident.name, value_reg)?;
+                                    }
+                                }
+                            }
+                            let entry_count = non_spread.len() as u8;
+                            self.chunk.emit(Instruction::new(Opcode::MapBuild, dest, first_key_reg, entry_count));
+                            for _ in 0..non_spread.len() * 2 {
+                                self.free_register();
+                            }
+                        }
+                        let spread_reg = self.alloc_register()?;
+                        self.compile_expression(spread_expr, spread_reg)?;
+                        self.chunk.emit(Instruction::new(Opcode::MapMerge, dest, dest, spread_reg));
+                        self.free_register();
+                        self.chunk.emit(Instruction::new(Opcode::Return, dest, 0, 0));
+                    } else {
+                        let mut last_reg = 0u8;
+                        for entry in &m.entries {
+                            if let Some(ref value) = entry.value {
+                                let key_reg = self.alloc_register()?;
+                                self.compile_expression(&entry.key, key_reg)?;
+                                let value_reg = self.alloc_register()?;
+                                self.compile_expression(value, value_reg)?;
+
+                                if entry.is_assignment {
+                                    if let Expression::Identifier(ref ident) = entry.key {
+                                        self.bind_name(&ident.name, value_reg)?;
+                                    }
+                                }
+                                last_reg = value_reg;
+                            } else {
+                                let key_reg = self.alloc_register()?;
+                                self.compile_expression(&entry.key, key_reg)?;
+                                last_reg = key_reg;
+                            }
+                        }
+                        if last_reg != dest {
+                            self.chunk.emit(Instruction::new(Opcode::LoadRegister, dest, last_reg, 0));
+                        }
+                    }
+                } else {
+                    // Check for spread entries (+:)
+                    let spread_indices: Vec<usize> = m.entries.iter().enumerate()
+                        .filter_map(|(i, e)| {
+                            if let Expression::Identifier(ref ident) = e.key {
+                                if ident.name == "+:" && e.value.is_some() { return Some(i); }
+                            }
+                            None
+                        })
+                        .collect();
+
+                    if spread_indices.is_empty() {
+                        // No spread entries - original behavior
+                        let first_key_reg = self.alloc_register()?;
+                        self.compile_expression(&m.entries[0].key, first_key_reg)?;
+
+                        let first_value_reg = self.alloc_register()?;
+                        if let Some(ref value) = m.entries[0].value {
+                            self.compile_expression(value, first_value_reg)?;
+                        } else {
+                            self.chunk.emit(Instruction::new(Opcode::LoadRegister, first_value_reg, first_key_reg, 0));
+                        }
+
+                        if m.entries[0].is_assignment {
+                            if let Expression::Identifier(ref ident) = m.entries[0].key {
+                                self.bind_name(&ident.name, first_value_reg)?;
+                            }
+                        }
+
+                        for entry in &m.entries[1..] {
                             let key_reg = self.alloc_register()?;
                             self.compile_expression(&entry.key, key_reg)?;
+
                             let value_reg = self.alloc_register()?;
-                            self.compile_expression(value, value_reg)?;
+                            if let Some(ref value) = entry.value {
+                                self.compile_expression(value, value_reg)?;
+                            } else {
+                                self.chunk.emit(Instruction::new(Opcode::LoadRegister, value_reg, key_reg, 0));
+                            }
 
                             if entry.is_assignment {
                                 if let Expression::Identifier(ref ident) = entry.key {
                                     self.bind_name(&ident.name, value_reg)?;
                                 }
                             }
-                            last_reg = value_reg;
-                        } else {
-                            let key_reg = self.alloc_register()?;
-                            self.compile_expression(&entry.key, key_reg)?;
-                            last_reg = key_reg;
                         }
-                    }
-                    if last_reg != dest {
-                        self.chunk.emit(Instruction::new(Opcode::LoadRegister, dest, last_reg, 0));
-                    }
-                } else {
-                    let first_key_reg = self.alloc_register()?;
-                    self.compile_expression(&m.entries[0].key, first_key_reg)?;
 
-                    let first_value_reg = self.alloc_register()?;
-                    if let Some(ref value) = m.entries[0].value {
-                        self.compile_expression(value, first_value_reg)?;
+                        let entry_count = m.entries.len() as u8;
+                        self.chunk.emit(Instruction::new(Opcode::MapBuild, dest, first_key_reg, entry_count));
+
+                        for _ in 0..m.entries.len() * 2 {
+                            self.free_register();
+                        }
                     } else {
-                        self.chunk.emit(Instruction::new(Opcode::LoadRegister, first_value_reg, first_key_reg, 0));
-                    }
+                        // Has spread entries - compile normal entries, then merge spreads
+                        let normal_entries: Vec<(usize, &MapEntry)> = m.entries.iter().enumerate()
+                            .filter(|(i, _)| !spread_indices.contains(i))
+                            .collect();
 
-                    if m.entries[0].is_assignment {
-                        if let Expression::Identifier(ref ident) = m.entries[0].key {
-                            self.bind_name(&ident.name, first_value_reg)?;
-                        }
-                    }
-
-                    for entry in &m.entries[1..] {
-                        let key_reg = self.alloc_register()?;
-                        self.compile_expression(&entry.key, key_reg)?;
-
-                        let value_reg = self.alloc_register()?;
-                        if let Some(ref value) = entry.value {
-                            self.compile_expression(value, value_reg)?;
+                        if normal_entries.is_empty() {
+                            // All spreads - start with empty map
+                            self.chunk.emit(Instruction::new(Opcode::MapNew, dest, 0, 0));
                         } else {
-                            self.chunk.emit(Instruction::new(Opcode::LoadRegister, value_reg, key_reg, 0));
-                        }
+                            // Compile normal entries
+                            let first_key_reg = self.alloc_register()?;
+                            self.compile_expression(&normal_entries[0].1.key, first_key_reg)?;
 
-                        if entry.is_assignment {
-                            if let Expression::Identifier(ref ident) = entry.key {
-                                self.bind_name(&ident.name, value_reg)?;
+                            let first_value_reg = self.alloc_register()?;
+                            if let Some(ref value) = normal_entries[0].1.value {
+                                self.compile_expression(value, first_value_reg)?;
+                            } else {
+                                self.chunk.emit(Instruction::new(Opcode::LoadRegister, first_value_reg, first_key_reg, 0));
+                            }
+
+                            if normal_entries[0].1.is_assignment {
+                                if let Expression::Identifier(ref ident) = normal_entries[0].1.key {
+                                    self.bind_name(&ident.name, first_value_reg)?;
+                                }
+                            }
+
+                            for (_, entry) in &normal_entries[1..] {
+                                let key_reg = self.alloc_register()?;
+                                self.compile_expression(&entry.key, key_reg)?;
+
+                                let value_reg = self.alloc_register()?;
+                                if let Some(ref value) = entry.value {
+                                    self.compile_expression(value, value_reg)?;
+                                } else {
+                                    self.chunk.emit(Instruction::new(Opcode::LoadRegister, value_reg, key_reg, 0));
+                                }
+
+                                if entry.is_assignment {
+                                    if let Expression::Identifier(ref ident) = entry.key {
+                                        self.bind_name(&ident.name, value_reg)?;
+                                    }
+                                }
+                            }
+
+                            let entry_count = normal_entries.len() as u8;
+                            self.chunk.emit(Instruction::new(Opcode::MapBuild, dest, first_key_reg, entry_count));
+
+                            for _ in 0..normal_entries.len() * 2 {
+                                self.free_register();
                             }
                         }
-                    }
 
-                    let entry_count = m.entries.len() as u8;
-                    self.chunk.emit(Instruction::new(Opcode::MapBuild, dest, first_key_reg, entry_count));
-
-                    for _ in 0..m.entries.len() * 2 {
-                        self.free_register();
+                        // Merge each spread entry
+                        for &idx in &spread_indices {
+                            let spread_reg = self.alloc_register()?;
+                            if let Some(ref value) = m.entries[idx].value {
+                                self.compile_expression(value, spread_reg)?;
+                            }
+                            self.chunk.emit(Instruction::new(Opcode::MapMerge, dest, dest, spread_reg));
+                            self.free_register();
+                        }
                     }
                 }
             }
@@ -911,6 +1047,22 @@ mod tests {
 
         let has_map_build = chunk.code.iter().any(|i| i.opcode() == Opcode::MapBuild);
         assert!(has_map_build, "Should have MapBuild instruction");
+
+        let has_string_a = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "a"));
+        assert!(has_string_a, "Should have string constant 'a'");
+    }
+
+    #[test]
+    fn test_compile_map_with_spread() {
+        let chunk = compile_source("{ a: 1, +: other }");
+        assert!(chunk.is_ok());
+        let chunk = chunk.unwrap();
+
+        let has_map_build = chunk.code.iter().any(|i| i.opcode() == Opcode::MapBuild);
+        assert!(has_map_build, "Should have MapBuild instruction");
+
+        let has_map_merge = chunk.code.iter().any(|i| i.opcode() == Opcode::MapMerge);
+        assert!(has_map_merge, "Should have MapMerge instruction for +: spread");
 
         let has_string_a = chunk.constants.iter().any(|c| matches!(c, Constant::String(s) if s == "a"));
         assert!(has_string_a, "Should have string constant 'a'");
