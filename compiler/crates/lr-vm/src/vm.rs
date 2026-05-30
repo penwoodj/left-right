@@ -249,6 +249,13 @@ impl VM {
                     let left = frame.get(inst.b());
                     let right = frame.get(inst.c());
 
+                    // `!!!` throw operator: value !!! throws value as exception
+                    if let Value::String(op) = &right {
+                        if op.as_str() == "!!!" {
+                            return Err(VMError::Runtime(format!("Uncaught exception: {}", left)));
+                        }
+                    }
+
                     let result = match (&left, &right) {
                         (Value::Closure(_closure_data), _arg) => {
                             return Err(VMError::TypeError(
