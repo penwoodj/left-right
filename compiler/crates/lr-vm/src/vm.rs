@@ -375,7 +375,9 @@ impl VM {
                                         let key_str = key.to_string();
                                         groups.entry(key_str).or_insert_with(Vec::new).push(*item);
                                     }
-                                    let result: Vec<(Value<'a>, Value<'a>)> = groups.into_iter().map(|(k, v)| {
+                                    let mut result: Vec<(String, Vec<Value<'a>>)> = groups.into_iter().collect();
+                                    result.sort_by(|a, b| a.0.cmp(&b.0));
+                                    let result: Vec<(Value<'a>, Value<'a>)> = result.into_iter().map(|(k, v)| {
                                         (Value::string(mc, k), Value::list(mc, v))
                                     }).collect();
                                     Value::map(mc, result)
