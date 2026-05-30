@@ -190,6 +190,8 @@ impl VM {
                     "#" => Ok(Value::number(entries.len() as f64)),
                     "?" => Ok(Value::partial_operator(mc, "?".to_string(), *left)),
                     "!!" => Ok(Value::partial_operator(mc, "!!".to_string(), *left)),
+                    "-" => Ok(Value::partial_operator(mc, "-".to_string(), *left)),
+                    "+" => Ok(Value::partial_operator(mc, "+".to_string(), *left)),
                     _ => Err(VMError::TypeError(format!(
                         "Unknown map operator: {}", op_name
                     ))),
@@ -456,6 +458,8 @@ impl VM {
                                             format!("{}{}", first.to_uppercase(), chars.as_str().to_lowercase())),
                                     }
                                 }
+                                "?\"" => Value::boolean(mc, true),
+                                "?#" => Value::boolean(mc, false),
                                 _ => {
                                     return Err(VMError::Runtime(format!(
                                         "Unknown operator for strings: {}",
@@ -472,7 +476,8 @@ impl VM {
                                 "!!" => Value::partial_operator(mc, "!!".to_string(), Value::List(*l)),
                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::List(*l)),
                                 "+" | "_" => Value::partial_operator(mc, op_name.to_string(), Value::list(mc, l.as_ref().clone())),
-                                "<>" | "><" | "?><" => Value::partial_operator(mc, "<>".to_string(), Value::list(mc, l.as_ref().clone())),
+                                "<>" | "><" => Value::partial_operator(mc, op_name.to_string(), Value::list(mc, l.as_ref().clone())),
+                                "?><" => Value::partial_operator(mc, "?><".to_string(), Value::list(mc, l.as_ref().clone())),
                                 "==" | "=" => Value::partial_operator(mc, op_name.to_string(), Value::List(*l)),
                                 "$" => Value::partial_operator(mc, "$".to_string(), Value::List(*l)),
                                 "$?" => Value::partial_operator(mc, "$?".to_string(), Value::List(*l)),
@@ -528,6 +533,8 @@ impl VM {
                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::Number(*n)),
                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::Number(*n)),
                                 "!!" => Value::partial_operator(mc, "!!".to_string(), Value::Number(*n)),
+                                "?\"" => Value::boolean(mc, false),
+                                "?#" => Value::boolean(mc, true),
                                 _ => {
                                     return Err(VMError::Runtime(format!(
                                         "Unknown operator: {}",
@@ -540,8 +547,8 @@ impl VM {
                             match op_name.as_str() {
                                 "!" => Value::boolean(mc, !right.is_truthy()),
                                 "?" => Value::partial_operator(mc, "?".to_string(), right),
-                                "?\"" => Value::partial_operator(mc, "?\"".to_string(), right),
-                                "?#" => Value::partial_operator(mc, "?#".to_string(), right),
+                                "?\"" => Value::boolean(mc, matches!(right, Value::String(_))),
+                                "?#" => Value::boolean(mc, matches!(right, Value::Number(_))),
                                 "!!" => Value::partial_operator(mc, "!!".to_string(), right),
                                 _ => return Err(VMError::TypeError(format!(
                                     "Cannot call: left=string right={}", right.type_name()
@@ -551,8 +558,8 @@ impl VM {
                         (Value::Boolean(b), Value::String(op_name)) => {
                             match op_name.as_str() {
                                 "&" | "|" | "?" | "!!" => Value::partial_operator(mc, op_name.to_string(), Value::boolean(mc, *b)),
-                                "?\"" => Value::partial_operator(mc, "?\"".to_string(), Value::boolean(mc, *b)),
-                                "?#" => Value::partial_operator(mc, "?#".to_string(), Value::boolean(mc, *b)),
+                                "?\"" => Value::boolean(mc, false), // booleans are not strings
+                                "?#" => Value::boolean(mc, false), // booleans are not numbers
                                 "==" | "!=" | "=" => Value::partial_operator(mc, op_name.to_string(), Value::boolean(mc, *b)),
                                 _ => return Err(VMError::TypeError(format!(
                                     "Unknown boolean operator: {}", op_name

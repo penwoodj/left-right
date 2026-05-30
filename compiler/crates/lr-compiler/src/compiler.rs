@@ -1700,4 +1700,373 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "99");
     }
+
+    // === String Operator Tests ===
+
+    #[test]
+    fn test_string_uppercase() {
+        let result = compile_and_run("`hello` ^");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "HELLO");
+    }
+
+    #[test]
+    fn test_string_uppercase_mixed() {
+        let result = compile_and_run("`HeLLo WoRLd` ^");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "HELLO WORLD");
+    }
+
+    #[test]
+    fn test_string_lowercase() {
+        let result = compile_and_run("`HELLO` _");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "hello");
+    }
+
+    #[test]
+    fn test_string_lowercase_mixed() {
+        let result = compile_and_run("`HeLLo WoRLd` _");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "hello world");
+    }
+
+    #[test]
+    fn test_string_capitalize() {
+        let result = compile_and_run("`hello` ^_");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "Hello");
+    }
+
+    #[test]
+    fn test_string_capitalize_all_caps() {
+        let result = compile_and_run("`HELLO` ^_");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "Hello");
+    }
+
+    #[test]
+    fn test_string_replace() {
+        let result = compile_and_run("`hello` ~ [`l`, `r`]");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "herro");
+    }
+
+    #[test]
+    fn test_string_replace_multiple() {
+        let result = compile_and_run("`aabbcc` ~ [`b`, `x`]");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "aaxxcc");
+    }
+
+    #[test]
+    fn test_string_split() {
+        let result = compile_and_run("`a,b,c` <> `,`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[a, b, c]");
+    }
+
+    #[test]
+    fn test_string_split_no_match() {
+        let result = compile_and_run("`hello` <> `,`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[hello]");
+    }
+
+    #[test]
+    fn test_list_join() {
+        let result = compile_and_run("[`a`, `b`, `c`] >< `,`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "a,b,c");
+    }
+
+    #[test]
+    fn test_list_join_numbers() {
+        let result = compile_and_run("[1, 2, 3] >< `-`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "1-2-3");
+    }
+
+    // === Map Operator Tests ===
+
+    #[test]
+    fn test_map_remove_key() {
+        let result = compile_and_run("{a: 1, b: 2, c: 3} - `b`");
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(!output.contains("b: 2"), "Should not contain removed key");
+        assert!(output.contains("a: 1"), "Should contain remaining key a");
+        assert!(output.contains("c: 3"), "Should contain remaining key c");
+    }
+
+    #[test]
+    fn test_map_remove_missing_key() {
+        let result = compile_and_run("{a: 1, b: 2} - `z`");
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.contains("a: 1"));
+        assert!(output.contains("b: 2"));
+    }
+
+    #[test]
+    fn test_map_bracket_path_single() {
+        let result = compile_and_run("{a: 42} @ [`a`]");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "42");
+    }
+
+    #[test]
+    fn test_map_bracket_path_nested() {
+        let result = compile_and_run("{a: {b: {c: 99}}} @ [`a`, `b`, `c`]");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "99");
+    }
+
+    #[test]
+    fn test_list_bracket_path_through_map() {
+        let result = compile_and_run("[{name: `alice`}, {name: `bob`}] @ [0, `name`]");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "alice");
+    }
+
+    #[test]
+    fn test_list_bracket_path_second_element() {
+        let result = compile_and_run("[{x: 10}, {x: 20}, {x: 30}] @ [2, `x`]");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "30");
+    }
+
+    #[test]
+    fn test_map_bracket_path_missing() {
+        let result = compile_and_run("{a: 1} @ [`z`]");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "undefined");
+    }
+
+    // === Loop Operator Tests ===
+
+    #[test]
+    fn test_map_each_property_single_key() {
+        let result = compile_and_run("[{name: `alice`}, {name: `bob`}] $@ `name`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[alice, bob]");
+    }
+
+    #[test]
+    fn test_map_each_property_missing_key() {
+        let result = compile_and_run("[{a: 1}, {b: 2}] $@ `z`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[undefined, undefined]");
+    }
+
+    #[test]
+    fn test_map_each_property_multiple_keys() {
+        let result = compile_and_run("[{a: 1, b: 2, c: 3}, {a: 4, b: 5, c: 6}] $@ [`a`, `c`]");
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.contains("a:"));
+        assert!(output.contains("c:"));
+    }
+
+    #[test]
+    fn test_each_to_string_numbers() {
+        let result = compile_and_run("[1, 2, 3] $\"");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[1, 2, 3]");
+    }
+
+    #[test]
+    fn test_each_to_string_mixed() {
+        let result = compile_and_run("[1, true, `hello`] $\"");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[1, true, hello]");
+    }
+
+    // === Type Check Tests ===
+
+    #[test]
+    fn test_is_string_true() {
+        let result = compile_and_run("`hello` ?\"");
+        if let Err(ref e) = result {
+            eprintln!("IS_STRING_TRUE ERROR: {:?}", e);
+        }
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_is_string_false_number() {
+        let result = compile_and_run("42 ?\"");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_is_string_false_boolean() {
+        let result = compile_and_run("true ?\"");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_is_number_true() {
+        let result = compile_and_run("42 ?#");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_is_number_false_string() {
+        let result = compile_and_run("`hello` ?#");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_is_number_float() {
+        let result = compile_and_run("3.14 ?#");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_contains_string_in_list() {
+        let result = compile_and_run("[`a`, `b`, `c`] ?>< `b`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_contains_number_in_list() {
+        let result = compile_and_run("[1, 2, 3] ?>< 2");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_contains_not_found() {
+        let result = compile_and_run("[1, 2, 3] ?>< 99");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    // === Control Flow Tests ===
+
+    #[test]
+    fn test_throw_runtime() {
+        let result = compile_and_run("`error message` !!!");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_spread_merge_maps() {
+        let result = compile_and_run("{a: 1} + {b: 2}");
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.contains("a: 1"));
+        assert!(output.contains("b: 2"));
+    }
+
+    #[test]
+    fn test_spread_merge_override() {
+        let result = compile_and_run("{a: 1} + {a: 2}");
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.contains("a: 2"));
+        assert!(!output.contains("a: 1"));
+    }
+
+    // === Partial Application Tests ===
+
+    #[test]
+    fn test_partial_application_single_arg() {
+        let result = compile_and_run("[5] { _< + 1 }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "6");
+    }
+
+    #[test]
+    fn test_partial_application_two_args() {
+        let result = compile_and_run("[3, 4] { _< + _> }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "7");
+    }
+
+    #[test]
+    fn test_partial_application_zero_args_returns_closure() {
+        let result = compile_and_run("[] { _< + 0 }");
+        if let Err(ref e) = result {
+            eprintln!("PARTIAL ZERO ERROR: {:?}", e);
+        }
+        assert!(result.is_ok());
+    }
+
+    // === Template String Interpolation Tests ===
+
+    #[test]
+    fn test_string_interpolation_simple() {
+        let result = compile_and_run("`hello {42}`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "hello 42");
+    }
+
+    #[test]
+    fn test_string_interpolation_number() {
+        let result = compile_and_run("`value: {42}`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "value: 42");
+    }
+
+    #[test]
+    fn test_string_interpolation_expression() {
+        let result = compile_and_run("`result: {1 + 2}`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "result: 3");
+    }
+
+    // === Error Constructor Tests ===
+
+    #[test]
+    fn test_error_constructor() {
+        let result = compile_and_run("Error[`test error`]");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "Error: test error");
+    }
+
+    // === Combined Feature Tests ===
+
+    #[test]
+    fn test_combined_filter_and_map() {
+        let result = compile_and_run("[1, 2, 3, 4, 5] $? { _< > 3 } $ { _< * 2 }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "[8, 10]");
+    }
+
+    #[test]
+    fn test_combined_pluck_and_join() {
+        let result = compile_and_run("[{name: `alice`}, {name: `bob`}] $@ `name` >< `, `");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "alice, bob");
+    }
+
+    #[test]
+    fn test_combined_map_remove_and_get() {
+        let result = compile_and_run("{a: 1, b: 2, c: 3} - `b` @ `a`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "1");
+    }
+
+    #[test]
+    fn test_combined_split_and_size() {
+        let result = compile_and_run("`a,b,c,d` <> `,` #");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "4");
+    }
+
+    #[test]
+    fn test_combined_uppercase_and_contains() {
+        let result = compile_and_run("[`HELLO`, `WORLD`] ?>< `HELLO`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true");
+    }
 }
