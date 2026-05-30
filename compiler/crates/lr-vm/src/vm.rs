@@ -393,6 +393,28 @@ impl VM {
                                 ))),
                             }
                         }
+                        (Value::List(args), Value::Closure(closure_data)) => {
+                            match args.len() {
+                                0 => Value::Closure(*closure_data),
+                                1 => {
+                                    if closure_data.arg_count >= 2 {
+                                        Value::PartialClosure(Gc::new(mc, PartialClosureData {
+                                            body_start: closure_data.body_start,
+                                            arg_count: closure_data.arg_count,
+                                            bound_left: args[0],
+                                        }))
+                                    } else {
+                                        self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, args[0], None)?
+                                    }
+                                }
+                                2 => {
+                                    self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, args[0], Some(args[1]))?
+                                }
+                                _ => return Err(VMError::TypeError(format!(
+                                    "Cannot apply {} args to closure (max 2)", args.len()
+                                ))),
+                            }
+                        }
                         (arg, Value::Closure(closure_data)) => {
                             if closure_data.arg_count >= 2 {
                                 // Diadic closure: left arg is bound, awaiting right arg
