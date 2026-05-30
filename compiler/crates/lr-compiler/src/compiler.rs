@@ -2427,4 +2427,16 @@ mod tests {
         let result = compile_and_run("[1, 2, 3, 4, 5] $?- 3").unwrap();
         assert_eq!(result, "[1, 2]");
     }
+
+    #[test]
+    fn test_greater_than_true() {
+        let result = compile_and_run("5 > 3").unwrap();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_greater_than_false() {
+        let result = compile_and_run("2 > 5").unwrap();
+        assert_eq!(result, "false");
+    }
 }
