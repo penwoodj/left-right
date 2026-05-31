@@ -1538,12 +1538,6 @@ impl VM {
                         }
                     }
                 }
-                Opcode::MapPick => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::MapPick))
-                }
-                Opcode::MapOmit => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::MapOmit))
-                }
                 Opcode::MapBuild => {
                     let first_reg = inst.b();
                     let entry_count = inst.c() as usize;
@@ -1706,33 +1700,8 @@ impl VM {
                     }
                     frame.advance();
                 }
-                Opcode::StringSlice => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::StringSlice))
-                }
-                Opcode::StringToUpper => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::StringToUpper))
-                }
-                Opcode::StringToLower => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::StringToLower))
-                }
-                Opcode::StringCapitalize => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::StringCapitalize))
-                }
 
                 // Loop operators
-                Opcode::LoopMap => return Err(VMError::UnimplementedOpcode(Opcode::LoopMap)),
-                Opcode::LoopFilter => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::LoopFilter))
-                }
-                Opcode::LoopFlatMap => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::LoopFlatMap))
-                }
-                Opcode::LoopUniqueBy => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::LoopUniqueBy))
-                }
-                Opcode::LoopGroupBy => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::LoopGroupBy))
-                }
                 Opcode::LoopEachToString => {
                     let list_reg = inst.a();
                     let dest_reg = inst.b();
@@ -1759,21 +1728,6 @@ impl VM {
                         )));
                     }
                     frame.advance();
-                }
-                Opcode::LoopEvery => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::LoopEvery))
-                }
-                Opcode::LoopSome => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::LoopSome))
-                }
-                Opcode::LoopFind => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::LoopFind))
-                }
-                Opcode::LoopSort => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::LoopSort))
-                }
-                Opcode::LoopCompact => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::LoopCompact))
                 }
 
                 // Error handling
@@ -1836,9 +1790,6 @@ impl VM {
                 }
 
                 // Special
-                Opcode::Push => return Err(VMError::UnimplementedOpcode(Opcode::Push)),
-                Opcode::Pop => return Err(VMError::UnimplementedOpcode(Opcode::Pop)),
-                Opcode::Dup => return Err(VMError::UnimplementedOpcode(Opcode::Dup)),
                 Opcode::ReverseArgs => {
                     let a = inst.a();
                     let b = inst.b();
@@ -1849,9 +1800,6 @@ impl VM {
                         frame.set(b, va);
                     }
                     frame.advance();
-                }
-                Opcode::SilentExec => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::SilentExec))
                 }
                 Opcode::Import => {
                     let source_reg = inst.b();
@@ -2461,31 +2409,6 @@ mod tests {
         let result = vm.execute(&chunk);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "5");
-    }
-
-    #[test]
-    fn test_vm_unimplemented_opcodes() {
-        let unimplemented_opcodes = vec![
-            Opcode::Push,
-            Opcode::Pop,
-            Opcode::Dup,
-            Opcode::SilentExec,
-        ];
-
-        for opcode in unimplemented_opcodes {
-            let chunk = build_chunk(|c| {
-                c.emit(Instruction::new(opcode, 0, 0, 0));
-                c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
-            });
-
-            let mut vm = VM::new();
-            let result = vm.execute(&chunk);
-            assert!(
-                matches!(result, Err(VMError::UnimplementedOpcode(op)) if op == opcode),
-                "Opcode {:?} should return UnimplementedOpcode",
-                opcode
-            );
-        }
     }
 
     #[test]

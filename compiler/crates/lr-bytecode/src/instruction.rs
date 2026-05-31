@@ -11,10 +11,6 @@ pub enum Opcode {
     Call = 5,
     TailCall = 6,
 
-    Push = 10,
-    Pop = 11,
-    Dup = 12,
-
     LoadConstant = 20,
     LoadRegister = 21,
     StoreRegister = 22,
@@ -43,8 +39,6 @@ pub enum Opcode {
     MapGet = 61,
     MapSet = 62,
     MapMerge = 63,
-    MapPick = 64,
-    MapOmit = 65,
     MapBuild = 66,
 
     ListNew = 70,
@@ -57,23 +51,9 @@ pub enum Opcode {
 
     StringConcat = 80,
     StringLen = 81,
-    StringSlice = 82,
-    StringToUpper = 83,
-    StringToLower = 84,
-    StringCapitalize = 85,
 
-    LoopMap = 90,
-    LoopFilter = 91,
-    LoopFlatMap = 92,
-    LoopUniqueBy = 93,
-    LoopGroupBy = 94,
+
     LoopEachToString = 95,
-    LoopEvery = 96,
-    LoopSome = 97,
-    LoopFind = 98,
-    LoopSort = 99,
-    LoopCompact = 100,
-
     Throw = 110,
     Catch = 111,
     CatchEnd = 112,
@@ -82,7 +62,6 @@ pub enum Opcode {
     Await = 121,
 
     ReverseArgs = 130,
-    SilentExec = 131,
     Import = 140,
     Export = 141,
     BindName = 142,
@@ -101,10 +80,6 @@ impl Opcode {
             4 => Some(Opcode::JumpIfFalse),
             5 => Some(Opcode::Call),
             6 => Some(Opcode::TailCall),
-
-            10 => Some(Opcode::Push),
-            11 => Some(Opcode::Pop),
-            12 => Some(Opcode::Dup),
 
             20 => Some(Opcode::LoadConstant),
             21 => Some(Opcode::LoadRegister),
@@ -134,8 +109,6 @@ impl Opcode {
             61 => Some(Opcode::MapGet),
             62 => Some(Opcode::MapSet),
             63 => Some(Opcode::MapMerge),
-            64 => Some(Opcode::MapPick),
-            65 => Some(Opcode::MapOmit),
             66 => Some(Opcode::MapBuild),
 
             70 => Some(Opcode::ListNew),
@@ -148,22 +121,7 @@ impl Opcode {
 
             80 => Some(Opcode::StringConcat),
             81 => Some(Opcode::StringLen),
-            82 => Some(Opcode::StringSlice),
-            83 => Some(Opcode::StringToUpper),
-            84 => Some(Opcode::StringToLower),
-            85 => Some(Opcode::StringCapitalize),
-
-            90 => Some(Opcode::LoopMap),
-            91 => Some(Opcode::LoopFilter),
-            92 => Some(Opcode::LoopFlatMap),
-            93 => Some(Opcode::LoopUniqueBy),
-            94 => Some(Opcode::LoopGroupBy),
             95 => Some(Opcode::LoopEachToString),
-            96 => Some(Opcode::LoopEvery),
-            97 => Some(Opcode::LoopSome),
-            98 => Some(Opcode::LoopFind),
-            99 => Some(Opcode::LoopSort),
-            100 => Some(Opcode::LoopCompact),
 
             110 => Some(Opcode::Throw),
             111 => Some(Opcode::Catch),
@@ -173,7 +131,6 @@ impl Opcode {
             121 => Some(Opcode::Await),
 
             130 => Some(Opcode::ReverseArgs),
-            131 => Some(Opcode::SilentExec),
             140 => Some(Opcode::Import),
             141 => Some(Opcode::Export),
             142 => Some(Opcode::BindName),
@@ -196,10 +153,6 @@ impl Display for Opcode {
             Opcode::JumpIfFalse => write!(f, "JMP_F"),
             Opcode::Call => write!(f, "CALL"),
             Opcode::TailCall => write!(f, "TAIL_CALL"),
-
-            Opcode::Push => write!(f, "PUSH"),
-            Opcode::Pop => write!(f, "POP"),
-            Opcode::Dup => write!(f, "DUP"),
 
             Opcode::LoadConstant => write!(f, "LOAD_CONST"),
             Opcode::LoadRegister => write!(f, "LOAD_REG"),
@@ -229,8 +182,6 @@ impl Display for Opcode {
             Opcode::MapGet => write!(f, "MAP_GET"),
             Opcode::MapSet => write!(f, "MAP_SET"),
             Opcode::MapMerge => write!(f, "MAP_MERGE"),
-            Opcode::MapPick => write!(f, "MAP_PICK"),
-            Opcode::MapOmit => write!(f, "MAP_OMIT"),
             Opcode::MapBuild => write!(f, "MAP_BUILD"),
 
             Opcode::ListNew => write!(f, "LIST_NEW"),
@@ -243,22 +194,7 @@ impl Display for Opcode {
 
             Opcode::StringConcat => write!(f, "STR_CAT"),
             Opcode::StringLen => write!(f, "STR_LEN"),
-            Opcode::StringSlice => write!(f, "STR_SLICE"),
-            Opcode::StringToUpper => write!(f, "STR_UPPER"),
-            Opcode::StringToLower => write!(f, "STR_LOWER"),
-            Opcode::StringCapitalize => write!(f, "STR_CAP"),
-
-            Opcode::LoopMap => write!(f, "LOOP_MAP"),
-            Opcode::LoopFilter => write!(f, "LOOP_FILTER"),
-            Opcode::LoopFlatMap => write!(f, "LOOP_FLATMAP"),
-            Opcode::LoopUniqueBy => write!(f, "LOOP_UNIQUE"),
-            Opcode::LoopGroupBy => write!(f, "LOOP_GROUP"),
             Opcode::LoopEachToString => write!(f, "LOOP_EACH_STR"),
-            Opcode::LoopEvery => write!(f, "LOOP_EVERY"),
-            Opcode::LoopSome => write!(f, "LOOP_SOME"),
-            Opcode::LoopFind => write!(f, "LOOP_FIND"),
-            Opcode::LoopSort => write!(f, "LOOP_SORT"),
-            Opcode::LoopCompact => write!(f, "LOOP_COMPACT"),
 
             Opcode::Throw => write!(f, "THROW"),
             Opcode::Catch => write!(f, "CATCH"),
@@ -268,7 +204,6 @@ impl Display for Opcode {
             Opcode::Await => write!(f, "AWAIT"),
 
             Opcode::ReverseArgs => write!(f, "REVERSE_ARGS"),
-            Opcode::SilentExec => write!(f, "SILENT_EXEC"),
             Opcode::Import => write!(f, "IMPORT"),
             Opcode::Export => write!(f, "EXPORT"),
             Opcode::BindName => write!(f, "BIND_NAME"),
@@ -354,9 +289,6 @@ mod tests {
             Opcode::JumpIfFalse,
             Opcode::Call,
             Opcode::TailCall,
-            Opcode::Push,
-            Opcode::Pop,
-            Opcode::Dup,
             Opcode::LoadConstant,
             Opcode::LoadRegister,
             Opcode::StoreRegister,
@@ -381,8 +313,6 @@ mod tests {
             Opcode::MapGet,
             Opcode::MapSet,
             Opcode::MapMerge,
-            Opcode::MapPick,
-            Opcode::MapOmit,
             Opcode::MapBuild,
             Opcode::ListNew,
             Opcode::ListGet,
@@ -393,28 +323,13 @@ mod tests {
             Opcode::ListBuild,
             Opcode::StringConcat,
             Opcode::StringLen,
-            Opcode::StringSlice,
-            Opcode::StringToUpper,
-            Opcode::StringToLower,
-            Opcode::StringCapitalize,
-            Opcode::LoopMap,
-            Opcode::LoopFilter,
-            Opcode::LoopFlatMap,
-            Opcode::LoopUniqueBy,
-            Opcode::LoopGroupBy,
             Opcode::LoopEachToString,
-            Opcode::LoopEvery,
-            Opcode::LoopSome,
-            Opcode::LoopFind,
-            Opcode::LoopSort,
-            Opcode::LoopCompact,
             Opcode::Throw,
             Opcode::Catch,
             Opcode::CatchEnd,
             Opcode::MakeAsync,
             Opcode::Await,
             Opcode::ReverseArgs,
-            Opcode::SilentExec,
             Opcode::Import,
             Opcode::Export,
             Opcode::BindName,
@@ -455,9 +370,6 @@ mod tests {
         assert_eq!("JMP_F", format!("{}", Opcode::JumpIfFalse));
         assert_eq!("CALL", format!("{}", Opcode::Call));
         assert_eq!("TAIL_CALL", format!("{}", Opcode::TailCall));
-        assert_eq!("PUSH", format!("{}", Opcode::Push));
-        assert_eq!("POP", format!("{}", Opcode::Pop));
-        assert_eq!("DUP", format!("{}", Opcode::Dup));
         assert_eq!("LOAD_CONST", format!("{}", Opcode::LoadConstant));
         assert_eq!("LOAD_REG", format!("{}", Opcode::LoadRegister));
         assert_eq!("STORE_REG", format!("{}", Opcode::StoreRegister));
@@ -482,8 +394,6 @@ mod tests {
         assert_eq!("MAP_GET", format!("{}", Opcode::MapGet));
         assert_eq!("MAP_SET", format!("{}", Opcode::MapSet));
         assert_eq!("MAP_MERGE", format!("{}", Opcode::MapMerge));
-        assert_eq!("MAP_PICK", format!("{}", Opcode::MapPick));
-        assert_eq!("MAP_OMIT", format!("{}", Opcode::MapOmit));
         assert_eq!("LIST_NEW", format!("{}", Opcode::ListNew));
         assert_eq!("LIST_GET", format!("{}", Opcode::ListGet));
         assert_eq!("LIST_SET", format!("{}", Opcode::ListSet));
@@ -492,28 +402,13 @@ mod tests {
         assert_eq!("LIST_LEN", format!("{}", Opcode::ListLen));
         assert_eq!("STR_CAT", format!("{}", Opcode::StringConcat));
         assert_eq!("STR_LEN", format!("{}", Opcode::StringLen));
-        assert_eq!("STR_SLICE", format!("{}", Opcode::StringSlice));
-        assert_eq!("STR_UPPER", format!("{}", Opcode::StringToUpper));
-        assert_eq!("STR_LOWER", format!("{}", Opcode::StringToLower));
-        assert_eq!("STR_CAP", format!("{}", Opcode::StringCapitalize));
-        assert_eq!("LOOP_MAP", format!("{}", Opcode::LoopMap));
-        assert_eq!("LOOP_FILTER", format!("{}", Opcode::LoopFilter));
-        assert_eq!("LOOP_FLATMAP", format!("{}", Opcode::LoopFlatMap));
-        assert_eq!("LOOP_UNIQUE", format!("{}", Opcode::LoopUniqueBy));
-        assert_eq!("LOOP_GROUP", format!("{}", Opcode::LoopGroupBy));
         assert_eq!("LOOP_EACH_STR", format!("{}", Opcode::LoopEachToString));
-        assert_eq!("LOOP_EVERY", format!("{}", Opcode::LoopEvery));
-        assert_eq!("LOOP_SOME", format!("{}", Opcode::LoopSome));
-        assert_eq!("LOOP_FIND", format!("{}", Opcode::LoopFind));
-        assert_eq!("LOOP_SORT", format!("{}", Opcode::LoopSort));
-        assert_eq!("LOOP_COMPACT", format!("{}", Opcode::LoopCompact));
         assert_eq!("THROW", format!("{}", Opcode::Throw));
         assert_eq!("CATCH", format!("{}", Opcode::Catch));
         assert_eq!("CATCH_END", format!("{}", Opcode::CatchEnd));
         assert_eq!("MAKE_ASYNC", format!("{}", Opcode::MakeAsync));
         assert_eq!("AWAIT", format!("{}", Opcode::Await));
         assert_eq!("REVERSE_ARGS", format!("{}", Opcode::ReverseArgs));
-        assert_eq!("SILENT_EXEC", format!("{}", Opcode::SilentExec));
         assert_eq!("IMPORT", format!("{}", Opcode::Import));
         assert_eq!("EXPORT", format!("{}", Opcode::Export));
         assert_eq!("BIND_NAME", format!("{}", Opcode::BindName));
