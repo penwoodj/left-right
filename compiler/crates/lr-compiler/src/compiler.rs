@@ -1,6 +1,6 @@
 use lr_ast::{
     Application, AsyncExpression, AwaitExpression, BooleanLiteral, CatchExpression,
-    Expression, ExportExpression, GroupedExpression, Identifier, ImportExpression, LeftArg,
+    Expression, GroupedExpression, Identifier, ImportExpression, LeftArg,
     ListLiteral, MapEntry, MapLiteral, NumberLiteral, Program, RightArg, StringLiteral,
     StringPart, ThrowExpression, UndefinedLiteral,
 };
@@ -133,7 +133,6 @@ impl Compiler {
             Expression::AsyncExpression(a) => self.compile_async_expression(a, dest),
             Expression::AwaitExpression(a) => self.compile_await_expression(a, dest),
             Expression::ImportExpression(i) => self.compile_import_expression(i, dest),
-            Expression::ExportExpression(e) => self.compile_export_expression(e, dest),
         }
     }
 
@@ -865,18 +864,12 @@ impl Compiler {
     fn compile_import_expression(&mut self, i: &ImportExpression, dest: u8) -> Result<(), CompilerError> {
         let path_reg = self.alloc_register()?;
         self.compile_expression(&i.path, path_reg)?;
-        self.chunk.emit(Instruction::new(Opcode::Import, dest, path_reg, 0));
+        let source_type = match i.source.as_ref() {
+            Expression::Identifier(ident) if ident.name == "imports" => 1,
+            _ => 0,
+        };
+        self.chunk.emit(Instruction::new(Opcode::Import, dest, path_reg, source_type));
         self.free_register();
-        Ok(())
-    }
-
-    fn compile_export_expression(&mut self, e: &ExportExpression, dest: u8) -> Result<(), CompilerError> {
-        for (_idx, key) in e.keys.iter().enumerate() {
-            let const_idx = self.chunk.add_constant(Constant::String(key.clone()))?;
-            self.chunk.emit(Instruction::new(Opcode::LoadConstant, dest, 0, const_idx));
-        }
-        let keys_count = e.keys.len() as u8;
-        self.chunk.emit(Instruction::new(Opcode::Export, dest, keys_count, 0));
         Ok(())
     }
 

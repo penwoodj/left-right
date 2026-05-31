@@ -306,28 +306,86 @@ impl Parser {
     }
 
     fn try_parse_import_export(expr: Expression) -> Expression {
-        if let Expression::Application(app) = &expr {
-            if let Expression::Application(inner_app) = &*app.left {
-                if let Expression::Identifier(ident) = &*inner_app.left {
-                    if ident.name == "+" {
-                        if let Expression::Identifier(right_ident) = &*inner_app.right {
-                            if right_ident.name == ":" {
-                                if let Expression::Application(path_app) = &*app.right {
-                                    if let Expression::Identifier(source_ident) = &*path_app.left {
-                                        if source_ident.name == "@" {
-                                            if let Expression::StringLiteral(path_str) = &*path_app.right {
-                                                return Expression::ImportExpression(ImportExpression {
-                                                    source: Box::new(Expression::Identifier(Identifier {
-                                                        name: "imports".to_string(),
-                                                        span: source_ident.span,
-                                                    })),
-                                                    path: Box::new(Expression::StringLiteral(path_str.clone())),
-                                                    destructuring: None,
-                                                    span: expr.span(),
-                                                });
-                                            }
-                                        }
-                                    }
+        // Recursively walk the expression tree to find and rewrite import patterns.
+        // The parser creates left-nested Application chains, so the import pattern
+        // ((source @) path) can appear at any nesting depth.
+        let expr = Self::rewrite_imports_in_tree(expr);
+        Self::try_parse_catch(Self::try_parse_async_await(expr))
+    }
+
+    fn rewrite_imports_in_tree(expr: Expression) -> Expression {
+        match expr {
+            Expression::Application(app) => {
+                // Recursively rewrite children first
+                let left = Self::rewrite_imports_in_tree(*app.left);
+                let right = Self::rewrite_imports_in_tree(*app.right);
+                let rebuilt = Expression::Application(Application {
+                    left: Box::new(left),
+                    right: Box::new(right),
+                    span: app.span,
+                });
+                // Then check if this node matches import pattern
+                Self::check_import_pattern(rebuilt)
+            }
+            Expression::MapLiteral(map) => {
+                let entries = map.entries.into_iter().map(|entry| {
+                    MapEntry {
+                        key: Self::rewrite_imports_in_tree(entry.key),
+                        value: entry.value.map(|v| Self::rewrite_imports_in_tree(v)),
+                        is_assignment: entry.is_assignment,
+                        is_expression_key: entry.is_expression_key,
+                    }
+                }).collect();
+                Expression::MapLiteral(MapLiteral { entries, span: map.span })
+            }
+            Expression::ListLiteral(list) => {
+                let elements = list.elements.into_iter().map(Self::rewrite_imports_in_tree).collect();
+                Expression::ListLiteral(ListLiteral { elements, span: list.span })
+            }
+            Expression::GroupedExpression(g) => {
+                Expression::GroupedExpression(GroupedExpression {
+                    expression: Box::new(Self::rewrite_imports_in_tree(*g.expression)),
+                    span: g.span,
+                })
+            }
+            Expression::CatchExpression(c) => {
+                Expression::CatchExpression(CatchExpression {
+                    operator: Box::new(Self::rewrite_imports_in_tree(*c.operator)),
+                    handler: Box::new(Self::rewrite_imports_in_tree(*c.handler)),
+                    span: c.span,
+                })
+            }
+            Expression::AsyncExpression(a) => {
+                Expression::AsyncExpression(AsyncExpression {
+                    operator: Box::new(Self::rewrite_imports_in_tree(*a.operator)),
+                    span: a.span,
+                })
+            }
+            Expression::AwaitExpression(a) => {
+                Expression::AwaitExpression(AwaitExpression {
+                    promise: Box::new(Self::rewrite_imports_in_tree(*a.promise)),
+                    span: a.span,
+                })
+            }
+            other => other,
+        }
+    }
+
+    fn check_import_pattern(expr: Expression) -> Expression {
+        // Left-nested: Application(Application(Identifier(source), Identifier(@)), StringLiteral(path))
+        if let Expression::Application(ref app) = expr {
+            if let Expression::Application(ref inner_app) = *app.left {
+                if let Expression::Identifier(ref source_ident) = *inner_app.left {
+                    if source_ident.name == "imports" || source_ident.name == "files" {
+                        if let Expression::Identifier(ref at_ident) = *inner_app.right {
+                            if at_ident.name == "@" {
+                                if let Expression::StringLiteral(ref path_str) = *app.right {
+                                    return Expression::ImportExpression(ImportExpression {
+                                        source: Box::new(Expression::Identifier(source_ident.clone())),
+                                        path: Box::new(Expression::StringLiteral(path_str.clone())),
+                                        destructuring: None,
+                                        span: expr.span(),
+                                    });
                                 }
                             }
                         }
@@ -336,15 +394,16 @@ impl Parser {
             }
         }
 
-        if let Expression::Application(app) = &expr {
-            if let Expression::Identifier(left_ident) = &*app.left {
-                if left_ident.name == "imports" || left_ident.name == "files" {
-                    if let Expression::Application(path_app) = &*app.right {
-                        if let Expression::Identifier(at_ident) = &*path_app.left {
+        // Right-nested: Application(Identifier(source), Application(Identifier(@), StringLiteral(path)))
+        if let Expression::Application(ref app) = expr {
+            if let Expression::Identifier(ref source_ident) = *app.left {
+                if source_ident.name == "imports" || source_ident.name == "files" {
+                    if let Expression::Application(ref path_app) = *app.right {
+                        if let Expression::Identifier(ref at_ident) = *path_app.left {
                             if at_ident.name == "@" {
-                                if let Expression::StringLiteral(path_str) = &*path_app.right {
+                                if let Expression::StringLiteral(ref path_str) = *path_app.right {
                                     return Expression::ImportExpression(ImportExpression {
-                                        source: Box::new(Expression::Identifier(left_ident.clone())),
+                                        source: Box::new(Expression::Identifier(source_ident.clone())),
                                         path: Box::new(Expression::StringLiteral(path_str.clone())),
                                         destructuring: None,
                                         span: expr.span(),

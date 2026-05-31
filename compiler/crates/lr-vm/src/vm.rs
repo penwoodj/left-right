@@ -1,9 +1,11 @@
+use crate::module_resolver::ModuleResolver;
 use crate::value::{ClosureData, PartialClosureData, Value};
 use gc_arena::{Collect, Gc, Mutation, Rootable};
 use lr_bytecode::{Chunk, Constant, Instruction, Opcode};
 use std::collections::HashMap;
 use std::marker::PhantomData;
-
+use std::cell::RefCell;
+use std::rc::Rc;
 #[derive(Debug, Clone, Copy)]
 struct CatchFrame {
     handler_start: usize,
@@ -75,6 +77,8 @@ impl<'gc> Default for Frame<'gc> {
 
 pub struct VM {
     arena: gc_arena::Arena<Rootable![VMRoot<'_>]>,
+    module_resolver: Option<Rc<RefCell<dyn ModuleResolver>>>,
+    source_path: String,
 }
 
 impl VM {
@@ -98,6 +102,21 @@ impl VM {
             arena: gc_arena::Arena::<Rootable![VMRoot<'_>]>::new(|_| VMRoot {
                 _marker: PhantomData,
             }),
+            module_resolver: None,
+            source_path: String::new(),
+        }
+    }
+
+    pub fn with_resolver(
+        source_path: String,
+        resolver: Rc<RefCell<dyn ModuleResolver>>,
+    ) -> Self {
+        Self {
+            arena: gc_arena::Arena::<Rootable![VMRoot<'_>]>::new(|_| VMRoot {
+                _marker: PhantomData,
+            }),
+            module_resolver: Some(resolver),
+            source_path,
         }
     }
 
@@ -1849,16 +1868,23 @@ impl VM {
                     frame.advance();
                 }
                 Opcode::Import => {
-                    let source_reg = inst.b();
-                    let source = frame.get(source_reg);
-                    let name = source.to_string();
-                    frame.set(inst.a(), Value::map(mc, vec![
-                        (Value::string(mc, "module".to_string()), source),
-                        (Value::string(mc, "source".to_string()), Value::string(mc, name)),
-                    ]));
-                    frame.advance();
-                }
-                Opcode::Export => {
+                    let source_type = inst.c();
+                    let path_str = frame.get(inst.b()).to_string();
+
+                    if source_type == 0 {
+                        let chunk = if let Some(ref resolver) = self.module_resolver {
+                            resolver.borrow_mut()
+                                .resolve_and_compile(&path_str, &self.source_path)
+                                .map_err(VMError::Runtime)?
+                        } else {
+                            return Err(VMError::Runtime("No module resolver configured".to_string()));
+                        };
+                        let mut module_frame = Frame::new();
+                        let result = self.run_dispatch(mc, &mut module_frame, &chunk.code, &chunk.constants)?;
+                        frame.set(inst.a(), result);
+                    } else {
+                    frame.set(inst.a(), Value::map(mc, vec![]));
+                    }
                     frame.advance();
                 }
                 Opcode::BindName => {

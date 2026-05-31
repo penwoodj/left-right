@@ -19,7 +19,6 @@ pub enum Expression {
     AsyncExpression(AsyncExpression),
     AwaitExpression(AwaitExpression),
     ImportExpression(ImportExpression),
-    ExportExpression(ExportExpression),
 }
 
     impl fmt::Display for Expression {
@@ -41,7 +40,6 @@ pub enum Expression {
                 Expression::AsyncExpression(a) => write!(f, "{}", a),
                 Expression::AwaitExpression(a) => write!(f, "{}", a),
                 Expression::ImportExpression(i) => write!(f, "{}", i),
-                Expression::ExportExpression(e) => write!(f, "{}", e),
             }
         }
     }
@@ -286,25 +284,6 @@ impl fmt::Display for ImportExpression {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ExportExpression {
-    pub keys: Vec<String>,
-    pub span: Span,
-}
-
-impl fmt::Display for ExportExpression {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "}}@&[")?;
-        for (i, key) in self.keys.iter().enumerate() {
-            if i > 0 {
-                write!(f, ",")?;
-            }
-            write!(f, "`{}`", key)?;
-        }
-        write!(f, "]")
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
     pub struct Program {
     pub expression: Box<Expression>,
     pub source_path: String,
@@ -329,7 +308,6 @@ impl fmt::Display for ExportExpression {
                 Expression::AsyncExpression(a) => a.span,
                 Expression::AwaitExpression(a) => a.span,
                 Expression::ImportExpression(i) => i.span,
-                Expression::ExportExpression(e) => e.span,
             }
         }
     }

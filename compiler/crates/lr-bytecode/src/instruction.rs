@@ -63,7 +63,6 @@ pub enum Opcode {
 
     ReverseArgs = 130,
     Import = 140,
-    Export = 141,
     BindName = 142,
     LookupName = 143,
     MakeClosure = 150,
@@ -132,7 +131,6 @@ impl Opcode {
 
             130 => Some(Opcode::ReverseArgs),
             140 => Some(Opcode::Import),
-            141 => Some(Opcode::Export),
             142 => Some(Opcode::BindName),
             143 => Some(Opcode::LookupName),
             150 => Some(Opcode::MakeClosure),
@@ -205,7 +203,6 @@ impl Display for Opcode {
 
             Opcode::ReverseArgs => write!(f, "REVERSE_ARGS"),
             Opcode::Import => write!(f, "IMPORT"),
-            Opcode::Export => write!(f, "EXPORT"),
             Opcode::BindName => write!(f, "BIND_NAME"),
             Opcode::LookupName => write!(f, "LOOKUP_NAME"),
             Opcode::MakeClosure => write!(f, "MAKE_CLOSURE"),
@@ -330,7 +327,6 @@ mod tests {
             Opcode::Await,
             Opcode::ReverseArgs,
             Opcode::Import,
-            Opcode::Export,
             Opcode::BindName,
             Opcode::LookupName,
             Opcode::MakeClosure,
@@ -409,7 +405,6 @@ mod tests {
         assert_eq!("AWAIT", format!("{}", Opcode::Await));
         assert_eq!("REVERSE_ARGS", format!("{}", Opcode::ReverseArgs));
         assert_eq!("IMPORT", format!("{}", Opcode::Import));
-        assert_eq!("EXPORT", format!("{}", Opcode::Export));
         assert_eq!("BIND_NAME", format!("{}", Opcode::BindName));
         assert_eq!("LOOKUP_NAME", format!("{}", Opcode::LookupName));
         assert_eq!("MAKE_CLOSURE", format!("{}", Opcode::MakeClosure));

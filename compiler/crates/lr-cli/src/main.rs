@@ -1,13 +1,38 @@
 use clap::{Parser, Subcommand};
 use anyhow::Result;
 use colored::Colorize;
+use std::cell::RefCell;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use std::time::Duration;
 use std::sync::mpsc::channel;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
+use lr_vm::ModuleResolver;
+use lr_bytecode::Chunk;
+
+struct CliModuleResolver;
+
+impl ModuleResolver for CliModuleResolver {
+    fn resolve_and_compile(&mut self, import_path: &str, current_file: &str) -> Result<Chunk, String> {
+        let current_dir = Path::new(current_file).parent().unwrap_or(Path::new("."));
+        let mut resolved = current_dir.join(import_path);
+
+        if resolved.extension().is_none() {
+            resolved.set_extension("lr");
+        }
+
+        let resolved_str = resolved.to_string_lossy().to_string();
+
+        let source = std::fs::read_to_string(&resolved)
+            .map_err(|e| format!("Cannot read module '{}': {}", resolved_str, e))?;
+
+        lr_compiler::compile_source_with_name(&source, &resolved_str)
+            .map_err(|e| format!("Compile error in module '{}': {}", resolved_str, e))
+    }
+}
 
 #[derive(Parser)]
 #[command(name = "lr", version, about = "Left-Right programming language")]
@@ -74,7 +99,8 @@ fn cmd_run(file: Option<String>) -> Result<()> {
 fn run_source(source: &str, source_name: &str) -> Result<()> {
     match lr_compiler::compile_source_with_name(source, source_name) {
         Ok(chunk) => {
-            let mut vm = lr_vm::VM::new();
+            let resolver = Rc::new(RefCell::new(CliModuleResolver));
+            let mut vm = lr_vm::VM::with_resolver(source_name.to_string(), resolver);
             match vm.execute(&chunk) {
                 Ok(result) => println!("{}", result),
                 Err(e) => {
@@ -401,7 +427,8 @@ fn cmd_test() -> Result<()> {
 
         match lr_compiler::compile_source_with_name(&source, path.display().to_string().as_str()) {
             Ok(chunk) => {
-                let mut vm = lr_vm::VM::new();
+                let resolver = Rc::new(RefCell::new(CliModuleResolver));
+                let mut vm = lr_vm::VM::with_resolver(path.display().to_string(), resolver);
                 match vm.execute(&chunk) {
                     Ok(result) => {
                         let is_truthy = result != "undefined" && result != "false" && result != "0";
@@ -478,7 +505,8 @@ fn cmd_watch(file: &str) -> Result<()> {
 
         match lr_compiler::compile_source_with_name(&source, file) {
             Ok(chunk) => {
-                let mut vm = lr_vm::VM::new();
+                let resolver = Rc::new(RefCell::new(CliModuleResolver));
+                let mut vm = lr_vm::VM::with_resolver(file.to_string(), resolver);
                 match vm.execute(&chunk) {
                     Ok(result) => {
                         println!("  {}", result.green());
