@@ -62,8 +62,8 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 |-------|-------|--------|
 | Rust unit/e2e | 396 (2 ignored) | `cargo test` in `compiler/` |
 | CLI integration | 106 | `lr test` from `crates/lr-cli/` |
-| Live system | 162 | `compiler/tests/live_runner.sh` |
-| **Total** | **664** | |
+| Live system | 164 | `compiler/tests/live_runner.sh` |
+| **Total** | **666** | |
 
 ### Fully Verified Features (all 3 layers)
 
@@ -71,7 +71,7 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 - **Comparison**: `==`, `=`, `!=`, `<`, `>`, `<=`, `>=`
 - **Boolean logic**: `&` (AND), `|` (OR/default), `!` (negation)
 - **String ops**: `+` (concat), `^` (uppercase), `_` (lowercase), `^_` (capitalize), `~` (replace), `<>` (split), `><` (join), `==`/`!=` (equality), `#` (length), `-` (remove substring), `+` with Number/Boolean/undefined/List
-- **List ops**: `@` (index), `#` (size), `+` (concat/append/prepend), `-` (remove elements), `><` (join), `?><` (contains), `==` (equality)
+- **List ops**: `@` (index), `#` (size), `+` (concat/append/prepend), `-` (remove elements), `><`/`<>` (join with separator), `?><` (contains), `==` (equality)
 - **Loop ops**: `$` (map), `$?` (filter), `$_` (flatmap), `$|` (some), `$&` (every), `$?|` (find), `$~` (uniqueBy), `$>` (groupBy), `$%` (sort), `$?!` (compact), `$@` (pluck), `$"` (eachToString)
 - **Element-wise**: `$+`, `$-`, `$*`, `$/`, `$%`
 - **Filter comparisons**: `$?>`, `$?<`, `$?>=`, `$?<=`, `$?+`, `$?-`
@@ -96,11 +96,10 @@ These are IMPLEMENTED but missing coverage in one or more test layers:
 
 1. **`?` as PartialOperator on Number/String/List/Map** — Ternary variant tested, but `?` as truthy-check PartialOperator not tested.
 2. **`_` list concat variant** — Runtime error: "Cannot apply partial operator _ to list". `_` is NOT a concat alias for `+` on lists — spec mismatch.
-3. **`<>`/`><` on List** — Runtime error: "Cannot apply partial operator <> to number". These operators create PartialOperators that can't be applied to lists. Runtime gap.
 
 #### Missing from Live System Tests (compiler/tests/live/*.lr)
 
-1. **`<>`/`><` on List** — Runtime error when trying list split/join. Runtime gap.
+None — all implementable features have live test coverage.
 
 ### Unimplemented Features (NOT testable)
 
