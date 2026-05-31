@@ -360,6 +360,50 @@ impl VM {
                                     }
                                     Value::list(mc, results)
                                 }
+                                (Value::List(items), "$|||") => {
+                                    let code_vec = code.to_vec();
+                                    let constants_vec = constants.to_vec();
+                                    let body_start = closure_data.body_start;
+                                    let arg_count = closure_data.arg_count;
+
+                                    let json_inputs: Vec<String> = items.iter()
+                                        .map(|item| item.to_json().to_string())
+                                        .collect();
+
+                                    let thread_results: Vec<Result<String, String>> = std::thread::scope(|s| {
+                                        json_inputs.into_iter().map(|input_json| {
+                                            let code_clone = code_vec.clone();
+                                            let constants_clone = constants_vec.clone();
+                                            s.spawn(move || -> Result<String, String> {
+                                                let thread_vm = VM::new();
+                                                thread_vm.arena.mutate(|mc, _root| {
+                                                    let input: serde_json::Value = serde_json::from_str(&input_json)
+                                                        .map_err(|e| e.to_string())?;
+                                                    let input_val = json_to_lr_value(mc, &input);
+                                                    let mut frame = Frame::new();
+                                                    if arg_count >= 1 {
+                                                        frame.set_arg(0, input_val);
+                                                    }
+                                                    frame.pc = body_start;
+                                                    let result = thread_vm.run_dispatch(mc, &mut frame, &code_clone, &constants_clone)
+                                                        .map_err(|e| e.to_string())?;
+                                                    Ok(result.to_json().to_string())
+                                                })
+                                            })
+                                        }).collect::<Vec<_>>().into_iter()
+                                        .map(|h| h.join().unwrap())
+                                        .collect()
+                                    });
+
+                                    let mut results = Vec::with_capacity(items.len());
+                                    for res in thread_results {
+                                        let json_str = res.map_err(|e| VMError::Runtime(format!("Parallel map error: {}", e)))?;
+                                        let json_val: serde_json::Value = serde_json::from_str(&json_str)
+                                            .map_err(|e| VMError::Runtime(format!("Parallel map deserialization error: {}", e)))?;
+                                        results.push(json_to_lr_value(mc, &json_val));
+                                    }
+                                    Value::list(mc, results)
+                                }
                                 (Value::List(items), "$?") => {
                                     let mut results = Vec::with_capacity(items.len());
                                     for item in items.iter() {
@@ -568,6 +612,7 @@ impl VM {
                                 "?><" => Value::partial_operator(mc, "?><".to_string(), Value::list(mc, l.as_ref().clone())),
                                 "==" | "=" => Value::partial_operator(mc, op_name.to_string(), Value::List(*l)),
                                 "$" => Value::partial_operator(mc, "$".to_string(), Value::List(*l)),
+                                "$|||" => Value::partial_operator(mc, "$|||".to_string(), Value::List(*l)),
                                 "$?" => Value::partial_operator(mc, "$?".to_string(), Value::List(*l)),
                                 "$_" => Value::partial_operator(mc, "$_".to_string(), Value::List(*l)),
                                 "$|" => Value::partial_operator(mc, "$|".to_string(), Value::List(*l)),

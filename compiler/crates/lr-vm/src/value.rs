@@ -1,5 +1,6 @@
 use gc_arena::{Collect, Gc, Mutation};
 use std::fmt;
+use serde_json;
 
 #[derive(Debug, Clone, Collect)]
 #[collect(no_drop)]
@@ -125,6 +126,43 @@ impl<'gc> Value<'gc> {
             Value::Closure(_) => "closure",
             Value::PartialClosure(_) => "partial_closure",
             Value::Error(_) => "error",
+        }
+    }
+
+    /// Serialize this Value to a serde_json::Value for cross-thread transfer.
+    /// Only data types (Undefined, Boolean, Number, String, List, Map) are serializable.
+    /// Operators, closures, and errors serialize to Null.
+    pub fn to_json(&self) -> serde_json::Value {
+        match self {
+            Value::Undefined => serde_json::Value::Null,
+            Value::Boolean(b) => serde_json::Value::Bool(*b),
+            Value::Number(n) => {
+                serde_json::Value::Number(
+                    serde_json::Number::from_f64(*n)
+                        .unwrap_or_else(|| serde_json::Number::from(0))
+                )
+            }
+            Value::String(s) => serde_json::Value::String(s.to_string()),
+            Value::List(l) => {
+                serde_json::Value::Array(l.iter().map(|v| v.to_json()).collect())
+            }
+            Value::Map(m) => {
+                let mut obj = serde_json::Map::new();
+                for (key, val) in m.iter() {
+                    // Only string keys produce valid JSON object keys
+                    let key_str = match key {
+                        Value::String(s) => s.to_string(),
+                        _ => key.to_string(),
+                    };
+                    obj.insert(key_str, val.to_json());
+                }
+                serde_json::Value::Object(obj)
+            }
+            Value::Operator(_)
+            | Value::PartialOperator(_)
+            | Value::Closure(_)
+            | Value::PartialClosure(_)
+            | Value::Error(_) => serde_json::Value::Null,
         }
     }
 
