@@ -263,7 +263,7 @@ impl Parser {
             }
         }
 
-        Ok(Self::try_parse_import_export(Self::try_parse_catch(first)))
+        Ok(Self::try_parse_import_export(Self::try_parse_catch(Self::try_parse_async_await(first))))
     }
 
     fn try_parse_catch(expr: Expression) -> Expression {
@@ -279,6 +279,26 @@ impl Parser {
                             span: expr.span(),
                         });
                     }
+                }
+            }
+        }
+        expr
+    }
+
+    fn try_parse_async_await(expr: Expression) -> Expression {
+        if let Expression::Application(app) = &expr {
+            if let Expression::Identifier(ident) = &*app.right {
+                if ident.name == "///" {
+                    return Expression::AsyncExpression(AsyncExpression {
+                        operator: app.left.clone(),
+                        span: expr.span(),
+                    });
+                }
+                if ident.name == "\\\\\\" {
+                    return Expression::AwaitExpression(AwaitExpression {
+                        promise: app.left.clone(),
+                        span: expr.span(),
+                    });
                 }
             }
         }

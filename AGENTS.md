@@ -52,7 +52,7 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 6. **`@` is get** — Property access requires `@`: `options@`key`` or `{ a: 1 } @ `a``. No bare key access.
 7. **Program maps data-first** — `{ double: { _< * 2 }, 7 double }` not `{ double: { _< * 2 }, double 7 }`.
 
-## Test Coverage Status (as of commit 0f482d3)
+## Test Coverage Status (as of async/await implementation)
 
 **Branch**: `feat/guards-and-optional-apply`
 
@@ -60,10 +60,10 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 
 | Layer | Count | Runner |
 |-------|-------|--------|
-| Rust unit/e2e | 396 (2 ignored) | `cargo test` in `compiler/` |
+| Rust unit/e2e | 400 (2 ignored) | `cargo test` in `compiler/` |
 | CLI integration | 106 | `lr test` from `crates/lr-cli/` |
 | Live system | 164 | `compiler/tests/live_runner.sh` |
-| **Total** | **666** | |
+| **Total** | **670** | |
 
 ### Fully Verified Features (all 3 layers)
 
@@ -82,6 +82,7 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 - **Control**: `?:` (guards), `!!` (optional apply), `|` (default), `?` (ternary)
 - **Spread**: `+:` map merge with override
 - **Destructuring**: `_<@`prop`` named arg destructuring
+- **Async/Await**: `///` (make async), `\\\` (await) — synchronous stub, pass-through execution
 - **Other**: partial application `[args] func`, template interpolation `{var}`, map binding `{a:1, b:a+1}`, program maps, bracket path access `@[key1, key2]`
 
 ### Features NOT Fully End-to-End Verified
@@ -107,7 +108,6 @@ These are spec features with no runtime implementation:
 
 | Feature | Status | Infrastructure |
 |---------|--------|---------------|
-| `///` async / `\\\` await | Stub opcode only | MakeAsync (120), Await (121) return UnimplementedOpcode |
 | Import/Export | Stub opcode only | Import (140), Export (141) — VM has TODO stubs |
 | `imports@` / `files@` | Parser recognizes pattern | No module loading runtime |
 | `}@&[...]` export | Parser recognizes pattern | No export runtime |

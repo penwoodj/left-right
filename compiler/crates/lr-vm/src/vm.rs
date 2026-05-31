@@ -1829,9 +1829,11 @@ impl VM {
 
                 // Async
                 Opcode::MakeAsync => {
-                    return Err(VMError::UnimplementedOpcode(Opcode::MakeAsync))
+                    frame.advance();
                 }
-                Opcode::Await => return Err(VMError::UnimplementedOpcode(Opcode::Await)),
+                Opcode::Await => {
+                    frame.advance();
+                }
 
                 // Special
                 Opcode::Push => return Err(VMError::UnimplementedOpcode(Opcode::Push)),
@@ -2464,24 +2466,6 @@ mod tests {
     #[test]
     fn test_vm_unimplemented_opcodes() {
         let unimplemented_opcodes = vec![
-            Opcode::MapPick,
-            Opcode::MapOmit,
-            Opcode::StringSlice,
-            Opcode::StringToUpper,
-            Opcode::StringToLower,
-            Opcode::StringCapitalize,
-            Opcode::LoopMap,
-            Opcode::LoopFilter,
-            Opcode::LoopFlatMap,
-            Opcode::LoopUniqueBy,
-            Opcode::LoopGroupBy,
-            Opcode::LoopEvery,
-            Opcode::LoopSome,
-            Opcode::LoopFind,
-            Opcode::LoopSort,
-            Opcode::LoopCompact,
-            Opcode::MakeAsync,
-            Opcode::Await,
             Opcode::Push,
             Opcode::Pop,
             Opcode::Dup,
@@ -2502,6 +2486,38 @@ mod tests {
                 opcode
             );
         }
+    }
+
+    #[test]
+    fn test_vm_async_await_noop() {
+        let chunk = build_chunk(|c| {
+            let idx_10 = c.add_constant(Constant::Number(10.0)).unwrap();
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx_10));
+            c.emit(Instruction::new(Opcode::MakeAsync, 1, 0, 0));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 1, 0));
+            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
+        });
+
+        let mut vm = VM::new();
+        let result = vm.execute(&chunk);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().to_string(), "10");
+    }
+
+    #[test]
+    fn test_vm_async_await_noop_await() {
+        let chunk = build_chunk(|c| {
+            let idx_10 = c.add_constant(Constant::Number(10.0)).unwrap();
+            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx_10));
+            c.emit(Instruction::new(Opcode::Await, 1, 0, 0));
+            c.emit(Instruction::new(Opcode::LoadRegister, 0, 1, 0));
+            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
+        });
+
+        let mut vm = VM::new();
+        let result = vm.execute(&chunk);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().to_string(), "10");
     }
 
     #[test]
