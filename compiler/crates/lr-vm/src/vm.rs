@@ -191,6 +191,8 @@ impl VM {
                     "?" => Ok(Value::partial_operator(mc, "?".to_string(), *left)),
                     "!" => Ok(Value::boolean(mc, !left.is_truthy())),
                     "!!" => Ok(Value::partial_operator(mc, "!!".to_string(), *left)),
+                    "///" => Ok(Value::partial_operator(mc, "///".to_string(), *left)),
+                    "\\\\" => Ok(Value::partial_operator(mc, "\\\\".to_string(), *left)),
                     "-" => Ok(Value::partial_operator(mc, "-".to_string(), *left)),
                     "+" => Ok(Value::partial_operator(mc, "+".to_string(), *left)),
                     "|" => Ok(Value::partial_operator(mc, "|".to_string(), *left)),
@@ -468,6 +470,8 @@ impl VM {
                                 "!" => Value::boolean(mc, !Value::string(mc, s.to_string()).is_truthy()),
                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::string(mc, s.to_string())),
                                 "!!" => Value::partial_operator(mc, "!!".to_string(), Value::string(mc, s.to_string())),
+                                "///" => Value::partial_operator(mc, "///".to_string(), Value::string(mc, s.to_string())),
+                                "\\\\" => Value::partial_operator(mc, "\\\\".to_string(), Value::string(mc, s.to_string())),
                                 "^" => Value::string(mc, s.to_uppercase()),
                                 "^_" => {
                                     let mut chars = s.chars();
@@ -501,6 +505,8 @@ impl VM {
                                 "!" => Value::boolean(mc, !Value::List(*l).is_truthy()),
                                 "!!" => Value::partial_operator(mc, "!!".to_string(), Value::List(*l)),
                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::List(*l)),
+                                "///" => Value::partial_operator(mc, "///".to_string(), Value::List(*l)),
+                                "\\\\" => Value::partial_operator(mc, "\\\\".to_string(), Value::List(*l)),
                                 "+" | "_" => Value::partial_operator(mc, op_name.to_string(), Value::list(mc, l.as_ref().clone())),
                                 "-" => Value::partial_operator(mc, "-".to_string(), Value::list(mc, l.as_ref().clone())),
                                 "<>" | "><" => Value::partial_operator(mc, op_name.to_string(), Value::list(mc, l.as_ref().clone())),
@@ -563,6 +569,8 @@ impl VM {
                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::Number(*n)),
                                 "!" => Value::boolean(mc, !Value::Number(*n).is_truthy()),
                                 "!!" => Value::partial_operator(mc, "!!".to_string(), Value::Number(*n)),
+                                "///" => Value::partial_operator(mc, "///".to_string(), Value::Number(*n)),
+                                "\\\\" => Value::partial_operator(mc, "\\\\".to_string(), Value::Number(*n)),
                                 "?\"" => Value::boolean(mc, false),
                                 "?#" => Value::boolean(mc, true),
                                 _ => {
@@ -580,6 +588,8 @@ impl VM {
                                 "?\"" => Value::boolean(mc, matches!(right, Value::String(_))),
                                 "?#" => Value::boolean(mc, matches!(right, Value::Number(_))),
                                 "!!" => Value::partial_operator(mc, "!!".to_string(), right),
+                                "///" => Value::partial_operator(mc, "///".to_string(), right),
+                                "\\\\" => Value::partial_operator(mc, "\\\\".to_string(), right),
                                 _ => return Err(VMError::TypeError(format!(
                                     "Cannot call: left=string right={}", right.type_name()
                                 ))),
@@ -588,9 +598,11 @@ impl VM {
                         (Value::Boolean(b), Value::String(op_name)) => {
                             match op_name.as_str() {
                                 "!" => Value::boolean(mc, !Value::boolean(mc, *b).is_truthy()),
-                                "&" | "|" | "?" | "!!" => Value::partial_operator(mc, op_name.to_string(), Value::boolean(mc, *b)),
-                                "+" => Value::partial_operator(mc, "+".to_string(), Value::boolean(mc, *b)),
-                                "?\"" => Value::boolean(mc, false),
+                                        "&" | "|" | "?" | "!!" => Value::partial_operator(mc, op_name.to_string(), Value::boolean(mc, *b)),
+                                        "+" => Value::partial_operator(mc, "+".to_string(), Value::boolean(mc, *b)),
+                                        "///" => Value::partial_operator(mc, "///".to_string(), Value::boolean(mc, *b)),
+                                        "\\\\" => Value::partial_operator(mc, "\\\\".to_string(), Value::boolean(mc, *b)),
+                                        "?\"" => Value::boolean(mc, false),
                                 "?#" => Value::boolean(mc, false),
                                 "==" | "!=" | "=" => Value::partial_operator(mc, op_name.to_string(), Value::boolean(mc, *b)),
                                 _ => return Err(VMError::TypeError(format!(
@@ -863,17 +875,17 @@ impl VM {
                                             }
                                             current
                                         }
-                                        (Value::List(left_items), Value::List(right_items), "+") => {
+                                        (Value::List(left_items), Value::List(right_items), "+" | "_") => {
                                             let mut combined = left_items.to_vec();
                                             combined.extend(right_items.iter());
                                             Value::list(mc, combined)
                                         }
-                                        (Value::List(items), _, "+") => {
+                                        (Value::List(items), _, "+" | "_") => {
                                             let mut combined = items.to_vec();
                                             combined.push(right);
                                             Value::list(mc, combined)
                                         }
-                                        (Value::Number(n), Value::List(items), "+") => {
+                                        (Value::Number(n), Value::List(items), "+" | "_") => {
                                             let mut combined = vec![Value::number(*n)];
                                             combined.extend(items.iter());
                                             Value::list(mc, combined)
@@ -1075,7 +1087,7 @@ impl VM {
                                                 right
                                             }
                                         }
-                                        (_, _, "+") => {
+                                        (_, _, "+" | "_") => {
                                             Value::string(mc, format!("{}{}", partial.left_arg, right))
                                         }
                                         _ => return Err(VMError::TypeError(format!(
@@ -1103,6 +1115,8 @@ impl VM {
                                         ">=" => Value::partial_operator(mc, ">=".to_string(), Value::Number(*n)),
                                         "&" => Value::partial_operator(mc, "&".to_string(), Value::Number(*n)),
                                         "|" => Value::partial_operator(mc, "|".to_string(), Value::Number(*n)),
+                                        "///" => Value::partial_operator(mc, "///".to_string(), Value::Number(*n)),
+                                        "\\\\" => Value::partial_operator(mc, "\\\\".to_string(), Value::Number(*n)),
                                         _ => {
                                             return Err(VMError::Runtime(format!(
                                                  "Unknown operator: {}",

@@ -210,7 +210,6 @@ impl Display for Opcode {
             Opcode::LookupName => write!(f, "LOOKUP_NAME"),
             Opcode::MakeClosure => write!(f, "MAKE_CLOSURE"),
             Opcode::LoadArg => write!(f, "LOAD_ARG"),
-            _ => write!(f, "UNKNOWN"),
         }
     }
 }
