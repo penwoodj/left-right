@@ -1113,9 +1113,6 @@ impl VM {
                                         (left, _, "?#") => {
                                             Value::boolean(mc, matches!(left, Value::Number(_)))
                                         }
-                                        (_, _, "?:else") => {
-                                            right
-                                        }
                                         (_, _, "|") => {
                                             if partial.left_arg.is_truthy() {
                                                 partial.left_arg

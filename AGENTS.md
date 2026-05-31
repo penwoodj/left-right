@@ -90,17 +90,7 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 
 These are IMPLEMENTED but missing coverage in one or more test layers:
 
-#### Missing from Rust Unit/E2e Tests (compiler.rs / vm.rs)
-
-1. **`?:else` ternary else clause** — VM dispatch exists (`(_, _, "?:else") => right`) but no LR syntax generates it. Dead code from uncompleted feature design.
-
-#### Missing from CLI Integration Tests (crates/lr-cli/tests/*.lr)
-
-1. **`?` as PartialOperator on Number/String/List/Map** — Ternary variant tested, but `?` as truthy-check PartialOperator not tested.
-
-#### Missing from Live System Tests (compiler/tests/live/*.lr)
-
-None — all implementable features have live test coverage.
+No gaps — all implemented features have full 3-layer test coverage.
 
 ### Unimplemented Features (NOT testable)
 
