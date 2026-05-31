@@ -52,18 +52,18 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 6. **`@` is get** — Property access requires `@`: `options@`key`` or `{ a: 1 } @ `a``. No bare key access.
 7. **Program maps data-first** — `{ double: { _< * 2 }, 7 double }` not `{ double: { _< * 2 }, double 7 }`.
 
-## Test Coverage Status (as of async/await implementation)
+## Test Coverage Status (as of guards, constructors, map property access)
 
-**Branch**: `feat/guards-and-optional-apply`
+**Branch**: `main`
 
 ### Test Counts
 
 | Layer | Count | Runner |
 |-------|-------|--------|
-| Rust unit/e2e | 400 (2 ignored) | `cargo test` in `compiler/` |
-| CLI integration | 106 | `lr test` from `crates/lr-cli/` |
-| Live system | 164 | `compiler/tests/live_runner.sh` |
-| **Total** | **670** | |
+| Rust unit/e2e | 406 (2 ignored) | `cargo test` in `compiler/` |
+| CLI integration | 109 | `lr test` from `crates/lr-cli/` |
+| Live system | 167 | `compiler/tests/live_runner.sh` |
+| **Total** | **682** | |
 
 ### Fully Verified Features (all 3 layers)
 
@@ -71,15 +71,16 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 - **Comparison**: `==`, `=`, `!=`, `<`, `>`, `<=`, `>=`
 - **Boolean logic**: `&` (AND), `|` (OR/default), `!` (negation)
 - **String ops**: `+` (concat), `^` (uppercase), `_` (lowercase), `^_` (capitalize), `~` (replace), `<>` (split), `><` (join), `==`/`!=` (equality), `#` (length), `-` (remove substring), `+` with Number/Boolean/undefined/List
-- **List ops**: `@` (index), `#` (size), `+` (concat/append/prepend), `-` (remove elements), `><`/`<>` (join with separator), `?><` (contains), `==` (equality)
+- **List ops**: `@` (index), `#` (size), `+` (concat/append/prepend), `_` (concat alias), `-` (remove elements), `><`/`<>` (join with separator), `?><` (contains), `==` (equality)
 - **Loop ops**: `$` (map), `$?` (filter), `$_` (flatmap), `$|` (some), `$&` (every), `$?|` (find), `$~` (uniqueBy), `$>` (groupBy), `$%` (sort), `$?!` (compact), `$@` (pluck), `$"` (eachToString)
 - **Element-wise**: `$+`, `$-`, `$*`, `$/`, `$%`
 - **Filter comparisons**: `$?>`, `$?<`, `$?>=`, `$?<=`, `$?+`, `$?-`
-- **Map ops**: `@` (get), `-` (remove), `+` (merge), `#` (size), `==`/`!=` (equality), `@` with bracket path, `@&` (pick), `|` (default)
+- **Map ops**: `@` (get), `-` (remove), `+` (merge), `#` (size), `==`/`!=` (equality), `@` with bracket path, `@&` (pick), `|` (default), property access by name
 - **Type checks**: `?"` (isString), `?#` (isNumber)
 - **Error**: `!!!` (throw), `!!!?` (catch), `Error[expr]` (constructor), `Error@message`
+- **Constructors**: `Error[expr]` (Error constructor), `Type[expr]` (generic constructor — returns map with `_type` key)
 - **Closures**: monadic `{ _< }`, diadic `{ _< + _> }`, nested, chained
-- **Control**: `?:` (guards), `!!` (optional apply), `|` (default), `?` (ternary)
+- **Control**: `?:` (guards in closures and programs), `!!` (optional apply), `|` (default), `?` (ternary)
 - **Spread**: `+:` map merge with override
 - **Destructuring**: `_<@`prop`` named arg destructuring
 - **Async/Await**: `///` (make async), `\\\` (await) — synchronous stub, pass-through execution
@@ -91,12 +92,11 @@ These are IMPLEMENTED but missing coverage in one or more test layers:
 
 #### Missing from Rust Unit/E2e Tests (compiler.rs / vm.rs)
 
-1. **`?:else` ternary else clause** — VM dispatch exists (`(_, _, "?:else") => right`) but no LR syntax generates it. Test confirms it doesn't crash, but can't assert behavior.
+1. **`?:else` ternary else clause** — VM dispatch exists (`(_, _, "?:else") => right`) but no LR syntax generates it. Dead code from uncompleted feature design.
 
 #### Missing from CLI Integration Tests (crates/lr-cli/tests/*.lr)
 
 1. **`?` as PartialOperator on Number/String/List/Map** — Ternary variant tested, but `?` as truthy-check PartialOperator not tested.
-2. **`_` list concat variant** — Runtime error: "Cannot apply partial operator _ to list". `_` is NOT a concat alias for `+` on lists — spec mismatch.
 
 #### Missing from Live System Tests (compiler/tests/live/*.lr)
 
@@ -111,10 +111,7 @@ These are spec features with no runtime implementation:
 | Import/Export | Stub opcode only | Import (140), Export (141) — VM has TODO stubs |
 | `imports@` / `files@` | Parser recognizes pattern | No module loading runtime |
 | `}@&[...]` export | Parser recognizes pattern | No export runtime |
-| Method calls `obj method [args]` | No infrastructure | No parser AST, no VM dispatch |
-| Constructor `Type[args]` | Partial (Error[] works) | No general constructor dispatch |
-| JSON parse `/json` | Implemented | serde_json in lr-vm, VM String operator dispatch, 4 unit tests. No CLI/live tests — LR string literals can't contain `"` (triggers interpolation). Works with runtime strings only (e.g., HTTP response bodies). |
-| `?:` early return | Guards work for truthiness | Early return from program not implemented |
+| `$|||` parallel operator | No infrastructure | Depends on async runtime |
 
 ### Test Infrastructure
 
