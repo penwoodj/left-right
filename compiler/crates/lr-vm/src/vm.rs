@@ -193,6 +193,7 @@ impl VM {
                     "!!" => Ok(Value::partial_operator(mc, "!!".to_string(), *left)),
                     "-" => Ok(Value::partial_operator(mc, "-".to_string(), *left)),
                     "+" => Ok(Value::partial_operator(mc, "+".to_string(), *left)),
+                    "|" => Ok(Value::partial_operator(mc, "|".to_string(), *left)),
                     "==" | "=" => Ok(Value::partial_operator(mc, op_name.to_string(), *left)),
                     "!=" => Ok(Value::partial_operator(mc, "!=".to_string(), *left)),
                     "@&" => Ok(Value::partial_operator(mc, "@&".to_string(), *left)),
@@ -588,8 +589,9 @@ impl VM {
                             match op_name.as_str() {
                                 "!" => Value::boolean(mc, !Value::boolean(mc, *b).is_truthy()),
                                 "&" | "|" | "?" | "!!" => Value::partial_operator(mc, op_name.to_string(), Value::boolean(mc, *b)),
-                                "?\"" => Value::boolean(mc, false), // booleans are not strings
-                                "?#" => Value::boolean(mc, false), // booleans are not numbers
+                                "+" => Value::partial_operator(mc, "+".to_string(), Value::boolean(mc, *b)),
+                                "?\"" => Value::boolean(mc, false),
+                                "?#" => Value::boolean(mc, false),
                                 "==" | "!=" | "=" => Value::partial_operator(mc, op_name.to_string(), Value::boolean(mc, *b)),
                                 _ => return Err(VMError::TypeError(format!(
                                     "Unknown boolean operator: {}", op_name
@@ -613,9 +615,16 @@ impl VM {
                                             ))),
                                         }
                                     } else {
-                                        return Err(VMError::TypeError(format!(
-                                            "Partial operator {} left arg is not a boolean", partial.name
-                                        )));
+                                        match partial.name.as_str() {
+                                            "|" => if partial.left_arg.is_truthy() { partial.left_arg } else { right },
+                                            "?" => if partial.left_arg.is_truthy() { right } else { partial.left_arg },
+                                            "==" | "=" => Value::boolean(mc, false),
+                                            "!=" => Value::boolean(mc, true),
+                                            "+" => Value::string(mc, format!("{}{}", partial.left_arg, right)),
+                                            _ => return Err(VMError::TypeError(format!(
+                                                "Partial operator {} left arg is not a boolean", partial.name
+                                            ))),
+                                        }
                                     }
                                 }
                                 _ => {
@@ -1066,6 +1075,9 @@ impl VM {
                                                 right
                                             }
                                         }
+                                        (_, _, "+") => {
+                                            Value::string(mc, format!("{}{}", partial.left_arg, right))
+                                        }
                                         _ => return Err(VMError::TypeError(format!(
                                             "Cannot apply partial operator {} to {}", partial.name, right.type_name()
                                         ))),
@@ -1113,6 +1125,7 @@ impl VM {
                                   "|" => Value::partial_operator(mc, "|".to_string(), Value::undefined()),
                                   "?" => Value::partial_operator(mc, "?".to_string(), Value::undefined()),
                                   "!!" => Value::partial_operator(mc, "!!".to_string(), Value::undefined()),
+                                  "+" => Value::partial_operator(mc, "+".to_string(), Value::undefined()),
                                   _ => return Err(VMError::TypeError(format!(
                                       "Cannot call: left=undefined right={}", op_name
                                   ))),

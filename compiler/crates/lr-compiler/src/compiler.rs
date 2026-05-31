@@ -2607,4 +2607,60 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "test");
     }
+
+    #[test]
+    fn test_map_default_truthy_left() {
+        let result = compile_and_run("{a: 1} | {b: 2}");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "{a: 1}");
+    }
+
+    #[test]
+    fn test_map_default_empty_left() {
+        let result = compile_and_run("{} | {b: 2}");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "{b: 2}");
+    }
+
+    #[test]
+    fn test_boolean_string_concat_true() {
+        let result = compile_and_run("true + ` test`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "true test");
+    }
+
+    #[test]
+    fn test_boolean_string_concat_false() {
+        let result = compile_and_run("false + ` value`");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "false value");
+    }
+
+    #[test]
+    fn test_string_undefined_concat() {
+        let result = compile_and_run("`val: ` + undefined");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "val: undefined");
+    }
+
+    #[test]
+    fn test_string_list_tostring_concat() {
+        let result = compile_and_run("`items: ` + [1, 2, 3]");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "items: [1, 2, 3]");
+    }
+
+    #[test]
+    fn test_chained_default() {
+        let result = compile_and_run("0 | false | 42");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "42");
+    }
+
+    #[test]
+    fn test_number_default_truthy_left() {
+        let result = compile_and_run("5 | 10");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "5");
+    }
 }
