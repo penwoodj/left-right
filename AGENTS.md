@@ -52,7 +52,7 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 6. **`@` is get** — Property access requires `@`: `options@`key`` or `{ a: 1 } @ `a``. No bare key access.
 7. **Program maps data-first** — `{ double: { _< * 2 }, 7 double }` not `{ double: { _< * 2 }, double 7 }`.
 
-## Test Coverage Status (as of guards, constructors, map property access)
+## Test Coverage Status (as of files@ local imports)
 
 **Branch**: `main`
 
@@ -61,9 +61,9 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 | Layer | Count | Runner |
 |-------|-------|--------|
 | Rust unit/e2e | 406 (2 ignored) | `cargo test` in `compiler/` |
-| CLI integration | 109 | `lr test` from `crates/lr-cli/` |
-| Live system | 167 | `compiler/tests/live_runner.sh` |
-| **Total** | **682** | |
+| CLI integration | 112 | `lr test` from `crates/lr-cli/` |
+| Live system | 172 | `compiler/tests/live_runner.sh` |
+| **Total** | **690** | |
 
 ### Fully Verified Features (all 3 layers)
 
@@ -85,6 +85,7 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 - **Destructuring**: `_<@`prop`` named arg destructuring
 - **Async/Await**: `///` (make async), `\\\` (await) — synchronous stub, pass-through execution
 - **Other**: partial application `[args] func`, template interpolation `{var}`, map binding `{a:1, b:a+1}`, program maps, bracket path access `@[key1, key2]`
+- **Imports**: `files@`path`` (local .lr file loading), `files@`path`@`key`` (get from module), `files@`path`@&[...]` (pick from module). Data values only — imported closures cannot be called (body_start references imported chunk's bytecode, not accessible from outer execution context).
 
 ### Features NOT Fully End-to-End Verified
 
@@ -98,10 +99,10 @@ These are spec features with no runtime implementation:
 
 | Feature | Status | Infrastructure |
 |---------|--------|---------------|
-| Import/Export | Stub opcode only | Import (140), Export (141) — VM has TODO stubs |
 | `imports@` / `files@` | Parser recognizes pattern | No module loading runtime |
 | `}@&[...]` export | Parser recognizes pattern | No export runtime |
 | `$|||` parallel operator | No infrastructure | Depends on async runtime |
+| Imported closures | Module loads but closures uncallable | `body_start` references imported chunk's bytecode; VM passes outer `code` to `run_closure_body` |
 
 ### Test Infrastructure
 

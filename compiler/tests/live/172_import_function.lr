@@ -1,0 +1,1 @@
+{ a: files@`./modules/helper`@`a`, b: files@`./modules/helper`@`b`, a + b }
