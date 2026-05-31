@@ -60,22 +60,22 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 
 | Layer | Count | Runner |
 |-------|-------|--------|
-| Rust unit/e2e | 388 (2 ignored) | `cargo test` in `compiler/` |
-| CLI integration | 98 | `lr test` from `crates/lr-cli/` |
-| Live system | 155 | `compiler/tests/live_runner.sh` |
-| **Total** | **641** | |
+| Rust unit/e2e | 396 (2 ignored) | `cargo test` in `compiler/` |
+| CLI integration | 106 | `lr test` from `crates/lr-cli/` |
+| Live system | 162 | `compiler/tests/live_runner.sh` |
+| **Total** | **664** | |
 
 ### Fully Verified Features (all 3 layers)
 
 - **Arithmetic**: `+`, `-`, `*`, `/`, `%`, `^`
 - **Comparison**: `==`, `=`, `!=`, `<`, `>`, `<=`, `>=`
 - **Boolean logic**: `&` (AND), `|` (OR/default), `!` (negation)
-- **String ops**: `+` (concat), `^` (uppercase), `_` (lowercase), `^_` (capitalize), `~` (replace), `<>` (split), `><` (join), `==`/`!=` (equality), `#` (length), `-` (remove substring), `+` with Number/Boolean
+- **String ops**: `+` (concat), `^` (uppercase), `_` (lowercase), `^_` (capitalize), `~` (replace), `<>` (split), `><` (join), `==`/`!=` (equality), `#` (length), `-` (remove substring), `+` with Number/Boolean/undefined/List
 - **List ops**: `@` (index), `#` (size), `+` (concat/append/prepend), `-` (remove elements), `><` (join), `?><` (contains), `==` (equality)
 - **Loop ops**: `$` (map), `$?` (filter), `$_` (flatmap), `$|` (some), `$&` (every), `$?|` (find), `$~` (uniqueBy), `$>` (groupBy), `$%` (sort), `$?!` (compact), `$@` (pluck), `$"` (eachToString)
 - **Element-wise**: `$+`, `$-`, `$*`, `$/`, `$%`
 - **Filter comparisons**: `$?>`, `$?<`, `$?>=`, `$?<=`, `$?+`, `$?-`
-- **Map ops**: `@` (get), `-` (remove), `+` (merge), `#` (size), `==`/`!=` (equality), `@` with bracket path, `@&` (pick)
+- **Map ops**: `@` (get), `-` (remove), `+` (merge), `#` (size), `==`/`!=` (equality), `@` with bracket path, `@&` (pick), `|` (default)
 - **Type checks**: `?"` (isString), `?#` (isNumber)
 - **Error**: `!!!` (throw), `!!!?` (catch), `Error[expr]` (constructor), `Error@message`
 - **Closures**: monadic `{ _< }`, diadic `{ _< + _> }`, nested, chained
@@ -95,14 +95,12 @@ These are IMPLEMENTED but missing coverage in one or more test layers:
 #### Missing from CLI Integration Tests (crates/lr-cli/tests/*.lr)
 
 1. **`?` as PartialOperator on Number/String/List/Map** — Ternary variant tested, but `?` as truthy-check PartialOperator not tested.
-2. **`|` default on Map** — Number/Boolean/String/List tested. Map default VM error: "Unknown map operator: |". Runtime gap.
-3. **`_` list concat variant** — Runtime error: "Cannot apply partial operator _ to list". `_` is NOT a concat alias for `+` on lists — spec mismatch.
-4. **`<>`/`><` on List** — Runtime error: "Cannot apply partial operator <> to number". These operators create PartialOperators that can't be applied to lists. Runtime gap.
+2. **`_` list concat variant** — Runtime error: "Cannot apply partial operator _ to list". `_` is NOT a concat alias for `+` on lists — spec mismatch.
+3. **`<>`/`><` on List** — Runtime error: "Cannot apply partial operator <> to number". These operators create PartialOperators that can't be applied to lists. Runtime gap.
 
 #### Missing from Live System Tests (compiler/tests/live/*.lr)
 
-1. **`|` default with Map** — VM error: "Unknown map operator: |". Runtime gap.
-2. **`<>`/`><` on List** — Runtime error when trying list split/join. Runtime gap.
+1. **`<>`/`><` on List** — Runtime error when trying list split/join. Runtime gap.
 
 ### Unimplemented Features (NOT testable)
 
