@@ -61,9 +61,9 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 | Layer | Count | Runner |
 |-------|-------|--------|
 | Rust unit/e2e | 406 (2 ignored) | `cargo test` in `compiler/` |
-| CLI integration | 112 | `lr test` from `crates/lr-cli/` |
-| Live system | 172 | `compiler/tests/live_runner.sh` |
-| **Total** | **690** | |
+| CLI integration | 114 | `lr test` from `crates/lr-cli/` |
+| Live system | 174 | `compiler/tests/live_runner.sh` |
+| **Total** | **694** | |
 
 ### Fully Verified Features (all 3 layers)
 
@@ -72,7 +72,7 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 - **Boolean logic**: `&` (AND), `|` (OR/default), `!` (negation)
 - **String ops**: `+` (concat), `^` (uppercase), `_` (lowercase), `^_` (capitalize), `~` (replace), `<>` (split), `><` (join), `==`/`!=` (equality), `#` (length), `-` (remove substring), `+` with Number/Boolean/undefined/List
 - **List ops**: `@` (index), `#` (size), `+` (concat/append/prepend), `_` (concat alias), `-` (remove elements), `><`/`<>` (join with separator), `?><` (contains), `==` (equality)
-- **Loop ops**: `$` (map), `$?` (filter), `$_` (flatmap), `$|` (some), `$&` (every), `$?|` (find), `$~` (uniqueBy), `$>` (groupBy), `$%` (sort), `$?!` (compact), `$@` (pluck), `$"` (eachToString)
+- **Loop ops**: `$` (map), `$?` (filter), `$_` (flatmap), `$|` (some), `$&` (every), `$?|` (find), `$~` (uniqueBy), `$>` (groupBy), `$%` (sort), `$?!` (compact), `$@` (pluck), `$"` (eachToString), `$|||` (parallel map — multi-threaded via `std::thread::scope`)
 - **Element-wise**: `$+`, `$-`, `$*`, `$/`, `$%`
 - **Filter comparisons**: `$?>`, `$?<`, `$?>=`, `$?<=`, `$?+`, `$?-`
 - **Map ops**: `@` (get), `-` (remove), `+` (merge), `#` (size), `==`/`!=` (equality), `@` with bracket path, `@&` (pick), `|` (default), property access by name
@@ -99,9 +99,8 @@ These are spec features with no runtime implementation:
 
 | Feature | Status | Infrastructure |
 |---------|--------|---------------|
-| `imports@` / `files@` | Parser recognizes pattern | No module loading runtime |
-| `}@&[...]` export | Parser recognizes pattern | No export runtime |
-| `$|||` parallel operator | No infrastructure | Depends on async runtime |
+| `imports@` | Parser recognizes pattern | No npm module loading runtime |
+| `}@&[...]` export | Works via `@&` pick operator | No special export opcode needed |
 | Imported closures | Module loads but closures uncallable | `body_start` references imported chunk's bytecode; VM passes outer `code` to `run_closure_body` |
 
 ### Test Infrastructure
