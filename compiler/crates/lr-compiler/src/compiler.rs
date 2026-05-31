@@ -441,14 +441,8 @@ impl Compiler {
                             span: base_span,
                         }), guard_base_reg)?;
 
-                        let guard_cond_reg = self.alloc_register()?;
-                        let const_idx = self.chunk.add_constant(Constant::String("?".to_string()))?;
-                        self.chunk.emit(Instruction::new(Opcode::LoadConstant, guard_cond_reg, const_idx, 0));
-                        self.chunk.emit(Instruction::new(Opcode::Call, guard_cond_reg, guard_base_reg, 0));
-                        self.free_register();
-
                         let jump_if_false_idx = self.chunk.code.len();
-                        self.chunk.emit(Instruction::new(Opcode::JumpIfFalse, guard_cond_reg, 0, 0));
+                        self.chunk.emit(Instruction::new(Opcode::JumpIfFalse, guard_base_reg, 0, 0));
                         self.free_register();
 
                         let guard_value_reg = self.alloc_register()?;
@@ -458,23 +452,19 @@ impl Compiler {
                         let skip_pos = self.chunk.code.len();
                         let skip_offset = (skip_pos - jump_if_false_idx) as u8;
                         self.chunk.code[jump_if_false_idx] = Instruction::new(
-                            Opcode::JumpIfFalse, guard_cond_reg, skip_offset, 0,
+                            Opcode::JumpIfFalse, guard_base_reg, skip_offset, 0,
                         );
                         self.free_register();
                     } else if is_size_cond {
                         let size_reg = self.alloc_register()?;
-                        let const_idx = self.chunk.add_constant(Constant::String("#".to_string()))?;
-                        self.chunk.emit(Instruction::new(Opcode::LoadConstant, size_reg, const_idx, 0));
-                        self.chunk.emit(Instruction::new(Opcode::Call, size_reg, 0, 0));
-
-                        let cond_reg = self.alloc_register()?;
-                        let q_idx = self.chunk.add_constant(Constant::String("?".to_string()))?;
-                        self.chunk.emit(Instruction::new(Opcode::LoadConstant, cond_reg, q_idx, 0));
-                        self.chunk.emit(Instruction::new(Opcode::Call, cond_reg, size_reg, 0));
-                        self.free_register();
+                        let hash_idx = self.chunk.add_constant(Constant::String("#".to_string()))?;
+                        let hash_reg = self.alloc_register()?;
+                        self.chunk.emit(Instruction::new(Opcode::LoadConstant, hash_reg, hash_idx, 0));
+                        self.chunk.emit(Instruction::new(Opcode::Call, size_reg, 0, hash_reg));
 
                         let jump_if_false_idx = self.chunk.code.len();
-                        self.chunk.emit(Instruction::new(Opcode::JumpIfFalse, cond_reg, 0, 0));
+                        self.chunk.emit(Instruction::new(Opcode::JumpIfFalse, size_reg, 0, 0));
+                        self.free_register();
                         self.free_register();
 
                         let body_reg = self.alloc_register()?;
@@ -484,7 +474,7 @@ impl Compiler {
                         let skip_pos = self.chunk.code.len();
                         let skip_offset = (skip_pos - jump_if_false_idx) as u8;
                         self.chunk.code[jump_if_false_idx] = Instruction::new(
-                            Opcode::JumpIfFalse, cond_reg, skip_offset, 0,
+                            Opcode::JumpIfFalse, size_reg, skip_offset, 0,
                         );
                         self.free_register();
                     } else {
@@ -647,28 +637,86 @@ impl Compiler {
                         self.free_register();
                         self.chunk.emit(Instruction::new(Opcode::Return, dest, 0, 0));
                     } else {
-                        let mut last_reg = 0u8;
-                        for entry in &m.entries {
-                            if let Some(ref value) = entry.value {
-                                let key_reg = self.alloc_register()?;
-                                self.compile_expression(&entry.key, key_reg)?;
-                                let value_reg = self.alloc_register()?;
-                                self.compile_expression(value, value_reg)?;
+                        let has_guards = m.entries.iter().any(|e| {
+                            matches!(&e.key, Expression::Identifier(i) if i.name.ends_with('?'))
+                            && e.value.is_some()
+                        });
 
-                                if entry.is_assignment {
-                                    if let Expression::Identifier(ref ident) = entry.key {
-                                        self.bind_name(&ident.name, value_reg)?;
+                        if has_guards {
+                            for entry in &m.entries {
+                                let is_guard = matches!(&entry.key, Expression::Identifier(i) if i.name.ends_with('?'));
+
+                                if is_guard && entry.value.is_some() {
+                                    let (base_name, base_span) = if let Expression::Identifier(i) = &entry.key {
+                                        (i.name[..i.name.len()-1].to_string(), i.span.clone())
+                                    } else {
+                                        unreachable!()
+                                    };
+
+                                    let guard_base_reg = self.alloc_register()?;
+                                    self.compile_expression(&Expression::Identifier(Identifier {
+                                        name: base_name,
+                                        span: base_span,
+                                    }), guard_base_reg)?;
+
+                                    let jump_if_false_idx = self.chunk.code.len();
+                                    self.chunk.emit(Instruction::new(Opcode::JumpIfFalse, guard_base_reg, 0, 0));
+                                    self.free_register();
+
+                                    let guard_value_reg = self.alloc_register()?;
+                                    self.compile_expression(entry.value.as_ref().unwrap(), guard_value_reg)?;
+                                    self.chunk.emit(Instruction::new(Opcode::Return, guard_value_reg, 0, 0));
+
+                                    let skip_pos = self.chunk.code.len();
+                                    let skip_offset = (skip_pos - jump_if_false_idx) as u8;
+                                    self.chunk.code[jump_if_false_idx] = Instruction::new(
+                                        Opcode::JumpIfFalse, guard_base_reg, skip_offset, 0,
+                                    );
+                                    self.free_register();
+                                } else if entry.value.is_some() {
+                                    let key_reg = self.alloc_register()?;
+                                    self.compile_expression(&entry.key, key_reg)?;
+                                    let value_reg = self.alloc_register()?;
+                                    self.compile_expression(entry.value.as_ref().unwrap(), value_reg)?;
+
+                                    if entry.is_assignment {
+                                        if let Expression::Identifier(ref ident) = entry.key {
+                                            self.bind_name(&ident.name, value_reg)?;
+                                        }
                                     }
+                                    self.free_register();
+                                    self.free_register();
+                                } else {
+                                    let key_reg = self.alloc_register()?;
+                                    self.compile_expression(&entry.key, key_reg)?;
+                                    self.chunk.emit(Instruction::new(Opcode::Return, key_reg, 0, 0));
+                                    self.free_register();
                                 }
-                                last_reg = value_reg;
-                            } else {
-                                let key_reg = self.alloc_register()?;
-                                self.compile_expression(&entry.key, key_reg)?;
-                                last_reg = key_reg;
                             }
-                        }
-                        if last_reg != dest {
-                            self.chunk.emit(Instruction::new(Opcode::LoadRegister, dest, last_reg, 0));
+                        } else {
+                            let mut last_reg = 0u8;
+                            for entry in &m.entries {
+                                if let Some(ref value) = entry.value {
+                                    let key_reg = self.alloc_register()?;
+                                    self.compile_expression(&entry.key, key_reg)?;
+                                    let value_reg = self.alloc_register()?;
+                                    self.compile_expression(value, value_reg)?;
+
+                                    if entry.is_assignment {
+                                        if let Expression::Identifier(ref ident) = entry.key {
+                                            self.bind_name(&ident.name, value_reg)?;
+                                        }
+                                    }
+                                    last_reg = value_reg;
+                                } else {
+                                    let key_reg = self.alloc_register()?;
+                                    self.compile_expression(&entry.key, key_reg)?;
+                                    last_reg = key_reg;
+                                }
+                            }
+                            if last_reg != dest {
+                                self.chunk.emit(Instruction::new(Opcode::LoadRegister, dest, last_reg, 0));
+                            }
                         }
                     }
                 } else {
@@ -1181,6 +1229,33 @@ mod tests {
 
     #[test]
 
+    #[test]
+    fn test_guard_program_truthy() {
+        let result = compile_and_run("{ x: 5, x?: x + 1, 10 }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "6");
+    }
+
+    #[test]
+    fn test_guard_program_falsy() {
+        let result = compile_and_run("{ y: 0, y?: y + 1, 10 }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "10");
+    }
+
+    #[test]
+    fn test_guard_program_number_truthy() {
+        let result = compile_and_run("{ x: 5, x?: x * 2, 10 }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "10");
+    }
+
+    #[test]
+    fn test_guard_program_number_falsy() {
+        let result = compile_and_run("{ x: 0, x?: x * 2, 10 }");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "10");
+    }
 
     #[test]
     fn test_register_allocation() {
@@ -2669,5 +2744,26 @@ mod tests {
         let result = compile_and_run("5 { _< + 1 } \\\\\\");
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "6");
+    }
+
+    #[test]
+    fn test_map_property_access() {
+        let result = compile_and_run("{ get: 42 } get");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "42");
+    }
+
+    #[test]
+    fn test_map_property_access_undefined() {
+        let result = compile_and_run("{ get: 42 } missing");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "undefined");
+    }
+
+    #[test]
+    fn test_map_property_access_string() {
+        let result = compile_and_run("{ name: `Alice` } name");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "Alice");
     }
 }

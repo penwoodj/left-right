@@ -199,9 +199,22 @@ impl VM {
                     "==" | "=" => Ok(Value::partial_operator(mc, op_name.to_string(), *left)),
                     "!=" => Ok(Value::partial_operator(mc, "!=".to_string(), *left)),
                     "@&" => Ok(Value::partial_operator(mc, "@&".to_string(), *left)),
-                    _ => Err(VMError::TypeError(format!(
-                        "Unknown map operator: {}", op_name
-                    ))),
+                    "<>" | "><" => Ok(Value::partial_operator(mc, op_name.to_string(), *left)),
+                    "?><" => Ok(Value::partial_operator(mc, "?><".to_string(), *left)),
+                    _ => {
+                        let key_str = op_name.as_str();
+                        let found = entries.iter()
+                            .find(|(k, _)| {
+                                if let Value::String(ks) = k {
+                                    ks.as_str() == key_str
+                                } else {
+                                    false
+                                }
+                            })
+                            .map(|(_, v)| *v)
+                            .unwrap_or(Value::undefined());
+                        Ok(found)
+                    }
                 }
             }
             _ => Err(VMError::TypeError(format!(
@@ -274,13 +287,36 @@ impl VM {
                         }
                     }
 
-                    // Error[expr] constructor
+                    // Error[expr] and generic Type[args] constructors
                     if let Value::String(name) = &left {
-                        if name.as_str() == "Error" {
-                            if let Value::List(args) = &right {
-                                if !args.is_empty() {
-                                    let message = args[0];
+                        if let Value::List(args) = &right {
+                            match name.as_str() {
+                                "Error" => {
+                                    let message = args.first().copied().unwrap_or(Value::undefined());
                                     frame.set(inst.a(), Value::error(mc, message));
+                                    frame.advance();
+                                    continue;
+                                }
+                                _ => {
+                                    // Generic constructor: return a map with _type and args
+                                    let mut entries = vec![
+                                        (Value::string(mc, "_type".to_string()), Value::string(mc, name.to_string())),
+                                    ];
+                                    if args.len() == 1 {
+                                        // Single arg: spread the arg's properties into the result
+                                        if let Value::Map(m) = &args[0] {
+                                            for (k, v) in m.iter() {
+                                                entries.push((*k, *v));
+                                            }
+                                        } else {
+                                            entries.push((Value::string(mc, "value".to_string()), args[0]));
+                                        }
+                                    } else {
+                                        for (i, arg) in args.iter().enumerate() {
+                                            entries.push((Value::string(mc, format!("arg{}", i)), *arg));
+                                        }
+                                    }
+                                    frame.set(inst.a(), Value::map(mc, entries));
                                     frame.advance();
                                     continue;
                                 }
