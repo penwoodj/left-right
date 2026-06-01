@@ -1,4 +1,4 @@
-# Left-Right v0.0.1 — First Public Release
+# Left-Right v0.1.0 — First Public Release
 
 **Left-Right** is a point-free, operator-based, hierarchical-data oriented scripting language. It combines function composition with a syntax that reads naturally left-to-right, inspired by array-oriented languages like APL, J, K, and BQN.
 
@@ -21,12 +21,13 @@
 - `@` get — property access (`data@\`key\``, `list@2`)
 - `#` size — length of collections
 - `+` polymorphic add — numbers, string concat, list concat, map merge, number+list prepend
-- `$`, `$?`, `$|`, `$&`, `$_`, `$~`, `$>`, `$%` — map, filter, some, every, flatmap, uniqueBy, groupBy, sort
+- `$`, `$?`, `$?|`, `$|`, `$&`, `$_`, `$|||`, `$~`, `$>`, `$%`, `$?!`, `$@`, `$"` — map, filter, find, some, every, flatmap, parallel map, uniqueBy, groupBy, sort, compact, pluck, eachToString
 - `"^`, `"_`, `"^_`, `"~`, `<>`, `><` — uppercase, lowercase, capitalize, replace, split, join
 - `&`, `|`, `!`, `?` — AND, OR/default, negate, truthy
 - `!!!`, `!!!?`, `?:` — throw, try/catch, guard
 - `!!`, `#:` — optional apply, size conditional
-- `?:`, `$?+`, `$?-`, `$?>`, `$?<` — guards, filter comparisons
+- `?:`, `$?>`, `$?<`, `$?>=`, `$?<=`, `$?+`, `$?-` — guards, filter comparisons
+- `$+`, `$-`, `$*`, `$/`, `$%` — element-wise arithmetic on lists
 - `$@`, `$"` — map-each-property, each-to-string
 - `+:` — spread/merge into maps
 - `Error[expr]` — error value constructor
@@ -34,10 +35,8 @@
 
 ### Not Yet Implemented
 
-- `///`, `\\\` — async/await (stub only)
-- Import/export system (`imports@`, `files@`, `}@&`)
+- Import/export from npm modules (`imports@`) — `files@` works for local .lr files
 - Method calls (`obj method [args]`)
-- Constructor syntax (`Type[args]`)
 - JSON parsing (`/json`)
 
 ### Closures
@@ -48,13 +47,15 @@
 
 ### Compiler & VM
 
-- 10-crate Rust workspace: lexer, parser, AST, bytecode compiler, stack-based VM with GC
+- 12-crate Rust workspace: lexer, parser, AST, bytecode compiler, stack-based VM with GC, JS transpiler (AST → JavaScript)
 - Compiles Left-Right source to bytecode, executes via virtual machine
+- Transpiles to JavaScript via `lr transpile <file>`
 
 ### CLI (`lr`)
 
 - `lr run <file>` — execute a file
 - `lr repl` — interactive REPL with readline support
+- `lr transpile <file>` — transpile to JavaScript
 - `lr new`, `lr build`, `lr test`, `lr watch`
 
 ---
@@ -121,4 +122,4 @@ cd compiler && cargo build --release
 
 ---
 
-**Full Changelog**: https://github.com/penwoodj/left-right/commits/v0.0.1
+**Full Changelog**: https://github.com/penwoodj/left-right/commits/v0.1.0

@@ -201,6 +201,7 @@ Both map operators and string operators remain unexecuted unless they are either
 | `` `$?|` `` | Find | `items $?| { _< > 10 }` |
 | `$%` | Sort | `items $%` |
 | `$?!` | Compact | `items $?!` |
+| `$|||` | Parallel map — multi-threaded in VM, Promise.all in JS transpiler | `items $||| { _< * 2 }` |
 
 ### String Operators
 
@@ -429,7 +430,7 @@ The `\\\` after function name awaits the async call. The result can then be oper
 
 **Parallel execution**:
 ```lr
-+: options $|[
++: options $|||[
   { _<@`queryIssues`: [cveEntities, _<] queryIssues, [] },
   { _<@`queryVulnerabilities`: [cveEntities, _<] queryVulnerabilities, [] },
   { _<@`queryAssets`: [entitiesWithIds, _<] queryAssets, [] }
@@ -444,7 +445,7 @@ const [issues, vulnerabilities, assets] = await Promise.all([
 ]);
 ```
 
-The `|` operator with an array performs parallel execution (Promise.all).
+The `$|||` operator performs parallel map execution (Promise.all in JS transpiler, multi-threaded via `std::thread::scope` in compiled VM).
 
 ## Error Handling
 
@@ -1028,7 +1029,7 @@ const assembleLookupResults = require('./server/assembleLookupResults');
 const doLookup = async (entities, _options, cb) => {
 ```
 
-**Semantics**: Function definition with positional arguments. `_<@N` binds N-th argument. Function is async (uses callback pattern, parallel execution with `$|`).
+**Semantics**: Function definition with positional arguments. `_<@N` binds N-th argument. Function is async (uses callback pattern, parallel execution with `$|||`).
 
 ### Line 10
 ```lr
@@ -1108,7 +1109,7 @@ const doLookup = async (entities, _options, cb) => {
 
 ### Line 21-26
 ```lr
-      +: options $|[
+      +: options $|||[
         { _<@`queryIssues`: [cveEntities, _<] queryIssues, [] },
         { _<@`queryVulnerabilities`: [cveEntities, _<] queryVulnerabilities, [] },
         { _<@`queryAssets`: [entitiesWithIds, _<] queryAssets, [] }
@@ -1123,7 +1124,7 @@ const doLookup = async (entities, _options, cb) => {
     ]);
 ```
 
-**Semantics**: Parallel execution with `|` operator (Promise.all). Each ternary map: `{ property: valueIfTruthy, valueIfFalsy }`. `<` at end of list destructures result into variables.
+**Semantics**: Parallel execution with `$|||` operator (Promise.all). Each ternary map: `{ property: valueIfTruthy, valueIfFalsy }`. `<` at end of list destructures result into variables.
 
 ### Line 27
 ```lr

@@ -27,7 +27,7 @@ Left-Right (`lr`) is a novel programming language designed for clarity and simpl
 - **Auto-currying**: Operator partial application happens automatically
 - **Spatial symbology**: Expressive notation (e.g., `"^` for uppercase, `"^_` for capitalize)
 - **Backtick strings**: All strings use backtick delimiters (`` `like this` ``) — `"` is a reserved operator, not a string delimiter
-- **Compiles to Rust**: Compiled to native Rust
+- **Compiles to bytecode**: Bytecode executed by a Rust VM, with JS transpiler for JavaScript output
 
 ### Core Operators
 
@@ -99,6 +99,7 @@ Left-Right provides powerful operators for data transformation:
 - **GroupBy**: `list $> { _< }` — group elements by key function
 - **Sort**: `list $%` — sort collection
 - **Compact**: `list $?!` — remove undefined/null values
+- **Parallel Map**: `list $||| { _< * 2 }` — transform each element in parallel (multi-threaded in VM, Promise.all in JS transpiler)
 
 **Control Flow Operators:**
 
@@ -154,6 +155,9 @@ lr run myfile.lr
 
 # Start the REPL
 lr repl
+
+# Transpile to JavaScript
+lr transpile myfile.lr
 ```
 
 ### Hello World
@@ -188,7 +192,6 @@ name: `Alice`,
 - [AST Specification](./docs/specs/ast-specification.md) — AST node definitions and grammar
 - [Lexer Specification](./docs/specs/lexer-specification.md) — Token types and recognition rules
 - [Brainstorm Documents](./docs/brainstorms/) — Original language design documents
-- [Implementation Plans](./docs/plans/) — Detailed plans for lexer/AST, compiler/VM, and CLI
 - [Translations](./docs/translations/) — JavaScript-to-Left-Right translation examples
 
 ## Design Philosophy
@@ -215,18 +218,18 @@ This eliminates ambiguity and makes code predictably linear.
 
 ## Project Status
 
-**Current Status**: Alpha — core compiler, VM, and CLI implemented. Run the REPL or execute `.lr` files.
+**Current Status**: Alpha — core compiler, VM, CLI, and JS transpiler implemented. Run the REPL, execute `.lr` files, or transpile to JavaScript.
 
-The compiler is written in Rust. It lexes, parses, compiles to bytecode, and executes via a stack-based VM with GC-managed values.
+The compiler is written in Rust. It lexes, parses, compiles to bytecode, and executes via a register-based VM with GC-managed values. The JS transpiler (`lr transpile`) converts Left-Right source to JavaScript.
 
 ## Contributing
 
 We welcome contributions! Areas of focus:
-- Transpiler implementation
 - Standard library
 - Language tooling (linter, formatter, IDE support)
 - Documentation improvements
 - Example programs
+- Parallel execution
 
 ## License
 
