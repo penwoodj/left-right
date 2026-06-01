@@ -223,6 +223,10 @@ impl CodeGenerator {
                 self.gen_expression(expr);
                 self.output.push_str(").length");
             }
+            OperatorPattern::Throw(expr) => {
+                self.output.push_str("throw ");
+                self.gen_expression(expr);
+            }
             OperatorPattern::Partial(left, op) => {
                 self.gen_expression(left);
                 self.output.push(' ');
@@ -296,6 +300,9 @@ impl CodeGenerator {
         if let Expression::Identifier(op_ident) = a.right.as_ref() {
             if op_ident.name == "#" {
                 return OperatorPattern::Size(&a.left);
+            }
+            if op_ident.name == "!!!" {
+                return OperatorPattern::Throw(&a.left);
             }
             if self.is_infix_operator(&op_ident.name) {
                 return OperatorPattern::Partial(&a.left, &op_ident.name);
@@ -846,6 +853,7 @@ enum OperatorPattern<'a> {
     Dollar(&'a str, &'a Expression, &'a Expression),
     PropertyAccess(&'a Expression, &'a Expression),
     Size(&'a Expression),
+    Throw(&'a Expression),
     Partial(&'a Expression, &'a str),
     FunctionCall(&'a str, Vec<&'a Expression>),
     ClosureApply(&'a Expression, Vec<&'a Expression>),
@@ -879,19 +887,38 @@ mod tests {
     }
 
     #[test]
-    fn test_debug_program_map() {
+    fn test_program_map() {
         let result = t("{ x: 1, x }");
-        eprintln!("RESULT: {:?}", result);
-        assert!(result.contains("const x"), "Expected const x in: {:?}", result);
-        assert!(result.contains("return x"), "Expected return x in: {:?}", result);
+        assert!(result.contains("const x"), "{}", result);
+        assert!(result.contains("return x"), "{}", result);
+    }
+
+    #[test]
+    fn test_program_map_chained() {
+        let result = t("{ a: 1, b: a + 1, b }");
+        assert!(result.contains("const a = 1"), "{}", result);
+        assert!(result.contains("const b = a + 1"), "{}", result);
+        assert!(result.contains("return b"), "{}", result);
     }
 
     #[test]
     fn test_literals() {
         assert_eq!(t("42"), "42");
+        assert_eq!(t("3.14"), "3.14");
         assert_eq!(t("true"), "true");
         assert_eq!(t("false"), "false");
         assert_eq!(t("undefined"), "undefined");
+    }
+
+    #[test]
+    fn test_string_literal() {
+        assert_eq!(t("`hello`"), "\"hello\"");
+    }
+
+    #[test]
+    fn test_list_literal() {
+        assert_eq!(t("[1, 2, 3]"), "[1, 2, 3]");
+        assert_eq!(t("[]"), "[]");
     }
 
     #[test]
@@ -899,5 +926,105 @@ mod tests {
         assert_eq!(t("5 + 3"), "5 + 3");
         assert_eq!(t("5 - 3"), "5 - 3");
         assert_eq!(t("5 * 3"), "5 * 3");
+        assert_eq!(t("10 / 2"), "10 / 2");
+        assert_eq!(t("10 % 3"), "10 % 3");
+        assert_eq!(t("2 ^ 3"), "2 ** 3");
+    }
+
+    #[test]
+    fn test_comparison_ops() {
+        assert_eq!(t("5 == 3"), "5 === 3");
+        assert_eq!(t("5 != 3"), "5 !== 3");
+        assert_eq!(t("5 < 3"), "5 < 3");
+        assert_eq!(t("5 > 3"), "5 > 3");
+        assert_eq!(t("5 <= 3"), "5 <= 3");
+        assert_eq!(t("5 >= 3"), "5 >= 3");
+    }
+
+    #[test]
+    fn test_boolean_ops() {
+        assert_eq!(t("true & false"), "true && false");
+        assert_eq!(t("true | false"), "true || false");
+    }
+
+    #[test]
+    fn test_property_access() {
+        assert_eq!(t("options@`key`"), "options[\"key\"]");
+    }
+
+    #[test]
+    fn test_size_op() {
+        assert_eq!(t("[1, 2, 3] #"), "([1, 2, 3]).length");
+    }
+
+    #[test]
+    fn test_function_call() {
+        assert_eq!(t("entities removePrivateIps"), "removePrivateIps(entities)");
+    }
+
+    #[test]
+    fn test_spread_object() {
+        let result = t("{ a: 1, +: other }");
+        assert!(result.contains("...other"), "{}", result);
+        assert!(result.contains("a: 1"), "{}", result);
+    }
+
+    #[test]
+    fn test_closure_monadic() {
+        let result = t("[1, 2, 3] $ { _< * 2 }");
+        assert!(result.contains(".map("), "{}", result);
+        assert!(result.contains("=>"), "{}", result);
+    }
+
+    #[test]
+    fn test_closure_filter() {
+        let result = t("[1, 2, 3] $? { _< > 2 }");
+        assert!(result.contains(".filter("), "{}", result);
+    }
+
+    #[test]
+    fn test_parallel_map() {
+        let result = t("[1, 2, 3] $||| { _< * 2 }");
+        assert!(result.contains("await Promise.all("), "{}", result);
+        assert!(result.contains(".map("), "{}", result);
+    }
+
+    #[test]
+    fn test_plain_object() {
+        let result = t("{ a: 1, b: 2 }");
+        assert!(result.starts_with("{"), "{}", result);
+        assert!(result.contains("a: 1"), "{}", result);
+        assert!(result.contains("b: 2"), "{}", result);
+    }
+
+    #[test]
+    fn test_closure_apply() {
+        let result = t("{ _< + 1 } 5");
+        assert!(result.contains("=>"), "{}", result);
+        assert!(result.contains("+ 1"), "{}", result);
+    }
+
+    #[test]
+    fn test_strict_left_to_right() {
+        let result = t("1 + 2 * 3");
+        assert!(result.contains("+"), "{}", result);
+        assert!(result.contains("*"), "{}", result);
+    }
+
+    #[test]
+    fn test_throw() {
+        assert_eq!(t("42 !!!"), "throw 42");
+    }
+
+    #[test]
+    fn test_await() {
+        assert_eq!(t("42 \\\\\\"), "await 42");
+    }
+
+    #[test]
+    fn test_async() {
+        let result = t("42 ///");
+        assert!(result.contains("async"), "{}", result);
+        assert!(result.contains("42"), "{}", result);
     }
 }
