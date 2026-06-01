@@ -60,10 +60,10 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 
 | Layer | Count | Runner |
 |-------|-------|--------|
-| Rust unit/e2e | 406 (2 ignored) | `cargo test` in `compiler/` |
+| Rust unit/e2e | 427 (2 ignored) | `cargo test` in `compiler/` |
 | CLI integration | 114 | `lr test` from `crates/lr-cli/` |
 | Live system | 174 | `compiler/tests/live_runner.sh` |
-| **Total** | **694** | |
+| **Total** | **715** | |
 
 ### Fully Verified Features (all 3 layers)
 
@@ -86,6 +86,30 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 - **Async/Await**: `///` (make async), `\\\` (await) — synchronous stub, pass-through execution
 - **Other**: partial application `[args] func`, template interpolation `{var}`, map binding `{a:1, b:a+1}`, program maps, bracket path access `@[key1, key2]`
 - **Imports**: `files@`path`` (local .lr file loading), `files@`path`@`key`` (get from module), `files@`path`@&[...]` (pick from module). Data values only — imported closures cannot be called (body_start references imported chunk's bytecode, not accessible from outer execution context).
+- **$||| parallel map**: Multi-threaded via `std::thread::scope` in compiled VM. Transpiles to `await Promise.all(arr.map(fn))` in JS output.
+
+### JS Transpiler (lr-codegen-js)
+
+Transpiles Left-Right AST to JavaScript. CLI: `lr transpile <file>`.
+
+| LR Construct | JS Output |
+|---|---|
+| `5 + 3` | `5 + 3` |
+| `arr $ { _< * 2 }` | `arr.map(x => x * 2)` |
+| `arr $? { _< > 2 }` | `arr.filter(x => x > 2)` |
+| `arr $||| { _< * 2 }` | `await Promise.all(arr.map(x => x * 2))` |
+| `obj@`key`` | `obj["key"]` |
+| `arr #` | `(arr).length` |
+| `data func` | `func(data)` |
+| `{ _< + 1 } 5` | `(x => x + 1)(5)` |
+| `{ a: 1, b: a + 1, b }` | `(() => { const a = 1; const b = a + 1; return b; })()` |
+| `42 !!!` | `throw 42` |
+| `expr !!!? { handler }` | `try { expr } catch(__e) { handler }` |
+| `expr ///` | `(async () => expr)()` |
+| `expr \\\` | `await expr` |
+| `{ a: 1, +: other }` | `{a: 1, ...other}` |
+
+21 unit tests in `lr-codegen-js`. Crate at `compiler/crates/lr-codegen-js/`.
 
 ### Features NOT Fully End-to-End Verified
 
