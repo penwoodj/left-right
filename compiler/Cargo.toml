@@ -11,6 +11,7 @@ members = [
     "crates/lr-compiler",
     "crates/lr-runtime",
     "crates/lr-cli",
+    "crates/lr-codegen-js",
 ]
 
 [workspace.package]

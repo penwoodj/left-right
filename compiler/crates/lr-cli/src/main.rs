@@ -64,6 +64,11 @@ enum Commands {
     Watch {
         file: String,
     },
+    Transpile {
+        file: String,
+        #[arg(long, default_value = "js")]
+        target: String,
+    },
 }
 
 fn main() -> Result<()> {
@@ -78,6 +83,7 @@ fn main() -> Result<()> {
         Commands::Build => cmd_build(),
         Commands::Test => cmd_test(),
         Commands::Watch { file } => cmd_watch(&file),
+        Commands::Transpile { file, target } => cmd_transpile(&file, &target),
     }
 }
 
@@ -525,4 +531,23 @@ fn cmd_watch(file: &str) -> Result<()> {
 
         rx.recv_timeout(Duration::from_secs(1))?;
     }
+}
+
+fn cmd_transpile(file: &str, target: &str) -> Result<()> {
+    if target != "js" {
+        eprintln!("{}", format!("Unsupported target: {}", target).red());
+        std::process::exit(1);
+    }
+
+    let source = std::fs::read_to_string(file)
+        .map_err(|_| anyhow::anyhow!("File not found: {}", file))?;
+
+    match lr_codegen_js::transpile_source_with_name(&source, file) {
+        Ok(js) => println!("{}", js),
+        Err(e) => {
+            eprintln!("{}", format!("Transpile error: {}", e).red());
+            std::process::exit(1);
+        }
+    }
+    Ok(())
 }

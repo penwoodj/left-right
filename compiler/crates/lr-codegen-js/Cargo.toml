@@ -1,0 +1,10 @@
+[package]
+name = "lr-codegen-js"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+lr-ast = { path = "../lr-ast" }
+lr-lexer = { path = "../lr-lexer" }
+lr-parser = { path = "../lr-parser" }
+thiserror = { workspace = true }

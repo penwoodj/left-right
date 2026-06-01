@@ -11,6 +11,7 @@ lr-bytecode = { path = "../lr-bytecode" }
 lr-vm = { path = "../lr-vm" }
 lr-common = { path = "../lr-common" }
 lr-diagnostics = { path = "../lr-diagnostics" }
+lr-codegen-js = { path = "../lr-codegen-js" }
 clap.workspace = true
 anyhow.workspace = true
 colored.workspace = true

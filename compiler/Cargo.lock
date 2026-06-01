@@ -469,6 +469,7 @@ dependencies = [
  "clap",
  "colored",
  "lr-bytecode",
+ "lr-codegen-js",
  "lr-common",
  "lr-compiler",
  "lr-diagnostics",
@@ -477,6 +478,16 @@ dependencies = [
  "lr-vm",
  "notify",
  "rustyline",
+ "thiserror",
+]
+
+[[package]]
+name = "lr-codegen-js"
+version = "0.1.0"
+dependencies = [
+ "lr-ast",
+ "lr-lexer",
+ "lr-parser",
  "thiserror",
 ]
 
