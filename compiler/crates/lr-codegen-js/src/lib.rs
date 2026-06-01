@@ -32,6 +32,7 @@ pub struct CodeGenerator {
     output: String,
     depth: usize,
     var_counter: usize,
+    in_catch_handler: bool,
 }
 
 impl CodeGenerator {
@@ -40,6 +41,7 @@ impl CodeGenerator {
             output: String::new(),
             depth: 0,
             var_counter: 0,
+            in_catch_handler: false,
         }
     }
 
@@ -130,7 +132,11 @@ impl CodeGenerator {
     }
 
     fn gen_left_arg(&mut self, _l: &LeftArg) {
-        self.output.push('x');
+        if self.in_catch_handler {
+            self.output.push_str("__e");
+        } else {
+            self.output.push('x');
+        }
     }
 
     fn gen_right_arg(&mut self, _r: &RightArg) {
@@ -344,6 +350,19 @@ impl CodeGenerator {
         None
     }
 
+    fn is_spread_entry(entry: &MapEntry) -> bool {        match &entry.key {
+            Expression::Identifier(ident) if ident.name == "+:" && entry.value.is_some() => true,
+            Expression::Application(app) => {
+                if let Expression::Identifier(ident) = app.left.as_ref() {
+                    ident.name == "+:"
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
+
     fn is_infix_operator(&self, op: &str) -> bool {
         matches!(op,
             "+" | "-" | "*" | "/" | "%" | "^" |
@@ -514,9 +533,14 @@ impl CodeGenerator {
 
         let is_program = !non_arg_entries.is_empty() && {
             let last_idx = non_arg_entries.len() - 1;
-            non_arg_entries[last_idx].is_expression_key
-                && non_arg_entries[last_idx].value.is_none()
-                && non_arg_entries[..last_idx].iter().any(|e| e.is_assignment)
+            let last_entry = non_arg_entries[last_idx];
+
+            if last_entry.value.is_some() || Self::is_spread_entry(last_entry) {
+                false
+            } else {
+                let earlier_has_value = non_arg_entries[..last_idx].iter().any(|e| e.value.is_some());
+                earlier_has_value
+            }
         };
 
         if has_arg_keys && !is_program {
@@ -541,24 +565,25 @@ impl CodeGenerator {
     }
 
     fn gen_program_literal(&mut self, entries: &[&MapEntry]) {
-        self.output.push_str("(() => {");
+        self.output.push_str("(() => {\n");
         self.depth += 1;
 
         let last_idx = entries.len() - 1;
         for entry in &entries[..last_idx] {
-            if entry.is_assignment {
-                if let Expression::Identifier(ident) = &entry.key {
-                    self.indent();
-                    self.output.push_str("const ");
-                    self.output.push_str(&ident.name);
-                    self.output.push_str(" = ");
-                    if let Some(ref value) = entry.value {
-                        self.gen_expression(value);
-                    } else {
-                        self.gen_expression(&entry.key);
-                    }
-                    self.output.push_str(";\n");
+            if let Expression::Identifier(ident) = &entry.key {
+                if ident.name == "+:" {
+                    continue;
                 }
+                self.indent();
+                self.output.push_str("const ");
+                self.output.push_str(&ident.name);
+                self.output.push_str(" = ");
+                if let Some(ref value) = entry.value {
+                    self.gen_expression(value);
+                } else {
+                    self.gen_expression(&entry.key);
+                }
+                self.output.push_str(";\n");
             }
         }
 
@@ -591,6 +616,16 @@ impl CodeGenerator {
                         self.gen_expression(value);
                     }
                     continue;
+                }
+            }
+
+            if let Expression::Application(app) = &entry.key {
+                if let Expression::Identifier(ident) = app.left.as_ref() {
+                    if ident.name == "+:" {
+                        self.output.push_str("...");
+                        self.gen_expression(&app.right);
+                        continue;
+                    }
                 }
             }
 
@@ -686,9 +721,81 @@ impl CodeGenerator {
     fn gen_catch_expression(&mut self, c: &CatchExpression) {
         self.output.push_str("try {");
         self.gen_expression(&c.operator);
-        self.output.push_str("} catch (__e) {");
-        self.gen_expression(&c.handler);
+        self.output.push_str("} catch (__e) {\n");
+        self.depth += 1;
+
+        let prev_in_catch = self.in_catch_handler;
+        self.in_catch_handler = true;
+
+        if let Expression::MapLiteral(map) = c.handler.as_ref() {
+            self.gen_handler_body(map);
+        } else {
+            self.indent();
+            self.gen_expression(&c.handler);
+            self.output.push('\n');
+        }
+
+        self.in_catch_handler = prev_in_catch;
+
+        self.depth -= 1;
+        self.indent();
         self.output.push('}');
+    }
+
+    fn gen_handler_body(&mut self, m: &MapLiteral) {
+        let entries: Vec<_> = m.entries.iter()
+            .filter(|e| !matches!(e.key, Expression::LeftArg(_) | Expression::RightArg(_)))
+            .collect();
+
+        if entries.is_empty() {
+            return;
+        }
+
+        let last_idx = entries.len() - 1;
+        let is_simple_return = entries.len() == 1
+            || (entries[last_idx].is_expression_key
+                && entries[last_idx].value.is_none()
+                && !entries[..last_idx].iter().any(|e| e.is_assignment));
+
+        if is_simple_return {
+            let last_entry = &entries[last_idx];
+            if let Some(ref value) = last_entry.value {
+                self.indent();
+                self.gen_expression(value);
+                self.output.push('\n');
+            } else {
+                self.indent();
+                self.gen_expression(&last_entry.key);
+                self.output.push('\n');
+            }
+        } else {
+            for entry in &entries[..last_idx] {
+                if entry.is_assignment {
+                    if let Expression::Identifier(ident) = &entry.key {
+                        self.indent();
+                        self.output.push_str("const ");
+                        self.output.push_str(&ident.name);
+                        self.output.push_str(" = ");
+                        if let Some(ref value) = entry.value {
+                            self.gen_expression(value);
+                        } else {
+                            self.gen_expression(&entry.key);
+                        }
+                        self.output.push_str(";\n");
+                    }
+                }
+            }
+
+            let last_entry = &entries[last_idx];
+            self.indent();
+            self.output.push_str("return ");
+            if let Some(ref value) = last_entry.value {
+                self.gen_expression(value);
+            } else {
+                self.gen_expression(&last_entry.key);
+            }
+            self.output.push_str(";\n");
+        }
     }
 
     fn gen_async_expression(&mut self, a: &AsyncExpression) {
@@ -761,4 +868,36 @@ pub fn transpile_source_with_name(source: &str, _name: &str) -> Result<String, C
     })?;
     let program = lr_parser::parse(tokens, _name.to_string())?;
     CodeGenerator::transpile(&program)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn t(source: &str) -> String {
+        transpile_source(source).unwrap()
+    }
+
+    #[test]
+    fn test_debug_program_map() {
+        let result = t("{ x: 1, x }");
+        eprintln!("RESULT: {:?}", result);
+        assert!(result.contains("const x"), "Expected const x in: {:?}", result);
+        assert!(result.contains("return x"), "Expected return x in: {:?}", result);
+    }
+
+    #[test]
+    fn test_literals() {
+        assert_eq!(t("42"), "42");
+        assert_eq!(t("true"), "true");
+        assert_eq!(t("false"), "false");
+        assert_eq!(t("undefined"), "undefined");
+    }
+
+    #[test]
+    fn test_infix_ops() {
+        assert_eq!(t("5 + 3"), "5 + 3");
+        assert_eq!(t("5 - 3"), "5 - 3");
+        assert_eq!(t("5 * 3"), "5 * 3");
+    }
 }
