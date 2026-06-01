@@ -97,7 +97,7 @@ Transpiles Left-Right AST to JavaScript. CLI: `lr transpile <file>`.
 | `5 + 3` | `5 + 3` |
 | `arr $ { _< * 2 }` | `arr.map(x => x * 2)` |
 | `arr $? { _< > 2 }` | `arr.filter(x => x > 2)` |
-| `arr $||| { _< * 2 }` | `await Promise.all(arr.map(x => x * 2))` |
+| `arr $||| { _< * 2 }` | `Promise.all(arr.map(x => x * 2))` |
 | `obj@`key`` | `obj["key"]` |
 | `arr #` | `(arr).length` |
 | `data func` | `func(data)` |

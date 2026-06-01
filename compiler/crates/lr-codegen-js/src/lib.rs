@@ -451,7 +451,7 @@ impl CodeGenerator {
                 self.output.push_str(".map(String)");
             }
             "$|||" => {
-                self.output.push_str("await Promise.all(");
+                self.output.push_str("Promise.all(");
                 self.gen_expression(left);
                 self.output.push_str(".map(");
                 self.gen_closure(right);
@@ -985,8 +985,9 @@ mod tests {
     #[test]
     fn test_parallel_map() {
         let result = t("[1, 2, 3] $||| { _< * 2 }");
-        assert!(result.contains("await Promise.all("), "{}", result);
+        assert!(result.contains("Promise.all("), "{}", result);
         assert!(result.contains(".map("), "{}", result);
+        assert!(!result.contains("await"), "should not self-await without \\\\: {}", result);
     }
 
     #[test]
