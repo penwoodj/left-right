@@ -277,6 +277,11 @@ impl CodeGenerator {
                 self.output.push_str(method);
                 self.output.push_str("()");
             }
+            OperatorPattern::ChainedMethod(chain, obj) => {
+                self.gen_expression(obj);
+                self.output.push('.');
+                self.output.push_str(chain);
+            }
             OperatorPattern::Capitalize(expr) => {
                 self.output.push_str("(s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase())(");
                 self.gen_expression(expr);
@@ -337,6 +342,15 @@ impl CodeGenerator {
             }
             if op_ident.name == "!!!" {
                 return OperatorPattern::Throw(&a.left);
+            }
+            if op_ident.name == "$%" {
+                return OperatorPattern::ChainedMethod("sort()", &a.left);
+            }
+            if op_ident.name == "$?!" {
+                return OperatorPattern::ChainedMethod("filter(Boolean)", &a.left);
+            }
+            if op_ident.name == "$\"" {
+                return OperatorPattern::ChainedMethod("map(String)", &a.left);
             }
             if self.is_infix_operator(&op_ident.name) {
                 return OperatorPattern::Partial(&a.left, &op_ident.name);
@@ -894,6 +908,7 @@ enum OperatorPattern<'a> {
     Generic(&'a Expression, &'a Expression),
     MethodCall(&'a str, &'a Expression, &'a Expression),
     MethodCallNoArg(&'a str, &'a Expression),
+    ChainedMethod(&'a str, &'a Expression),
     Capitalize(&'a Expression),
 }
 
@@ -1150,5 +1165,20 @@ mod tests {
     #[test]
     fn test_and_operator() {
         assert_eq!(t("a & b"), "a && b");
+    }
+
+    #[test]
+    fn test_sort_operator() {
+        assert_eq!(t("[3, 1, 2] $%"), "[3, 1, 2].sort()");
+    }
+
+    #[test]
+    fn test_compact_operator() {
+        assert_eq!(t("[1, undefined, 2] $?!"), "[1, undefined, 2].filter(Boolean)");
+    }
+
+    #[test]
+    fn test_each_to_string_operator() {
+        assert_eq!(t("[1, 2, 3] $\""), "[1, 2, 3].map(String)");
     }
 }
