@@ -60,10 +60,10 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 
 | Layer | Count | Runner |
 |-------|-------|--------|
-| Rust unit/e2e | 427 (2 ignored) | `cargo test` in `compiler/` |
+| Rust unit/e2e | 441 (2 ignored) | `cargo test` in `compiler/` |
 | CLI integration | 114 | `lr test` from `crates/lr-cli/` |
 | Live system | 174 | `compiler/tests/live_runner.sh` |
-| **Total** | **715** | |
+| **Total** | **729** | |
 
 ### Fully Verified Features (all 3 layers)
 
@@ -98,18 +98,14 @@ Transpiles Left-Right AST to JavaScript. CLI: `lr transpile <file>`.
 | `arr $ { _< * 2 }` | `arr.map(x => x * 2)` |
 | `arr $? { _< > 2 }` | `arr.filter(x => x > 2)` |
 | `arr $||| { _< * 2 }` | `Promise.all(arr.map(x => x * 2))` |
-| `obj@`key`` | `obj["key"]` |
-| `arr #` | `(arr).length` |
-| `data func` | `func(data)` |
-| `{ _< + 1 } 5` | `(x => x + 1)(5)` |
-| `{ a: 1, b: a + 1, b }` | `(() => { const a = 1; const b = a + 1; return b; })()` |
-| `42 !!!` | `throw 42` |
-| `expr !!!? { handler }` | `try { expr } catch(__e) { handler }` |
-| `expr ///` | `(async () => expr)()` |
-| `expr \\\` | `await expr` |
-| `{ a: 1, +: other }` | `{a: 1, ...other}` |
+| `str ^` | `str.toUpperCase()` |
+| `str _` | `str.toLowerCase()` |
+| `str ^_` | `(s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase())(str)` |
+| `str <> `,`` | `str.split(",")` |
+| `arr >< `,`` | `arr.join(",")` |
+| `str ~ `e`` | `str.replace("e")` |
 
-21 unit tests in `lr-codegen-js`. Crate at `compiler/crates/lr-codegen-js/`.
+35 unit tests in `lr-codegen-js`. Crate at `compiler/crates/lr-codegen-js/`.
 
 ### Features NOT Fully End-to-End Verified
 

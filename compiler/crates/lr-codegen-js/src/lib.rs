@@ -263,6 +263,25 @@ impl CodeGenerator {
                 self.gen_expression(right);
                 self.output.push(')');
             }
+            OperatorPattern::MethodCall(method, obj, arg) => {
+                self.gen_expression(obj);
+                self.output.push('.');
+                self.output.push_str(method);
+                self.output.push('(');
+                self.gen_expression(arg);
+                self.output.push(')');
+            }
+            OperatorPattern::MethodCallNoArg(method, obj) => {
+                self.gen_expression(obj);
+                self.output.push('.');
+                self.output.push_str(method);
+                self.output.push_str("()");
+            }
+            OperatorPattern::Capitalize(expr) => {
+                self.output.push_str("(s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase())(");
+                self.gen_expression(expr);
+                self.output.push(')');
+            }
         }
     }
 
@@ -276,6 +295,12 @@ impl CodeGenerator {
                     return OperatorPattern::Infix(op, &inner_app.left, &a.right);
                 } else if op.starts_with('$') {
                     return OperatorPattern::Dollar(op, &inner_app.left, &a.right);
+                } else if op == "<>" {
+                    return OperatorPattern::MethodCall("split", &inner_app.left, &a.right);
+                } else if op == "><" {
+                    return OperatorPattern::MethodCall("join", &inner_app.left, &a.right);
+                } else if op == "~" {
+                    return OperatorPattern::MethodCall("replace", &inner_app.left, &a.right);
                 } else if op == "@" {
                     return OperatorPattern::PropertyAccess(&inner_app.left, &a.right);
                 } else if op == "#" {
@@ -300,6 +325,15 @@ impl CodeGenerator {
         if let Expression::Identifier(op_ident) = a.right.as_ref() {
             if op_ident.name == "#" {
                 return OperatorPattern::Size(&a.left);
+            }
+            if op_ident.name == "^" {
+                return OperatorPattern::MethodCallNoArg("toUpperCase", &a.left);
+            }
+            if op_ident.name == "_" {
+                return OperatorPattern::MethodCallNoArg("toLowerCase", &a.left);
+            }
+            if op_ident.name == "^_" {
+                return OperatorPattern::Capitalize(&a.left);
             }
             if op_ident.name == "!!!" {
                 return OperatorPattern::Throw(&a.left);
@@ -858,6 +892,9 @@ enum OperatorPattern<'a> {
     FunctionCall(&'a str, Vec<&'a Expression>),
     ClosureApply(&'a Expression, Vec<&'a Expression>),
     Generic(&'a Expression, &'a Expression),
+    MethodCall(&'a str, &'a Expression, &'a Expression),
+    MethodCallNoArg(&'a str, &'a Expression),
+    Capitalize(&'a Expression),
 }
 
 impl Default for CodeGenerator {
@@ -1027,5 +1064,91 @@ mod tests {
         let result = t("42 ///");
         assert!(result.contains("async"), "{}", result);
         assert!(result.contains("42"), "{}", result);
+    }
+
+    #[test]
+    fn test_string_uppercase() {
+        let result = t("`hello` ^");
+        assert!(result.contains("toUpperCase()"), "{}", result);
+    }
+
+    #[test]
+    fn test_string_lowercase() {
+        let result = t("`HELLO` _");
+        assert!(result.contains("toLowerCase()"), "{}", result);
+    }
+
+    #[test]
+    fn test_string_capitalize() {
+        let result = t("`hello` ^_");
+        assert!(result.contains("charAt(0).toUpperCase()"), "{}", result);
+        assert!(result.contains("slice(1).toLowerCase()"), "{}", result);
+    }
+
+    #[test]
+    fn test_string_split() {
+        let result = t("`a,b,c` <> `,`");
+        assert!(result.contains(".split("), "{}", result);
+    }
+
+    #[test]
+    fn test_string_join() {
+        let result = t("[`a`, `b`] >< `,`");
+        assert!(result.contains(".join("), "{}", result);
+    }
+
+    #[test]
+    fn test_string_replace() {
+        let result = t("`hello` ~ `e`");
+        assert!(result.contains(".replace("), "{}", result);
+    }
+
+    #[test]
+    fn test_element_wise_add() {
+        let result = t("[1, 2] $+ [3, 4]");
+        assert!(result.contains(".map("), "{}", result);
+        assert!(result.contains("=> x +"), "{}", result);
+    }
+
+    #[test]
+    fn test_element_wise_multiply() {
+        let result = t("[1, 2] $* 3");
+        assert!(result.contains(".map("), "{}", result);
+        assert!(result.contains("=> x *"), "{}", result);
+    }
+
+    #[test]
+    fn test_filter_greater() {
+        let result = t("[1, 2, 3] $?> 2");
+        assert!(result.contains(".filter("), "{}", result);
+        assert!(result.contains("> "), "{}", result);
+    }
+
+    #[test]
+    fn test_filter_less() {
+        let result = t("[1, 2, 3] $?< 2");
+        assert!(result.contains(".filter("), "{}", result);
+        assert!(result.contains("< "), "{}", result);
+    }
+
+    #[test]
+    fn test_exponentiation() {
+        assert_eq!(t("2 ^ 3"), "2 ** 3");
+    }
+
+    #[test]
+    fn test_negation() {
+        let result = t("true !");
+        assert!(result.contains("!"), "{}", result);
+    }
+
+    #[test]
+    fn test_default_operator() {
+        assert_eq!(t("a | b"), "a || b");
+    }
+
+    #[test]
+    fn test_and_operator() {
+        assert_eq!(t("a & b"), "a && b");
     }
 }
