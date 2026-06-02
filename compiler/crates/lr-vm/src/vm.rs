@@ -209,7 +209,6 @@ impl VM {
                     "#" => Ok(Value::number(entries.len() as f64)),
                     "?" => Ok(Value::partial_operator(mc, "?".to_string(), *left)),
                     "!" => Ok(Value::boolean(mc, !left.is_truthy())),
-                    "!!" => Ok(Value::partial_operator(mc, "!!".to_string(), *left)),
                     "///" => Ok(Value::partial_operator(mc, "///".to_string(), *left)),
                     "\\\\" => Ok(Value::partial_operator(mc, "\\\\".to_string(), *left)),
                     "-" => Ok(Value::partial_operator(mc, "-".to_string(), *left)),
@@ -302,43 +301,6 @@ impl VM {
                             } else {
                                 let value_str = left.to_string();
                                 return Err(VMError::Runtime(format!("Uncaught exception: {}", value_str)));
-                            }
-                        }
-                    }
-
-                    // Error[expr] and generic Type[args] constructors
-                    if let Value::String(name) = &left {
-                        if let Value::List(args) = &right {
-                            match name.as_str() {
-                                "Error" => {
-                                    let message = args.first().copied().unwrap_or(Value::undefined());
-                                    frame.set(inst.a(), Value::error(mc, message));
-                                    frame.advance();
-                                    continue;
-                                }
-                                _ => {
-                                    // Generic constructor: return a map with _type and args
-                                    let mut entries = vec![
-                                        (Value::string(mc, "_type".to_string()), Value::string(mc, name.to_string())),
-                                    ];
-                                    if args.len() == 1 {
-                                        // Single arg: spread the arg's properties into the result
-                                        if let Value::Map(m) = &args[0] {
-                                            for (k, v) in m.iter() {
-                                                entries.push((*k, *v));
-                                            }
-                                        } else {
-                                            entries.push((Value::string(mc, "value".to_string()), args[0]));
-                                        }
-                                    } else {
-                                        for (i, arg) in args.iter().enumerate() {
-                                            entries.push((Value::string(mc, format!("arg{}", i)), *arg));
-                                        }
-                                    }
-                                    frame.set(inst.a(), Value::map(mc, entries));
-                                    frame.advance();
-                                    continue;
-                                }
                             }
                         }
                     }
@@ -500,13 +462,6 @@ impl VM {
                                     let result: Vec<Value<'a>> = pairs.into_iter().map(|(_, item)| item).collect();
                                     Value::list(mc, result)
                                 }
-                                (_, "!!") => {
-                                    if partial.left_arg.is_truthy() {
-                                        self.run_closure_body(mc, code, constants, closure_data.body_start, closure_data.arg_count, partial.left_arg, None)?
-                                    } else {
-                                        Value::undefined()
-                                    }
-                                }
                                 _ => return Err(VMError::TypeError(format!(
                                     "Cannot apply partial operator {} to closure", partial.name
                                 ))),
@@ -568,7 +523,6 @@ impl VM {
                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::string(mc, s.to_string())),
                                 "!" => Value::boolean(mc, !Value::string(mc, s.to_string()).is_truthy()),
                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::string(mc, s.to_string())),
-                                "!!" => Value::partial_operator(mc, "!!".to_string(), Value::string(mc, s.to_string())),
                                 "///" => Value::partial_operator(mc, "///".to_string(), Value::string(mc, s.to_string())),
                                 "\\\\" => Value::partial_operator(mc, "\\\\".to_string(), Value::string(mc, s.to_string())),
                                 "^" => Value::string(mc, s.to_uppercase()),
@@ -602,7 +556,6 @@ impl VM {
                                 "#" => Value::number(l.len() as f64),
                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::List(*l)),
                                 "!" => Value::boolean(mc, !Value::List(*l).is_truthy()),
-                                "!!" => Value::partial_operator(mc, "!!".to_string(), Value::List(*l)),
                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::List(*l)),
                                 "///" => Value::partial_operator(mc, "///".to_string(), Value::List(*l)),
                                 "\\\\" => Value::partial_operator(mc, "\\\\".to_string(), Value::List(*l)),
@@ -623,7 +576,7 @@ impl VM {
                                 "$%" => Value::partial_operator(mc, "$%".to_string(), Value::List(*l)),
                                 "$@" => Value::partial_operator(mc, "$@".to_string(), Value::List(*l)),
                                 "$+" | "$-" | "$*" | "$/" => Value::partial_operator(mc, op_name.to_string(), Value::List(*l)),
-                                "$?>" | "$?<" | "$?>=" | "$?<=" | "$?+" | "$?-" => Value::partial_operator(mc, op_name.to_string(), Value::List(*l)),
+                                "$?>" | "$?<" | "$?>=" | "$?<=" => Value::partial_operator(mc, op_name.to_string(), Value::List(*l)),
                                 "$?!" => {
                                     let filtered: Vec<Value<'a>> = l.iter().filter(|v| v.is_truthy()).copied().collect();
                                     Value::list(mc, filtered)
@@ -668,7 +621,6 @@ impl VM {
                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::Number(*n)),
                                 "?" => Value::partial_operator(mc, "?".to_string(), Value::Number(*n)),
                                 "!" => Value::boolean(mc, !Value::Number(*n).is_truthy()),
-                                "!!" => Value::partial_operator(mc, "!!".to_string(), Value::Number(*n)),
                                 "///" => Value::partial_operator(mc, "///".to_string(), Value::Number(*n)),
                                 "\\\\" => Value::partial_operator(mc, "\\\\".to_string(), Value::Number(*n)),
                                 "?\"" => Value::boolean(mc, false),
@@ -687,7 +639,6 @@ impl VM {
                                 "?" => Value::partial_operator(mc, "?".to_string(), right),
                                 "?\"" => Value::boolean(mc, matches!(right, Value::String(_))),
                                 "?#" => Value::boolean(mc, matches!(right, Value::Number(_))),
-                                "!!" => Value::partial_operator(mc, "!!".to_string(), right),
                                 "///" => Value::partial_operator(mc, "///".to_string(), right),
                                 "\\\\" => Value::partial_operator(mc, "\\\\".to_string(), right),
                                 _ => return Err(VMError::TypeError(format!(
@@ -698,7 +649,7 @@ impl VM {
                         (Value::Boolean(b), Value::String(op_name)) => {
                             match op_name.as_str() {
                                 "!" => Value::boolean(mc, !Value::boolean(mc, *b).is_truthy()),
-                                        "&" | "|" | "?" | "!!" => Value::partial_operator(mc, op_name.to_string(), Value::boolean(mc, *b)),
+                                        "&" | "|" | "?" => Value::partial_operator(mc, op_name.to_string(), Value::boolean(mc, *b)),
                                         "+" => Value::partial_operator(mc, "+".to_string(), Value::boolean(mc, *b)),
                                         "///" => Value::partial_operator(mc, "///".to_string(), Value::boolean(mc, *b)),
                                         "\\\\" => Value::partial_operator(mc, "\\\\".to_string(), Value::boolean(mc, *b)),
@@ -1158,8 +1109,6 @@ impl VM {
                                                 (Value::Number(v), "<=") => *v <= *n,
                                                 (Value::Number(v), "=" | "==") => *v == *n,
                                                 (Value::Number(v), "!=") => *v != *n,
-                                                (Value::Number(v), "+") => *v > *n,  // $?+ = filter where > n
-                                                (Value::Number(v), "-") => *v < *n,  // $?- = filter where < n
                                                 _ => false,
                                             }).copied().collect();
                                             Value::list(mc, result)
@@ -1235,7 +1184,6 @@ impl VM {
                               match op_name.as_str() {
                                   "|" => Value::partial_operator(mc, "|".to_string(), Value::undefined()),
                                   "?" => Value::partial_operator(mc, "?".to_string(), Value::undefined()),
-                                  "!!" => Value::partial_operator(mc, "!!".to_string(), Value::undefined()),
                                   "+" => Value::partial_operator(mc, "+".to_string(), Value::undefined()),
                                   _ => return Err(VMError::TypeError(format!(
                                       "Cannot call: left=undefined right={}", op_name
@@ -2597,27 +2545,7 @@ mod tests {
         assert!(s.contains("c"), "merged map should contain key 'c': {}", s);
     }
 
-    #[test]
-    fn test_vm_error_constructor() {
-        let chunk = build_chunk(|c| {
-            let idx_err = c.add_constant(Constant::String("Error".to_string())).unwrap();
-            let idx_msg = c.add_constant(Constant::String("something went wrong".to_string())).unwrap();
 
-            c.emit(Instruction::new(Opcode::LoadConstant, 1, 0, idx_err));
-            c.emit(Instruction::new(Opcode::LoadConstant, 2, 0, idx_msg));
-            c.emit(Instruction::new(Opcode::ListBuild, 3, 2, 1));
-            c.emit(Instruction::new(Opcode::Call, 4, 1, 3));
-            c.emit(Instruction::new(Opcode::LoadRegister, 0, 4, 0));
-            c.emit(Instruction::new(Opcode::Return, 0, 0, 0));
-        });
-
-        let mut vm = VM::new();
-        let result = vm.execute(&chunk);
-        assert!(result.is_ok());
-        let s = result.unwrap();
-        assert!(s.contains("Error"), "Should contain 'Error': {}", s);
-        assert!(s.contains("something went wrong"), "Should contain message: {}", s);
-    }
 
     #[test]
     fn test_vm_arithmetic_float() {

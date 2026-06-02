@@ -1716,34 +1716,6 @@ mod tests {
     }
 
     #[test]
-    fn test_optional_apply_truthy() {
-        let result = compile_and_run("5 !! { _< * 2 }");
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "10");
-    }
-
-    #[test]
-    fn test_optional_apply_falsy() {
-        let result = compile_and_run("0 !! { _< * 2 }");
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "undefined");
-    }
-
-    #[test]
-    fn test_optional_apply_string() {
-        let result = compile_and_run("`hello` !! { _< ^ }");
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "HELLO");
-    }
-
-    #[test]
-    fn test_optional_apply_undefined() {
-        let result = compile_and_run("{} @ `missing` !! { _< * 2 }");
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "undefined");
-    }
-
-    #[test]
     fn test_guard_truthy() {
         let result = compile_and_run("5 { _<, x: 5, x?: x }");
         if let Err(ref e) = result {
@@ -2090,15 +2062,6 @@ mod tests {
         assert_eq!(result.unwrap(), "result: 3");
     }
 
-    // === Error Constructor Tests ===
-
-    #[test]
-    fn test_error_constructor() {
-        let result = compile_and_run("Error[`test error`]");
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "Error: test error");
-    }
-
     // === Combined Feature Tests ===
 
     #[test]
@@ -2175,19 +2138,7 @@ mod tests {
 
     // === Error Property Access Tests ===
 
-    #[test]
-    fn test_error_message_access() {
-        let result = compile_and_run("Error[`something failed`] @ `message`");
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "something failed");
-    }
 
-    #[test]
-    fn test_error_message_string_equality() {
-        let result = compile_and_run("Error[`test`] @ `message` = `test`");
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "true");
-    }
 
     // === Element-wise Arithmetic Tests ===
 
@@ -2486,18 +2437,6 @@ mod tests {
     }
 
     #[test]
-    fn test_filter_plus() {
-        let result = compile_and_run("[1, 2, 3, 4, 5] $?+ 3").unwrap();
-        assert_eq!(result, "[4, 5]");
-    }
-
-    #[test]
-    fn test_filter_minus() {
-        let result = compile_and_run("[1, 2, 3, 4, 5] $?- 3").unwrap();
-        assert_eq!(result, "[1, 2]");
-    }
-
-    #[test]
     fn test_greater_than_true() {
         let result = compile_and_run("5 > 3").unwrap();
         assert_eq!(result, "true");
@@ -2662,12 +2601,7 @@ mod tests {
         assert_eq!(result.unwrap(), "2");
     }
 
-    #[test]
-    fn test_error_property_access_message() {
-        let result = compile_and_run("Error[`test`] @ `message`");
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "test");
-    }
+
 
     #[test]
     fn test_map_default_truthy_left() {

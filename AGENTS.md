@@ -39,6 +39,10 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 - **Paradigm**: Point-free, operator-based, array-oriented, loosely typed
 - **Targets**: Transpiles to both JavaScript and Rust
 - **Transpiler**: Written in Rust
+- **Types**: Only 5 value types exist: Map, List, String, Number, Boolean, undefined. No class/type system.
+- **Strings**: Only backtick strings `` `like this` ``. No single or double-quoted strings.
+- **Comments**: `` ``` `` at end of line only. No block comments.
+- **JS Interop**: Nulls → undefined, numbers → Number, strings → String, arrays → List, objects → Map, functions → operators. Imported operators maintain same name and import/export structure.
 
 ## Design Rules (MUST follow)
 
@@ -60,10 +64,10 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 
 | Layer | Count | Runner |
 |-------|-------|--------|
-| Rust unit/e2e | 441 (2 ignored) | `cargo test` in `compiler/` |
-| CLI integration | 114 | `lr test` from `crates/lr-cli/` |
-| Live system | 174 | `compiler/tests/live_runner.sh` |
-| **Total** | **729** | |
+| Rust unit/e2e | 440 (2 ignored) | `cargo test` in `compiler/` |
+| CLI integration | 105 | `lr test` from `crates/lr-cli/` |
+| Live system | 161 | `compiler/tests/live_runner.sh` |
+| **Total** | **706** | |
 
 ### Fully Verified Features (all 3 layers)
 
@@ -74,13 +78,12 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 - **List ops**: `@` (index), `#` (size), `+` (concat/append/prepend), `_` (concat alias), `-` (remove elements), `><`/`<>` (join with separator), `?><` (contains), `==` (equality)
 - **Loop ops**: `$` (map), `$?` (filter), `$_` (flatmap), `$|` (some), `$&` (every), `$?|` (find), `$~` (uniqueBy), `$>` (groupBy), `$%` (sort), `$?!` (compact), `$@` (pluck), `$"` (eachToString), `$|||` (parallel map — multi-threaded via `std::thread::scope`)
 - **Element-wise**: `$+`, `$-`, `$*`, `$/`, `$%`
-- **Filter comparisons**: `$?>`, `$?<`, `$?>=`, `$?<=`, `$?+`, `$?-`
+- **Filter comparisons**: `$?>`, `$?<`, `$?>=`, `$?<=`
 - **Map ops**: `@` (get), `-` (remove), `+` (merge), `#` (size), `==`/`!=` (equality), `@` with bracket path, `@&` (pick), `|` (default), property access by name
 - **Type checks**: `?"` (isString), `?#` (isNumber)
-- **Error**: `!!!` (throw), `!!!?` (catch), `Error[expr]` (constructor), `Error@message`
-- **Constructors**: `Error[expr]` (Error constructor), `Type[expr]` (generic constructor — returns map with `_type` key)
+- **Error**: `!!!` (throw), `!!!?` (catch)
 - **Closures**: monadic `{ _< }`, diadic `{ _< + _> }`, nested, chained
-- **Control**: `?:` (guards in closures and programs), `!!` (optional apply), `|` (default), `?` (ternary)
+- **Control**: `?:` (guards in closures and programs), `|` (default), `?` (truthy check)
 - **Spread**: `+:` map merge with override
 - **Destructuring**: `_<@`prop`` named arg destructuring
 - **Async/Await**: `///` (make async), `\\\` (await) — synchronous stub, pass-through execution
@@ -105,19 +108,14 @@ Transpiles Left-Right AST to JavaScript. CLI: `lr transpile <file>`.
 | `arr >< `,`` | `arr.join(",")` |
 | `str ~ `e`` | `str.replace("e")` |
 | `5 ? `yes`` | `(5 ? "yes" : undefined)` |
-| `5 !! { _< * 2 }` | `(5 && (x => x * 2)(5))` |
 | `"hello" ?"` | `(typeof "hello" === "string")` |
 | `5 ?#` | `(typeof 5 === "number")` |
-| `{ a: 1 } @& ["a"]` | `((obj, keys) => Object.fromEntries(...))({a:1}, ["a"])` |
+| `{ a: 1 } @& ["a"]` | `(({a}) => ({a}))({a: 1})` |
 | `[1,2,3] ?>< 2` | `[1, 2, 3].includes(2)` |
-| `Error["test"]` | `new Error("test")` |
-| `Type["User"]` | `({_type: "User"})` |
 | `arr $+ [3,4]` | `arr.map((x, i) => x + [3,4][i])` |
 | `arr $?> 2` | `arr.filter(x => x > 2)` |
-| `arr $?+ 3` | `arr.filter(x => x > 3)` |
-| `arr $?- 3` | `arr.filter(x => x < 3)` |
 
-48 unit tests in `lr-codegen-js`. Crate at `compiler/crates/lr-codegen-js/`.
+43 unit tests in `lr-codegen-js`. Crate at `compiler/crates/lr-codegen-js/`.
 
 **Known placeholders** (emit comments only — no direct JS equivalent):
 - `$~` uniqueBy → `/* uniqueBy: ... */`

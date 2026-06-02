@@ -288,7 +288,6 @@ impl Lexer<'_> {
                                     }
                                     return Ok(Some(Token::new(TokenKind::Identifier, "!!!".to_string(), Span::new(start, self.position))));
                                 }
-                                return Ok(Some(Token::new(TokenKind::Identifier, "!!".to_string(), Span::new(start, self.position))));
                             }
                             if self.peek() == Some(&'=') {
                                 self.next();
