@@ -287,6 +287,54 @@ impl CodeGenerator {
                 self.gen_expression(expr);
                 self.output.push(')');
             }
+            OperatorPattern::TruthyCheck(cond, then_expr) => {
+                self.output.push('(');
+                self.gen_expression(cond);
+                self.output.push_str(" ? ");
+                self.gen_expression(then_expr);
+                self.output.push_str(" : undefined)");
+            }
+            OperatorPattern::OptionalApply(value, closure) => {
+                self.output.push('(');
+                self.gen_expression(value);
+                self.output.push_str(" && ");
+                self.gen_expression(closure);
+                self.output.push('(');
+                self.gen_expression(value);
+                self.output.push(')');
+                self.output.push(')');
+            }
+            OperatorPattern::TypeCheck(type_name, expr) => {
+                self.output.push_str("(typeof ");
+                self.gen_expression(expr);
+                self.output.push_str(" === \"");
+                self.output.push_str(type_name);
+                self.output.push_str("\")");
+            }
+            OperatorPattern::Pick(obj, keys) => {
+                self.output.push_str("((obj, keys) => Object.fromEntries(keys.filter(k => k in obj).map(k => [k, obj[k]])))( ");
+                self.gen_expression(obj);
+                self.output.push_str(", ");
+                self.gen_expression(keys);
+                self.output.push_str(" )");
+            }
+            OperatorPattern::Constructor(ctor_name, expr) => {
+                if ctor_name == "Error" {
+                    self.output.push_str("new Error(");
+                    self.gen_expression(expr);
+                    self.output.push(')');
+                } else if ctor_name == "Type" {
+                    self.output.push_str("({_type: ");
+                    self.gen_expression(expr);
+                    self.output.push_str("})");
+                } else {
+                    self.output.push_str("new ");
+                    self.output.push_str(ctor_name);
+                    self.output.push('(');
+                    self.gen_expression(expr);
+                    self.output.push(')');
+                }
+            }
         }
     }
 
@@ -310,6 +358,22 @@ impl CodeGenerator {
                     return OperatorPattern::PropertyAccess(&inner_app.left, &a.right);
                 } else if op == "#" {
                     return OperatorPattern::Size(&inner_app.left);
+                } else if op == "<>" {
+                    return OperatorPattern::MethodCall("split", &inner_app.left, &a.right);
+                } else if op == "><" {
+                    return OperatorPattern::MethodCall("join", &inner_app.left, &a.right);
+                } else if op == "~" {
+                    return OperatorPattern::MethodCall("replace", &inner_app.left, &a.right);
+                } else if op == "@" {
+                    return OperatorPattern::PropertyAccess(&inner_app.left, &a.right);
+                } else if op == "?>" || op == "?><" {
+                    return OperatorPattern::MethodCall("includes", &inner_app.left, &a.right);
+                } else if op == "?" {
+                    return OperatorPattern::TruthyCheck(&inner_app.left, &a.right);
+                } else if op == "!!" {
+                    return OperatorPattern::OptionalApply(&inner_app.left, &a.right);
+                } else if op == "@&" {
+                    return OperatorPattern::Pick(&inner_app.left, &a.right);
                 }
             }
 
@@ -322,38 +386,70 @@ impl CodeGenerator {
             }
         }
 
+        // Check for Type constructors: Error[expr] and Type[expr]
+        if let Expression::Identifier(func_ident) = a.left.as_ref() {
+            if let Expression::ListLiteral(list) = a.right.as_ref() {
+                if list.elements.len() == 1 {
+                    if func_ident.name == "Error" {
+                        return OperatorPattern::Constructor("Error", &list.elements[0]);
+                    } else if func_ident.name == "Type" {
+                        return OperatorPattern::Constructor("Type", &list.elements[0]);
+                    }
+                }
+            }
+        }
+
         // Check for direct closure application: { _< + 1 } 5
         if Self::is_closure_expr(&a.left) {
             return OperatorPattern::ClosureApply(&a.left, vec![&a.right]);
         }
 
-        if let Expression::Identifier(op_ident) = a.right.as_ref() {
-            if op_ident.name == "#" {
+        if let Expression::Identifier(func_ident) = a.right.as_ref() {
+            if func_ident.name == "#" {
                 return OperatorPattern::Size(&a.left);
             }
-            if op_ident.name == "^" {
+            if func_ident.name == "^" {
                 return OperatorPattern::MethodCallNoArg("toUpperCase", &a.left);
             }
-            if op_ident.name == "_" {
+            if func_ident.name == "_" {
                 return OperatorPattern::MethodCallNoArg("toLowerCase", &a.left);
             }
-            if op_ident.name == "^_" {
+            if func_ident.name == "^_" {
                 return OperatorPattern::Capitalize(&a.left);
             }
-            if op_ident.name == "!!!" {
+            if func_ident.name == "!!!" {
                 return OperatorPattern::Throw(&a.left);
             }
-            if op_ident.name == "$%" {
+            if func_ident.name == "$%" {
                 return OperatorPattern::ChainedMethod("sort()", &a.left);
             }
-            if op_ident.name == "$?!" {
+            if func_ident.name == "$?!" {
                 return OperatorPattern::ChainedMethod("filter(Boolean)", &a.left);
             }
-            if op_ident.name == "$\"" {
+            if func_ident.name == "$\"" {
                 return OperatorPattern::ChainedMethod("map(String)", &a.left);
             }
-            if self.is_infix_operator(&op_ident.name) {
-                return OperatorPattern::Partial(&a.left, &op_ident.name);
+            if func_ident.name == "?\"" {
+                return OperatorPattern::TypeCheck("string", &a.left);
+            }
+            if func_ident.name == "?#" {
+                return OperatorPattern::TypeCheck("number", &a.left);
+            }
+            if self.is_infix_operator(&func_ident.name) {
+                return OperatorPattern::Partial(&a.left, &func_ident.name);
+            }
+        }
+
+        // Check for Type constructors: Error[expr] and Type[expr]
+        if let Expression::Identifier(func_ident) = a.left.as_ref() {
+            if let Expression::ListLiteral(list) = a.right.as_ref() {
+                if list.elements.len() == 1 {
+                    if func_ident.name == "Error" {
+                        return OperatorPattern::Constructor("Error", &list.elements[0]);
+                    } else if func_ident.name == "Type" {
+                        return OperatorPattern::Constructor("Type", &list.elements[0]);
+                    }
+                }
             }
         }
 
@@ -527,11 +623,23 @@ impl CodeGenerator {
                 self.gen_expression(right);
                 self.output.push_str("[i])");
             }
-            "$?>" | "$?<" | "$?>=" | "$?<=" | "$?+" | "$?-" => {
+            "$?>" | "$?<" | "$?>=" | "$?<=" => {
                 self.gen_expression(left);
                 self.output.push_str(".filter(x => x ");
                 self.gen_operator_symbol(&op[2..]);
                 self.output.push(' ');
+                self.gen_expression(right);
+                self.output.push(')');
+            }
+            "$?+" => {
+                self.gen_expression(left);
+                self.output.push_str(".filter(x => x > ");
+                self.gen_expression(right);
+                self.output.push(')');
+            }
+            "$?-" => {
+                self.gen_expression(left);
+                self.output.push_str(".filter(x => x < ");
                 self.gen_expression(right);
                 self.output.push(')');
             }
@@ -910,6 +1018,11 @@ enum OperatorPattern<'a> {
     MethodCallNoArg(&'a str, &'a Expression),
     ChainedMethod(&'a str, &'a Expression),
     Capitalize(&'a Expression),
+    TruthyCheck(&'a Expression, &'a Expression),
+    OptionalApply(&'a Expression, &'a Expression),
+    TypeCheck(&'a str, &'a Expression),
+    Pick(&'a Expression, &'a Expression),
+    Constructor(&'a str, &'a Expression),
 }
 
 impl Default for CodeGenerator {
@@ -1180,5 +1293,72 @@ mod tests {
     #[test]
     fn test_each_to_string_operator() {
         assert_eq!(t("[1, 2, 3] $\""), "[1, 2, 3].map(String)");
+    }
+
+    #[test]
+    fn test_truthy_check() {
+        let result = t("5 ? `yes`");
+        assert!(result.contains("?"), "should contain ternary ?: {}", result);
+        assert!(result.contains("undefined"), "should have undefined fallback: {}", result);
+    }
+
+    #[test]
+    fn test_optional_apply() {
+        let result = t("5 !! { _< * 2 }");
+        assert!(result.contains("&&"), "should contain &&: {}", result);
+        assert!(result.contains("=>"), "should contain arrow function: {}", result);
+    }
+
+    #[test]
+    fn test_is_string() {
+        let result = t("`hello` ?\"");
+        assert!(result.contains("typeof"), "should contain typeof: {}", result);
+        assert!(result.contains("string"), "should contain string type: {}", result);
+    }
+
+    #[test]
+    fn test_is_number() {
+        let result = t("5 ?#");
+        assert!(result.contains("typeof"), "should contain typeof: {}", result);
+        assert!(result.contains("number"), "should contain number type: {}", result);
+    }
+
+    #[test]
+    fn test_pick() {
+        let result = t("{ a: 1, b: 2 } @& [`a`]");
+        assert!(result.contains("Object.fromEntries"), "should contain Object.fromEntries: {}", result);
+        assert!(result.contains("filter"), "should contain filter: {}", result);
+    }
+
+    #[test]
+    fn test_contains() {
+        let result = t("[1, 2, 3] ?>< 2");
+        assert!(result.contains(".includes("), "should contain .includes(: {}", result);
+    }
+
+    #[test]
+    fn test_error_constructor() {
+        let result = t("Error[`test`]");
+        assert!(result.contains("new Error"), "should contain new Error: {}", result);
+    }
+
+    #[test]
+    fn test_type_constructor() {
+        let result = t("Type[`User`]");
+        assert!(result.contains("_type"), "should contain _type: {}", result);
+    }
+
+    #[test]
+    fn test_filter_plus_fixed() {
+        let result = t("[1, 2, 3] $?+ 2");
+        assert!(result.contains(".filter(x => x >"), "should contain filter with > not +: {}", result);
+        assert!(!result.contains("x +"), "should NOT contain x +: {}", result);
+    }
+
+    #[test]
+    fn test_filter_minus_fixed() {
+        let result = t("[1, 2, 3] $?- 2");
+        assert!(result.contains(".filter(x => x <"), "should contain filter with < not -: {}", result);
+        assert!(!result.contains("x -"), "should NOT contain x -: {}", result);
     }
 }

@@ -104,8 +104,25 @@ Transpiles Left-Right AST to JavaScript. CLI: `lr transpile <file>`.
 | `str <> `,`` | `str.split(",")` |
 | `arr >< `,`` | `arr.join(",")` |
 | `str ~ `e`` | `str.replace("e")` |
+| `5 ? `yes`` | `(5 ? "yes" : undefined)` |
+| `5 !! { _< * 2 }` | `(5 && (x => x * 2)(5))` |
+| `"hello" ?"` | `(typeof "hello" === "string")` |
+| `5 ?#` | `(typeof 5 === "number")` |
+| `{ a: 1 } @& ["a"]` | `((obj, keys) => Object.fromEntries(...))({a:1}, ["a"])` |
+| `[1,2,3] ?>< 2` | `[1, 2, 3].includes(2)` |
+| `Error["test"]` | `new Error("test")` |
+| `Type["User"]` | `({_type: "User"})` |
+| `arr $+ [3,4]` | `arr.map((x, i) => x + [3,4][i])` |
+| `arr $?> 2` | `arr.filter(x => x > 2)` |
+| `arr $?+ 3` | `arr.filter(x => x > 3)` |
+| `arr $?- 3` | `arr.filter(x => x < 3)` |
 
-35 unit tests in `lr-codegen-js`. Crate at `compiler/crates/lr-codegen-js/`.
+48 unit tests in `lr-codegen-js`. Crate at `compiler/crates/lr-codegen-js/`.
+
+**Known placeholders** (emit comments only — no direct JS equivalent):
+- `$~` uniqueBy → `/* uniqueBy: ... */`
+- `$>` groupBy → `/* groupBy: ... */`
+- `imports@` npm → `/* npm import: ... */`
 
 ### Features NOT Fully End-to-End Verified
 
