@@ -1,1 +1,1 @@
-{ a: 1 } ? `truthy` = `truthy`
+{ a: 1 } ? = true

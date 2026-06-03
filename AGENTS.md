@@ -72,7 +72,7 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 ### Fully Verified Features (all 3 layers)
 
 - **Arithmetic**: `+`, `-`, `*`, `/`, `%`, `^`
-- **Comparison**: `==`, `=`, `!=`, `<`, `>`, `<=`, `>=`
+- **Comparison**: `==` (strict equality), `=` (loose equality), `!=`, `<`, `>`, `<=`, `>=`
 - **Boolean logic**: `&` (AND), `|` (OR/default), `!` (negation)
 - **String ops**: `+` (concat), `^` (uppercase), `_` (lowercase), `^_` (capitalize), `~` (replace), `<>` (split), `><` (join), `==`/`!=` (equality), `#` (length), `-` (remove substring), `+` with Number/Boolean/undefined/List
 - **List ops**: `@` (index), `#` (size), `+` (concat/append/prepend), `_` (concat alias), `-` (remove elements), `><`/`<>` (join with separator), `?><` (contains), `==` (equality)
@@ -83,7 +83,7 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 - **Type checks**: `?"` (isString), `?#` (isNumber)
 - **Error**: `!!!` (throw), `!!!?` (catch)
 - **Closures**: monadic `{ _< }`, diadic `{ _< + _> }`, nested, chained
-- **Control**: `?:` (guards in closures and programs), `|` (default), `?` (truthy check)
+- **Control**: `?:` (guards in closures and programs), `|` (default), `?` (toBoolean)
 - **Spread**: `+:` map merge with override
 - **Destructuring**: `_<@`prop`` named arg destructuring
 - **Async/Await**: `///` (make async), `\\\` (await) — synchronous stub, pass-through execution
@@ -98,6 +98,8 @@ Transpiles Left-Right AST to JavaScript. CLI: `lr transpile <file>`.
 | LR Construct | JS Output |
 |---|---|
 | `5 + 3` | `5 + 3` |
+| `1 = `1`` | `1 == "1"` |
+| `5 ?` | `Boolean(5)` |
 | `arr $ { _< * 2 }` | `arr.map(x => x * 2)` |
 | `arr $? { _< > 2 }` | `arr.filter(x => x > 2)` |
 | `arr $||| { _< * 2 }` | `Promise.all(arr.map(x => x * 2))` |
@@ -107,7 +109,7 @@ Transpiles Left-Right AST to JavaScript. CLI: `lr transpile <file>`.
 | `str <> `,`` | `str.split(",")` |
 | `arr >< `,`` | `arr.join(",")` |
 | `str ~ `e`` | `str.replace("e")` |
-| `5 ? `yes`` | `(5 ? "yes" : undefined)` |
+| `5 ?` | `Boolean(5)` |
 | `"hello" ?"` | `(typeof "hello" === "string")` |
 | `5 ?#` | `(typeof 5 === "number")` |
 | `{ a: 1 } @& ["a"]` | `(({a}) => ({a}))({a: 1})` |

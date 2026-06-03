@@ -287,12 +287,10 @@ impl CodeGenerator {
                 self.gen_expression(expr);
                 self.output.push(')');
             }
-            OperatorPattern::TruthyCheck(cond, then_expr) => {
-                self.output.push('(');
-                self.gen_expression(cond);
-                self.output.push_str(" ? ");
-                self.gen_expression(then_expr);
-                self.output.push_str(" : undefined)");
+            OperatorPattern::ToBoolean(expr) => {
+                self.output.push_str("Boolean(");
+                self.gen_expression(expr);
+                self.output.push(')');
             }
             OperatorPattern::TypeCheck(type_name, expr) => {
                 self.output.push_str("(typeof ");
@@ -360,8 +358,6 @@ impl CodeGenerator {
                     return OperatorPattern::PropertyAccess(&inner_app.left, &a.right);
                 } else if op == "?>" || op == "?><" {
                     return OperatorPattern::MethodCall("includes", &inner_app.left, &a.right);
-                } else if op == "?" {
-                    return OperatorPattern::TruthyCheck(&inner_app.left, &a.right);
                 } else if op == "@&" {
                     return OperatorPattern::Pick(&inner_app.left, &a.right);
                 }
@@ -411,6 +407,9 @@ impl CodeGenerator {
             }
             if func_ident.name == "?#" {
                 return OperatorPattern::TypeCheck("number", &a.left);
+            }
+            if func_ident.name == "?" {
+                return OperatorPattern::ToBoolean(&a.left);
             }
             if self.is_infix_operator(&func_ident.name) {
                 return OperatorPattern::Partial(&a.left, &func_ident.name);
@@ -491,7 +490,7 @@ impl CodeGenerator {
             "^" => self.output.push_str("**"),
             "==" => self.output.push_str("==="),
             "!=" => self.output.push_str("!=="),
-            "=" => self.output.push_str("==="),
+            "=" => self.output.push_str("=="),
             "&" => self.output.push_str("&&"),
             "|" => self.output.push_str("||"),
             "!" => self.output.push('!'),
@@ -970,7 +969,7 @@ enum OperatorPattern<'a> {
     MethodCallNoArg(&'a str, &'a Expression),
     ChainedMethod(&'a str, &'a Expression),
     Capitalize(&'a Expression),
-    TruthyCheck(&'a Expression, &'a Expression),
+    ToBoolean(&'a Expression),
     TypeCheck(&'a str, &'a Expression),
     Pick(&'a Expression, &'a Expression),
 }
@@ -1246,10 +1245,9 @@ mod tests {
     }
 
     #[test]
-    fn test_truthy_check() {
-        let result = t("5 ? `yes`");
-        assert!(result.contains("?"), "should contain ternary ?: {}", result);
-        assert!(result.contains("undefined"), "should have undefined fallback: {}", result);
+    fn test_to_boolean() {
+        let result = t("5 ?");
+        assert!(result.contains("Boolean"), "should contain Boolean(): {}", result);
     }
 
     #[test]

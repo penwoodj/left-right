@@ -207,7 +207,7 @@ impl VM {
                 match op_name.as_str() {
                     "@" => Ok(Value::partial_operator(mc, "@".to_string(), *left)),
                     "#" => Ok(Value::number(entries.len() as f64)),
-                    "?" => Ok(Value::partial_operator(mc, "?".to_string(), *left)),
+                    "?" => Ok(Value::boolean(mc, left.is_truthy())),
                     "!" => Ok(Value::boolean(mc, !left.is_truthy())),
                     "///" => Ok(Value::partial_operator(mc, "///".to_string(), *left)),
                     "\\\\" => Ok(Value::partial_operator(mc, "\\\\".to_string(), *left)),
@@ -520,7 +520,7 @@ impl VM {
                                 "#" => Value::number(s.len() as f64),
                                 "-" => Value::partial_operator(mc, "-".to_string(), Value::string(mc, s.to_string())),
                                 "_" => Value::string(mc, s.to_lowercase()),
-                                "?" => Value::partial_operator(mc, "?".to_string(), Value::string(mc, s.to_string())),
+                                "?" => Value::boolean(mc, !s.is_empty()),
                                 "!" => Value::boolean(mc, !Value::string(mc, s.to_string()).is_truthy()),
                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::string(mc, s.to_string())),
                                 "///" => Value::partial_operator(mc, "///".to_string(), Value::string(mc, s.to_string())),
@@ -554,7 +554,7 @@ impl VM {
                             match op_name.as_str() {
                                 "@" => Value::partial_operator(mc, "@".to_string(), Value::List(*l)),
                                 "#" => Value::number(l.len() as f64),
-                                "?" => Value::partial_operator(mc, "?".to_string(), Value::List(*l)),
+                                "?" => Value::boolean(mc, !l.is_empty()),
                                 "!" => Value::boolean(mc, !Value::List(*l).is_truthy()),
                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::List(*l)),
                                 "///" => Value::partial_operator(mc, "///".to_string(), Value::List(*l)),
@@ -619,7 +619,7 @@ impl VM {
                                 ">=" => Value::partial_operator(mc, ">=".to_string(), Value::Number(*n)),
                                 "&" => Value::partial_operator(mc, "&".to_string(), Value::Number(*n)),
                                 "|" => Value::partial_operator(mc, "|".to_string(), Value::Number(*n)),
-                                "?" => Value::partial_operator(mc, "?".to_string(), Value::Number(*n)),
+                                "?" => Value::boolean(mc, *n != 0.0 && !n.is_nan()),
                                 "!" => Value::boolean(mc, !Value::Number(*n).is_truthy()),
                                 "///" => Value::partial_operator(mc, "///".to_string(), Value::Number(*n)),
                                 "\\\\" => Value::partial_operator(mc, "\\\\".to_string(), Value::Number(*n)),
@@ -636,7 +636,7 @@ impl VM {
                         (Value::String(op_name), _) => {
                             match op_name.as_str() {
                                 "!" => Value::boolean(mc, !right.is_truthy()),
-                                "?" => Value::partial_operator(mc, "?".to_string(), right),
+                                "?" => Value::boolean(mc, right.is_truthy()),
                                 "?\"" => Value::boolean(mc, matches!(right, Value::String(_))),
                                 "?#" => Value::boolean(mc, matches!(right, Value::Number(_))),
                                 "///" => Value::partial_operator(mc, "///".to_string(), right),
@@ -649,7 +649,8 @@ impl VM {
                         (Value::Boolean(b), Value::String(op_name)) => {
                             match op_name.as_str() {
                                 "!" => Value::boolean(mc, !Value::boolean(mc, *b).is_truthy()),
-                                        "&" | "|" | "?" => Value::partial_operator(mc, op_name.to_string(), Value::boolean(mc, *b)),
+                                        "&" | "|" => Value::partial_operator(mc, op_name.to_string(), Value::boolean(mc, *b)),
+                                        "?" => Value::boolean(mc, *b),
                                         "+" => Value::partial_operator(mc, "+".to_string(), Value::boolean(mc, *b)),
                                         "///" => Value::partial_operator(mc, "///".to_string(), Value::boolean(mc, *b)),
                                         "\\\\" => Value::partial_operator(mc, "\\\\".to_string(), Value::boolean(mc, *b)),
@@ -668,11 +669,9 @@ impl VM {
                                         match partial.name.as_str() {
                                             "&" => Value::boolean(mc, *left_val && *right_val),
                                             "|" => if *left_val { partial.left_arg } else { right },
-                                            "==" | "=" => Value::boolean(mc, *left_val == *right_val),
+                                            "==" => Value::boolean(mc, *left_val == *right_val),
+                                            "=" => Value::boolean(mc, partial.left_arg.loose_eq(&right)),
                                             "!=" => Value::boolean(mc, *left_val != *right_val),
-                                            "?" => {
-                                                if *left_val { right } else { partial.left_arg }
-                                            }
                                             _ => return Err(VMError::Runtime(format!(
                                                 "Unknown partial boolean operator: {}", partial.name
                                             ))),
@@ -680,8 +679,8 @@ impl VM {
                                     } else {
                                         match partial.name.as_str() {
                                             "|" => if partial.left_arg.is_truthy() { partial.left_arg } else { right },
-                                            "?" => if partial.left_arg.is_truthy() { right } else { partial.left_arg },
-                                            "==" | "=" => Value::boolean(mc, false),
+                                            "==" => Value::boolean(mc, false),
+                                            "=" => Value::boolean(mc, partial.left_arg.loose_eq(&right)),
                                             "!=" => Value::boolean(mc, true),
                                             "+" => Value::string(mc, format!("{}{}", partial.left_arg, right)),
                                             _ => return Err(VMError::TypeError(format!(
@@ -706,7 +705,8 @@ impl VM {
                                                     Value::number(*lv % *rv)
                                                 }
                                                 "^" => Value::number(lv.powf(*rv)),
-                                                "==" | "=" => Value::boolean(mc, lv == rv),
+                                                "==" => Value::boolean(mc, lv == rv),
+                                                "=" => Value::boolean(mc, partial.left_arg.loose_eq(&right)),
                                                 "!=" => Value::boolean(mc, lv != rv),
                                                 "<" => Value::boolean(mc, lv < rv),
                                                 ">" => Value::boolean(mc, lv > rv),
@@ -721,8 +721,11 @@ impl VM {
                                             let combined = format!("{}{}", ls, rs);
                                             Value::string(mc, combined)
                                         }
-                                        (Value::String(ls), Value::String(rs), "==" | "=") => {
+                                        (Value::String(ls), Value::String(rs), "==") => {
                                             Value::boolean(mc, ls == rs)
+                                        }
+                                        (Value::String(ls), Value::String(rs), "=") => {
+                                            Value::boolean(mc, partial.left_arg.loose_eq(&right))
                                         }
                                         (Value::String(ls), Value::String(rs), "!=") => {
                                             Value::boolean(mc, ls != rs)
@@ -995,7 +998,7 @@ impl VM {
                                         (_, Value::String(s), "+") => {
                                             Value::string(mc, format!("{:?}{}", partial.left_arg, s))
                                         }
-                                        (Value::List(left_items), Value::List(right_items), "==" | "=") => {
+                                        (Value::List(left_items), Value::List(right_items), "==") => {
                                             if left_items.len() != right_items.len() {
                                                 Value::boolean(mc, false)
                                             } else {
@@ -1010,7 +1013,10 @@ impl VM {
                                                 Value::boolean(mc, eq)
                                             }
                                         }
-                                        (Value::Map(left_entries), Value::Map(right_entries), "==" | "=") => {
+                                        (Value::List(_), Value::List(_), "=") => {
+                                            Value::boolean(mc, partial.left_arg.loose_eq(&right))
+                                        }
+                                        (Value::Map(left_entries), Value::Map(right_entries), "==") => {
                                             if left_entries.len() != right_entries.len() {
                                                 Value::boolean(mc, false)
                                             } else {
@@ -1032,6 +1038,9 @@ impl VM {
                                                 });
                                                 Value::boolean(mc, eq)
                                             }
+                                        }
+                                        (Value::Map(_), Value::Map(_), "=") => {
+                                            Value::boolean(mc, partial.left_arg.loose_eq(&right))
                                         }
                                         (Value::Map(left_entries), Value::Map(right_entries), "!=") => {
                                             if left_entries.len() != right_entries.len() {
@@ -1107,18 +1116,15 @@ impl VM {
                                                 (Value::Number(v), ">=") => *v >= *n,
                                                 (Value::Number(v), "<") => *v < *n,
                                                 (Value::Number(v), "<=") => *v <= *n,
-                                                (Value::Number(v), "=" | "==") => *v == *n,
+                                                (Value::Number(v), "==") => *v == *n,
+                                                (Value::Number(v), "=") => item.loose_eq(&Value::Number(*n)),
                                                 (Value::Number(v), "!=") => *v != *n,
                                                 _ => false,
                                             }).copied().collect();
                                             Value::list(mc, result)
                                         }
                                         (left, _, "?") => {
-                                            if left.is_truthy() {
-                                                right
-                                            } else {
-                                                *left
-                                            }
+                                            Value::boolean(mc, left.is_truthy())
                                         }
                                         (left, _, "?\"") => {
                                             Value::boolean(mc, matches!(left, Value::String(_)))
@@ -1135,6 +1141,12 @@ impl VM {
                                         }
                                         (_, _, "+" | "_") => {
                                             Value::string(mc, format!("{}{}", partial.left_arg, right))
+                                        }
+                                        (_, _, "=") => {
+                                            Value::boolean(mc, partial.left_arg.loose_eq(&right))
+                                        }
+                                        (_, _, "==") => {
+                                            Value::boolean(mc, false)
                                         }
                                         _ => return Err(VMError::TypeError(format!(
                                             "Cannot apply partial operator {} to {}", partial.name, right.type_name()
@@ -1183,7 +1195,7 @@ impl VM {
                           (Value::Undefined, Value::String(op_name)) => {
                               match op_name.as_str() {
                                   "|" => Value::partial_operator(mc, "|".to_string(), Value::undefined()),
-                                  "?" => Value::partial_operator(mc, "?".to_string(), Value::undefined()),
+                                   "?" => Value::boolean(mc, false),
                                   "+" => Value::partial_operator(mc, "+".to_string(), Value::undefined()),
                                   _ => return Err(VMError::TypeError(format!(
                                       "Cannot call: left=undefined right={}", op_name

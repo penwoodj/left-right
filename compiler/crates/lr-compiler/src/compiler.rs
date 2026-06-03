@@ -2497,9 +2497,45 @@ mod tests {
     }
 
     #[test]
-    fn test_ternary_string_truthy() {
-        let result = compile_and_run("`hello` ? `yes`").unwrap();
-        assert_eq!(result, "yes");
+    fn test_to_boolean_string_truthy() {
+        let result = compile_and_run("`hello` ?").unwrap();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_to_boolean_number_falsy() {
+        let result = compile_and_run("0 ?").unwrap();
+        assert_eq!(result, "false");
+    }
+
+    #[test]
+    fn test_to_boolean_number_truthy() {
+        let result = compile_and_run("5 ?").unwrap();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_to_boolean_empty_string_falsy() {
+        let result = compile_and_run("`` ?").unwrap();
+        assert_eq!(result, "false");
+    }
+
+    #[test]
+    fn test_to_boolean_list_truthy() {
+        let result = compile_and_run("[1, 2] ?").unwrap();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_to_boolean_empty_list_falsy() {
+        let result = compile_and_run("[] ?").unwrap();
+        assert_eq!(result, "false");
+    }
+
+    #[test]
+    fn test_to_boolean_undefined_falsy() {
+        let result = compile_and_run("undefined ?").unwrap();
+        assert_eq!(result, "false");
     }
 
     #[test]
@@ -2557,6 +2593,78 @@ mod tests {
         let result = compile_and_run("true != false");
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_loose_eq_number_string() {
+        let result = compile_and_run("1 = `1`").unwrap();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_loose_eq_number_string_different() {
+        let result = compile_and_run("1 = `2`").unwrap();
+        assert_eq!(result, "false");
+    }
+
+    #[test]
+    fn test_loose_eq_zero_undefined() {
+        let result = compile_and_run("0 = undefined").unwrap();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_loose_eq_empty_string_undefined() {
+        let result = compile_and_run("`` = undefined").unwrap();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_loose_eq_empty_list_undefined() {
+        let result = compile_and_run("[] = undefined").unwrap();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_loose_eq_empty_map_undefined() {
+        let result = compile_and_run("{} = undefined").unwrap();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_loose_eq_zero_false() {
+        let result = compile_and_run("0 = false").unwrap();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_loose_eq_one_true() {
+        let result = compile_and_run("1 = true").unwrap();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_loose_eq_list_deep() {
+        let result = compile_and_run("[1, 2] = [1, 2]").unwrap();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_loose_eq_map_deep() {
+        let result = compile_and_run("{ a: 1 } = { a: 1 }").unwrap();
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_strict_eq_number_string() {
+        let result = compile_and_run("1 == `1`").unwrap();
+        assert_eq!(result, "false");
+    }
+
+    #[test]
+    fn test_strict_eq_number_number() {
+        let result = compile_and_run("1 == 1").unwrap();
+        assert_eq!(result, "true");
     }
 
     #[test]

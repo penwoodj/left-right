@@ -209,6 +209,81 @@ impl<'gc> Value<'gc> {
             _ => false,
         }
     }
+
+    pub fn loose_eq(&self, other: &Self) -> bool {
+        if !self.is_truthy() && !other.is_truthy() {
+            return true;
+        }
+        if !self.is_truthy() || !other.is_truthy() {
+            return false;
+        }
+        match (self, other) {
+            (Value::Undefined, Value::Undefined) => true,
+            (Value::Boolean(a), Value::Boolean(b)) => a == b,
+            (Value::Number(a), Value::Number(b)) => {
+                if a.is_nan() && b.is_nan() { true }
+                else if a.is_nan() || b.is_nan() { false }
+                else { a == b }
+            }
+            (Value::String(a), Value::String(b)) => a == b,
+            (Value::List(a), Value::List(b)) => {
+                if a.len() != b.len() { return false; }
+                a.iter().zip(b.iter()).all(|(x, y)| x.loose_eq(y))
+            }
+            (Value::Map(a), Value::Map(b)) => {
+                if a.len() != b.len() { return false; }
+                for (key_a, val_a) in a.iter() {
+                    match b.iter().find(|(key_b, _)| key_b.loose_eq(key_a)) {
+                        Some((_, val_b)) => {
+                            if !val_a.loose_eq(val_b) { return false; }
+                        }
+                        None => return false,
+                    }
+                }
+                true
+            }
+            (Value::Number(a), Value::String(b)) => {
+                match b.parse::<f64>() {
+                    Ok(n) => {
+                        if a.is_nan() && n.is_nan() { true }
+                        else if a.is_nan() || n.is_nan() { false }
+                        else { *a == n }
+                    }
+                    Err(_) => false,
+                }
+            }
+            (Value::String(a), Value::Number(b)) => {
+                match a.parse::<f64>() {
+                    Ok(n) => {
+                        if n.is_nan() && b.is_nan() { true }
+                        else if n.is_nan() || b.is_nan() { false }
+                        else { n == *b }
+                    }
+                    Err(_) => false,
+                }
+            }
+
+            (Value::Boolean(a), Value::Number(b)) => {
+                let bool_as_num = if *a { 1.0 } else { 0.0 };
+                bool_as_num == *b
+            }
+            (Value::Number(a), Value::Boolean(b)) => {
+                let bool_as_num = if *b { 1.0 } else { 0.0 };
+                *a == bool_as_num
+            }
+
+            (Value::Boolean(a), Value::String(b)) => {
+                let bool_str = if *a { "true" } else { "false" };
+                bool_str == b.as_str()
+            }
+            (Value::String(a), Value::Boolean(b)) => {
+                let bool_str = if *b { "true" } else { "false" };
+                a.as_str() == bool_str
+            }
+
+            _ => false,
+        }
+    }
 }
 
 impl<'gc> fmt::Display for Value<'gc> {
