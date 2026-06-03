@@ -325,6 +325,11 @@ impl Lexer<'_> {
                     value.push(c);
                     continue;
                 }
+                if value == "?" && c == '!' {
+                    self.next();
+                    value.push(c);
+                    continue;
+                }
                 break;
             }
             if Self::is_digit(c) {

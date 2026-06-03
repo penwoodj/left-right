@@ -79,8 +79,8 @@ Any file containing the text `DO NOT EDIT` (case-sensitive) anywhere in its cont
 - **Loop ops**: `$` (map), `$?` (filter), `$_` (flatmap), `$|` (some), `$&` (every), `$?|` (find), `$~` (uniqueBy), `$>` (groupBy), `$%` (sort), `$?!` (compact), `$@` (pluck), `$"` (eachToString), `$|||` (parallel map — multi-threaded via `std::thread::scope`)
 - **Element-wise**: `$+`, `$-`, `$*`, `$/`, `$%`
 - **Filter comparisons**: `$?>`, `$?<`, `$?>=`, `$?<=`
-- **Map ops**: `@` (get), `-` (remove), `+` (merge), `#` (size), `==`/`!=` (equality), `@` with bracket path, `@&` (pick), `|` (default), property access by name
-- **Type checks**: `?"` (isString), `?#` (isNumber)
+- **Map ops**: `@` (get), `-` (remove), `+` (deep merge), `#` (size), `==`/`!=` (equality), `@` with bracket path, `@&` (pick), `|` (default), property access by name
+- **Type checks**: `?"` (isString), `?#` (isNumber), `?_` (isUndefined), `?!` (isBoolean), `?//` (isList), `?~` (isMap), `?%` (isOperator)
 - **Error**: `!!!` (throw), `!!!?` (catch)
 - **Closures**: monadic `{ _< }`, diadic `{ _< + _> }`, nested, chained
 - **Control**: `?:` (guards in closures and programs), `|` (default), `?` (toBoolean)

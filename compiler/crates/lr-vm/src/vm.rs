@@ -219,6 +219,13 @@ impl VM {
                     "@&" => Ok(Value::partial_operator(mc, "@&".to_string(), *left)),
                     "<>" | "><" => Ok(Value::partial_operator(mc, op_name.to_string(), *left)),
                     "?><" => Ok(Value::partial_operator(mc, "?><".to_string(), *left)),
+                    "?\"" => Ok(Value::boolean(mc, false)),
+                    "?#" => Ok(Value::boolean(mc, false)),
+                    "?_" => Ok(Value::boolean(mc, false)),
+                    "?!" => Ok(Value::boolean(mc, false)),
+                    "?//" => Ok(Value::boolean(mc, false)),
+                    "?~" => Ok(Value::boolean(mc, true)),
+                    "?%" => Ok(Value::boolean(mc, false)),
                     _ => {
                         let key_str = op_name.as_str();
                         let found = entries.iter()
@@ -536,6 +543,11 @@ impl VM {
                                 }
                                 "?\"" => Value::boolean(mc, true),
                                 "?#" => Value::boolean(mc, false),
+                                "?_" => Value::boolean(mc, false),
+                                "?!" => Value::boolean(mc, false),
+                                "?//" => Value::boolean(mc, false),
+                                "?~" => Value::boolean(mc, false),
+                                "?%" => Value::boolean(mc, false),
                                 "/json" => {
                                     match serde_json::from_str::<serde_json::Value>(&s) {
                                         Ok(json_val) => json_to_lr_value(mc, &json_val),
@@ -598,6 +610,13 @@ impl VM {
                                     }).collect();
                                     Value::list(mc, strings)
                                 }
+                                "?\"" => Value::boolean(mc, false),
+                                "?#" => Value::boolean(mc, false),
+                                "?_" => Value::boolean(mc, false),
+                                "?!" => Value::boolean(mc, false),
+                                "?//" => Value::boolean(mc, true),
+                                "?~" => Value::boolean(mc, false),
+                                "?%" => Value::boolean(mc, false),
                                 _ => return Err(VMError::TypeError(format!(
                                     "Unknown list operator: {}", op_name
                                 ))),
@@ -625,6 +644,11 @@ impl VM {
                                 "\\\\" => Value::partial_operator(mc, "\\\\".to_string(), Value::Number(*n)),
                                 "?\"" => Value::boolean(mc, false),
                                 "?#" => Value::boolean(mc, true),
+                                "?_" => Value::boolean(mc, false),
+                                "?!" => Value::boolean(mc, false),
+                                "?//" => Value::boolean(mc, false),
+                                "?~" => Value::boolean(mc, false),
+                                "?%" => Value::boolean(mc, false),
                                 _ => {
                                     return Err(VMError::Runtime(format!(
                                         "Unknown operator: {}",
@@ -656,6 +680,11 @@ impl VM {
                                         "\\\\" => Value::partial_operator(mc, "\\\\".to_string(), Value::boolean(mc, *b)),
                                         "?\"" => Value::boolean(mc, false),
                                 "?#" => Value::boolean(mc, false),
+                                "?_" => Value::boolean(mc, false),
+                                "?!" => Value::boolean(mc, true),
+                                "?//" => Value::boolean(mc, false),
+                                "?~" => Value::boolean(mc, false),
+                                "?%" => Value::boolean(mc, false),
                                 "==" | "!=" | "=" => Value::partial_operator(mc, op_name.to_string(), Value::boolean(mc, *b)),
                                 _ => return Err(VMError::TypeError(format!(
                                     "Unknown boolean operator: {}", op_name
@@ -981,7 +1010,23 @@ impl VM {
                                                 if let Some(pos) = merged.iter().position(|(mk, _)| {
                                                     if let (Value::String(a), Value::String(b)) = (mk, k) { a == b } else { false }
                                                 }) {
-                                                    merged[pos].1 = *v;
+                                                    // Deep merge: if both values are maps, merge recursively
+                                                    match (&merged[pos].1, v) {
+                                                        (Value::Map(left_sub), Value::Map(right_sub)) => {
+                                                            let mut sub_merged = left_sub.to_vec();
+                                                            for (sk, sv) in right_sub.iter() {
+                                                                if let Some(spos) = sub_merged.iter().position(|(smk, _)| {
+                                                                    if let (Value::String(a), Value::String(b)) = (smk, sk) { a == b } else { false }
+                                                                }) {
+                                                                    sub_merged[spos].1 = *sv;
+                                                                } else {
+                                                                    sub_merged.push((*sk, *sv));
+                                                                }
+                                                            }
+                                                            merged[pos].1 = Value::map(mc, sub_merged);
+                                                        }
+                                                        _ => merged[pos].1 = *v,
+                                                    }
                                                 } else {
                                                     merged.push((*k, *v));
                                                 }
@@ -1132,6 +1177,21 @@ impl VM {
                                         (left, _, "?#") => {
                                             Value::boolean(mc, matches!(left, Value::Number(_)))
                                         }
+                                        (left, _, "?_") => {
+                                            Value::boolean(mc, matches!(left, Value::Undefined))
+                                        }
+                                        (left, _, "?!") => {
+                                            Value::boolean(mc, matches!(left, Value::Boolean(_)))
+                                        }
+                                        (left, _, "?//") => {
+                                            Value::boolean(mc, matches!(left, Value::List(_)))
+                                        }
+                                        (left, _, "?~") => {
+                                            Value::boolean(mc, matches!(left, Value::Map(_)))
+                                        }
+                                        (left, _, "?%") => {
+                                            Value::boolean(mc, matches!(left, Value::Operator(_) | Value::PartialOperator(_) | Value::Closure(_) | Value::PartialClosure(_)))
+                                        }
                                         (_, _, "|") => {
                                             if partial.left_arg.is_truthy() {
                                                 partial.left_arg
@@ -1193,15 +1253,22 @@ impl VM {
                              }
                          }
                           (Value::Undefined, Value::String(op_name)) => {
-                              match op_name.as_str() {
-                                  "|" => Value::partial_operator(mc, "|".to_string(), Value::undefined()),
-                                   "?" => Value::boolean(mc, false),
-                                  "+" => Value::partial_operator(mc, "+".to_string(), Value::undefined()),
-                                  _ => return Err(VMError::TypeError(format!(
-                                      "Cannot call: left=undefined right={}", op_name
-                                  ))),
-                              }
-                          }
+                               match op_name.as_str() {
+                                   "|" => Value::partial_operator(mc, "|".to_string(), Value::undefined()),
+                                    "?" => Value::boolean(mc, false),
+                                   "?\"" => Value::boolean(mc, false),
+                                   "?#" => Value::boolean(mc, false),
+                                   "?_" => Value::boolean(mc, true),
+                                   "?!" => Value::boolean(mc, false),
+                                   "?//" => Value::boolean(mc, false),
+                                   "?~" => Value::boolean(mc, false),
+                                   "?%" => Value::boolean(mc, false),
+                                   "+" => Value::partial_operator(mc, "+".to_string(), Value::undefined()),
+                                   _ => return Err(VMError::TypeError(format!(
+                                       "Cannot call: left=undefined right={}", op_name
+                                   ))),
+                               }
+                           }
                           _ => {
                               if let Value::Error(_) = &left {
                                   if let Value::String(op) = &right {
@@ -1593,7 +1660,22 @@ impl VM {
                                 if let Some(pos) = merged.iter().position(|(mk, _)| {
                                     if let (Value::String(a), Value::String(b)) = (mk, k) { a == b } else { false }
                                 }) {
-                                    merged[pos].1 = *v;
+                                    match (&merged[pos].1, v) {
+                                        (Value::Map(left_sub), Value::Map(right_sub)) => {
+                                            let mut sub_merged = left_sub.to_vec();
+                                            for (sk, sv) in right_sub.iter() {
+                                                if let Some(spos) = sub_merged.iter().position(|(smk, _)| {
+                                                    if let (Value::String(a), Value::String(b)) = (smk, sk) { a == b } else { false }
+                                                }) {
+                                                    sub_merged[spos].1 = *sv;
+                                                } else {
+                                                    sub_merged.push((*sk, *sv));
+                                                }
+                                            }
+                                            merged[pos].1 = Value::map(mc, sub_merged);
+                                        }
+                                        _ => merged[pos].1 = *v,
+                                    }
                                 } else {
                                     merged.push((*k, *v));
                                 }

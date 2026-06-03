@@ -2801,4 +2801,61 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Alice");
     }
+
+    #[test]
+    fn test_deep_merge_nested_maps() {
+        let result = compile_and_run("{ a: { b: 1 } } + { a: { c: 2 } }");
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.contains("b: 1"), "deep merge should preserve left nested key");
+        assert!(output.contains("c: 2"), "deep merge should add right nested key");
+    }
+
+    #[test]
+    fn test_type_check_is_undefined_true() {
+        let result = compile_and_run("undefined ?_");
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_type_check_is_undefined_false() {
+        let result = compile_and_run("5 ?_");
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_type_check_is_boolean_true() {
+        let result = compile_and_run("true ?!");
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_type_check_is_boolean_false() {
+        let result = compile_and_run("5 ?!");
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_type_check_is_list_true() {
+        let result = compile_and_run("[1, 2] ?//");
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_type_check_is_list_false() {
+        let result = compile_and_run("5 ?//");
+        assert_eq!(result.unwrap(), "false");
+    }
+
+    #[test]
+    fn test_type_check_is_map_true() {
+        let result = compile_and_run("{ a: 1 } ?~");
+        assert_eq!(result.unwrap(), "true");
+    }
+
+    #[test]
+    fn test_type_check_is_map_false() {
+        let result = compile_and_run("5 ?~");
+        assert_eq!(result.unwrap(), "false");
+    }
 }
